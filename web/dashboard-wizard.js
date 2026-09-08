@@ -651,8 +651,9 @@
         } catch {
             jsonSources = [];
             if (els.jsonSourceList) {
-                els.jsonSourceList.innerHTML = '<p class="wizard-muted">Modo sin servidor: pulse <strong>Abrir archivos</strong> para cargar JSON desde este dispositivo.</p>';
+                els.jsonSourceList.innerHTML = '<p class="wizard-muted">Pulse <strong>Abrir archivos</strong> y seleccione uno o más JSON de este dispositivo.</p>';
             }
+            $('wizard-json-mobile-hint')?.classList.remove('hidden');
         }
     }
 
@@ -696,18 +697,36 @@
 
     async function onManualJsonFiles() {
         const input = $('wizard-file-input');
-        const files = Array.from(input?.files || []).filter(f => f.name.toLowerCase().endsWith('.json'));
-        if (!files.length) return;
+        const selected = Array.from(input?.files || []);
+        if (!selected.length) return;
 
         const packages = [];
-        for (const file of files) {
+        const errors = [];
+
+        for (const file of selected) {
             try {
-                packages.push(D.parseJsonPackage(await file.text(), file.name));
+                const text = await file.text();
+                if (!String(text || '').trim()) {
+                    errors.push(`${file.name}: archivo vacío`);
+                    continue;
+                }
+                packages.push(D.parseJsonPackage(text, file.name));
             } catch (e) {
-                alert(`Error en ${file.name}: ${e.message}`);
+                errors.push(`${file.name}: ${e.message}`);
             }
         }
-        if (!packages.length) return;
+
+        if (!packages.length) {
+            alert(errors.length
+                ? `No se pudo leer ningún JSON válido.\n\n${errors.slice(0, 4).join('\n')}`
+                : 'No se seleccionaron archivos.');
+            return;
+        }
+
+        if (errors.length) {
+            alert(`Se cargaron ${packages.length} archivo(s). Otros no eran JSON válido:\n${errors.slice(0, 3).join('\n')}`);
+        }
+
         input.value = '';
 
         const analysis = D.analyzePackageYears(packages);
