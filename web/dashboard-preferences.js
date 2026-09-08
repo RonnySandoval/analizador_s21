@@ -88,7 +88,7 @@
             });
         }
 
-        document.querySelector('.dashboard-app-footer-title')?.addEventListener('contextmenu', e => {
+        document.querySelector('.dashboard-app-header-title')?.addEventListener('contextmenu', e => {
             e.preventDefault();
             window.S21DashboardDatos?.setSettingsTab?.('apariencia');
             window.S21DashboardDatos?.openPanel?.();

@@ -16,26 +16,33 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="theme-cyber.css">
     <link rel="stylesheet" href="theme-light.css">
-    <link rel="stylesheet" href="dashboard.css?v=63">
+    <link rel="stylesheet" href="dashboard.css?v=64">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="dashboard-preferences.js?v=3"></script>
+    <script src="dashboard-preferences.js?v=4"></script>
 </head>
 <body class="dashboard-body">
-    <div class="container dashboard-container">
-        <header class="dashboard-header">
-            <div class="dashboard-header-main">
-                <div class="logo-icon">📊</div>
-                <div>
-                    <h1>Análisis de Servicio</h1>
-                    <p class="subtitle">Horas, cursos y participación</p>
-                </div>
+    <header id="dashboard-app-header" class="dashboard-app-header" role="banner">
+        <div class="dashboard-app-header-inner">
+            <div class="dashboard-app-header-brand">
+                <span class="dashboard-app-header-logo" aria-hidden="true">📊</span>
+                <span class="dashboard-app-header-title">Análisis de Servicio</span>
             </div>
-        </header>
+            <div class="dashboard-app-header-actions">
+                <button type="button" id="btn-open-apariencia-panel" class="dashboard-header-btn" aria-label="Apariencia" title="Apariencia">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                </button>
+                <button type="button" id="btn-open-datos-panel" class="dashboard-header-btn" aria-label="Datos y configuración" title="Datos">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
 
+    <div class="container dashboard-container">
         <main class="main-card dashboard-main">
             <div id="load-status" class="load-status load-status--global hidden"></div>
 
@@ -248,7 +255,7 @@
             </section>
 
             <div id="empty-state" class="empty-state">
-                Use el icono <strong>⚙</strong> del pie de página para cargar JSON o ver cargas guardadas.
+                Use el icono de <strong>engranaje</strong> en la barra superior para cargar JSON o ver cargas guardadas.
             </div>
         </main>
     </div>
@@ -257,10 +264,10 @@
         <div id="datos-panel-backdrop" class="datos-panel-backdrop" tabindex="-1"></div>
         <div class="datos-panel-sheet">
             <header class="datos-panel-header">
-                <h2 id="datos-panel-title">Configuración</h2>
+                <h2 id="datos-panel-title">Datos</h2>
                 <button type="button" id="datos-panel-close" class="datos-panel-close" aria-label="Cerrar">×</button>
             </header>
-            <nav class="settings-tabs" role="tablist" aria-label="Secciones de configuración">
+            <nav class="settings-tabs settings-tabs--hidden" role="tablist" aria-label="Secciones de configuración" hidden>
                 <button type="button" role="tab" id="settings-tab-datos" class="settings-tab active" data-settings-tab="datos" aria-selected="true" aria-controls="settings-panel-datos">Datos</button>
                 <button type="button" role="tab" id="settings-tab-apariencia" class="settings-tab" data-settings-tab="apariencia" aria-selected="false" aria-controls="settings-panel-apariencia">Apariencia</button>
             </nav>
@@ -522,31 +529,6 @@
         </div>
     </nav>
 
-    <footer id="dashboard-app-footer" class="dashboard-app-footer" role="contentinfo">
-        <div class="dashboard-app-footer-inner">
-            <div class="dashboard-app-footer-brand">
-                <span class="dashboard-app-footer-logo" aria-hidden="true">📊</span>
-                <span class="dashboard-app-footer-title">Análisis de Servicio</span>
-            </div>
-            <div class="dashboard-app-footer-actions">
-                <button type="button" id="btn-open-datos-panel" class="dashboard-footer-btn" aria-label="Configuración y datos">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-                    </svg>
-                </button>
-                <div class="dashboard-footer-theme" role="group" aria-label="Tema">
-                    <button type="button" class="dashboard-footer-btn theme-choice-btn" data-theme-choice="light" id="btn-footer-theme-light" aria-label="Tema claro" title="Tema claro">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-                    </button>
-                    <button type="button" class="dashboard-footer-btn theme-choice-btn" data-theme-choice="dark" id="btn-footer-theme-dark" aria-label="Tema oscuro" title="Tema oscuro">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </footer>
-
     <div id="pwa-install-bar" class="pwa-install-bar" role="region" aria-label="Instalar aplicación">
         <span><strong>Instalar app</strong> — acceso rápido desde móvil o escritorio</span>
         <div class="wizard-actions">
@@ -559,7 +541,7 @@
     <script src="pwa.js"></script>
     <script src="dashboard-data.js?v=30"></script>
     <script src="dashboard-storage.js?v=2"></script>
-    <script src="dashboard-datos.js?v=3"></script>
+    <script src="dashboard-datos.js?v=4"></script>
     <script src="dashboard-grupos.js?v=10"></script>
     <script src="dashboard-wizard.js?v=4"></script>
     <script src="dashboard.js?v=69"></script>

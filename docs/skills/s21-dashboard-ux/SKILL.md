@@ -18,22 +18,22 @@ description: UX and visual design rules for the S-21 analizador dashboard (typog
 
 ## Navigation
 
-- **Top header:** app title + subtitle only (no config controls)
-- **Fixed app footer** (`#dashboard-app-footer`): always visible — app title, **⚙ config** (opens settings → Datos tab), **☀ / 🌙 theme** (two buttons replacing the old toggle)
-- **Section nav** (`dashboard-nav--bottom`): Indicadores, Totales, Grupos, Publicadores — sits **above** the app footer
-- Font size slider stays in settings → Apariencia tab (long-press footer title opens it as shortcut)
+- **Fixed app header** (`#dashboard-app-header`): always visible — app title, **sun icon** (opens settings → Apariencia: tema claro/oscuro + tamaño fuente), **gear icon** (opens settings → Datos: cargas, wizard, alias, ayuda)
+- **Section nav** (`dashboard-nav--bottom`): Indicadores, Totales, Grupos, Publicadores — fixed at bottom
+- Settings tabs are hidden in the sheet; the header button chooses Datos vs Apariencia
+- Long-press header title opens Apariencia as shortcut
 
 ## Settings sheet structure
 
-### Tab «Datos»
+### Datos (gear icon)
 - Cargas guardadas (historial, activar/abrir, eliminar)
 - Wizard de carga (PDF / JSON)
 - Alias de perfiles (cuando hay carga activa)
 - Ayuda (`<details>`): WhatsApp, servidor local vs móvil
 - Borrar datos locales (discreto, modal con confirmación)
 
-### Tab «Apariencia»
-- Tema claro / oscuro (same two buttons as footer; synced)
+### Apariencia (sun icon)
+- Tema claro / oscuro (toggle buttons in panel)
 - Deslizador tamaño de texto (aplica en vivo vía `--app-font-scale`)
 
 ## Light theme contrast (required)

@@ -99,6 +99,8 @@
         document.body.classList.remove('datos-panel-open');
     }
 
+    const PANEL_TITLES = { datos: 'Datos', apariencia: 'Apariencia' };
+
     function setSettingsTab(tabId) {
         const tabs = document.querySelectorAll('.settings-tab');
         const panels = document.querySelectorAll('.settings-tab-panel');
@@ -112,6 +114,8 @@
             panel.classList.toggle('hidden', !show);
             panel.hidden = !show;
         });
+        const titleEl = $('datos-panel-title');
+        if (titleEl && PANEL_TITLES[tabId]) titleEl.textContent = PANEL_TITLES[tabId];
     }
 
     function bindPanelEvents() {
@@ -119,12 +123,12 @@
             setSettingsTab('datos');
             openPanel();
         });
+        $('btn-open-apariencia-panel')?.addEventListener('click', () => {
+            setSettingsTab('apariencia');
+            openPanel();
+        });
         $('datos-panel-close')?.addEventListener('click', closePanel);
         $('datos-panel-backdrop')?.addEventListener('click', closePanel);
-
-        document.querySelectorAll('.settings-tab').forEach(tab => {
-            tab.addEventListener('click', () => setSettingsTab(tab.dataset.settingsTab));
-        });
 
         $('btn-datos-new-load')?.addEventListener('click', () => {
             window.S21DashboardWizard?.showWizard();
