@@ -1,12 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
     const D = window.S21DashboardData;
+    const G = window.S21DashboardGrupos;
     const FILTERS_COLLAPSED_KEY = 'analisis_servicio_filters_collapsed';
     const ACCORDION_STATE_KEY = 'analisis_servicio_accordion_state';
     const PERFIL_ALIASES_KEY = 'analisis_servicio_perfil_aliases';
     const CHART_PROFILES_KEY = 'analisis_servicio_chart_profiles';
 
     const FILTER_LAYOUT = {
-        wide: ['origen'],
+        wide: ['origen', 'grupo'],
         compact: [
             'sexo', 'esperanza', 'anciano', 'siervo_ministerial',
             'precursor_regular', 'precursor_especial', 'misionero',
@@ -50,6 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const publisherDetailEmpty = document.getElementById('publisher-detail-empty');
     const publisherDetailContent = document.getElementById('publisher-detail-content');
     const btnExportPublishers = document.getElementById('btn-export-publishers');
+    const publisherBulkGrupo = document.getElementById('publisher-bulk-grupo');
+    const btnPublisherBulkGrupo = document.getElementById('btn-publisher-bulk-grupo');
     const detailCrossFilter = document.getElementById('detail-cross-filter');
     const detailCrossFilterChips = document.getElementById('detail-cross-filter-chips');
     const btnClearCrossFilter = document.getElementById('btn-clear-cross-filter');
@@ -84,6 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let tableRowsCache = [];
     let chartBarRowsCache = [];
     let chartLineTrendCache = [];
+    let expandedPublisherListKey = '';
     let perfilAliases = {};
     let congregacionDetectada = null;
 
@@ -101,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const PUBLISHER_LIST_COLUMNS = [
         { id: 'nombre', label: 'Nombre', type: 'text', getValue: row => row.nombre },
         { id: 'origen', label: 'Perfil', type: 'text', getValue: row => displayPerfil(row.origen) },
+        { id: 'grupo', label: 'Grupo', type: 'text', getValue: row => row.grupo || '—' },
         { id: 'fecha_nacimiento', label: 'Nacimiento', type: 'text', getValue: row => row.fecha_nacimiento || '' },
         { id: 'fecha_bautismo', label: 'Bautismo', type: 'text', getValue: row => row.fecha_bautismo || '' },
     ];
@@ -115,8 +120,48 @@ document.addEventListener('DOMContentLoaded', () => {
     initControls();
     bindEvents();
     initSectionAccordions();
+    initDashboardNav();
     initFiltersCollapsed();
     initWizard();
+    initGruposModule();
+
+    function initGruposModule() {
+        if (!G) return;
+        G.init({
+            getPublishers: () => flat.publicadores,
+            displayPerfil,
+            escapeHtml,
+            escapeAttr,
+            onChange: (options = {}) => {
+                applyGruposToFlat();
+                renderPublisherBulkGrupoSelect();
+                if (options.matrixPatch) {
+                    refreshPublishersSection();
+                    return;
+                }
+                renderFilters();
+                refreshPublishersSection();
+                refresh();
+            },
+            showHint: msg => setLoadStatus(msg, false),
+        });
+    }
+
+    function applyGruposToFlat() {
+        if (!G || !flat.publicadores.length) return;
+        flat.publicadores = G.applyToRows(flat.publicadores);
+        flat.mensual = G.applyToRows(flat.mensual);
+    }
+
+    function renderPublisherBulkGrupoSelect() {
+        if (!publisherBulkGrupo || !G) return;
+        const count = G.getConfig().groupCount;
+        publisherBulkGrupo.innerHTML = '<option value="">— Grupo —</option>' +
+            Array.from({ length: count }, (_, i) => {
+                const n = i + 1;
+                return `<option value="${n}">Grupo ${n}</option>`;
+            }).join('');
+    }
 
     function initControls() {
         group1.innerHTML = D.S21_GROUP_FIELDS.map(f =>
@@ -177,12 +222,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         btnExportCsv.addEventListener('click', exportCsv);
         if (btnExportPublishers) btnExportPublishers.addEventListener('click', exportPublishersCsv);
+        if (btnPublisherBulkGrupo) {
+            btnPublisherBulkGrupo.addEventListener('click', () => {
+                const groupNum = Number(publisherBulkGrupo?.value);
+                if (!groupNum) {
+                    setLoadStatus('Seleccione un grupo para asignar.', false);
+                    return;
+                }
+                const pubs = sortPublisherList(filterPublishersForList(filteredPubCache));
+                if (!pubs.length) {
+                    setLoadStatus('No hay publicadores visibles para asignar.', false);
+                    return;
+                }
+                G.assignFiltered(pubs.map(p => D.personKey(p)), groupNum);
+                setLoadStatus(`${pubs.length} publicador${pubs.length === 1 ? '' : 'es'} asignado${pubs.length === 1 ? '' : 's'} al grupo ${groupNum}.`, false);
+            });
+        }
         if (publisherSearch) {
             publisherSearch.addEventListener('input', () => {
                 publisherSearchQuery = publisherSearch.value.trim().toLowerCase();
                 renderPublisherList();
             });
         }
+
+        let lastBarHorizontal = prefersHorizontalBarChart();
+        window.addEventListener('resize', () => {
+            const horizontal = prefersHorizontalBarChart();
+            if (horizontal !== lastBarHorizontal) {
+                lastBarHorizontal = horizontal;
+                if (aggregated.length) refresh();
+            } else {
+                scheduleChartResize();
+            }
+        });
     }
 
     function initWizard() {
@@ -237,6 +309,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         flat = D.flattenPackages(packages);
+        applyGruposToFlat();
+        renderPublisherBulkGrupoSelect();
+        if (G) G.render();
         initPerfilAliases();
         initChartProfileInclude();
         filters = buildDefaultFilters();
@@ -441,25 +516,29 @@ document.addEventListener('DOMContentLoaded', () => {
         return f;
     }
 
-    function renderFilterCell(field, { scroll = false } = {}) {
+    function renderFilterCell(field) {
         const label = D.S21_GROUP_FIELDS.find(g => g.id === field)?.label || field;
         const values = D.uniqueValues(flat.mensual, field);
         if (!filters[field]) filters[field] = [];
+        const activeCount = filters[field].length;
         const chips = values.map(v => {
             const active = filters[field].includes(v);
             return `<button type="button" class="filter-chip ${active ? 'on' : ''}${filterMode === 'exclude' && active ? ' filter-chip-exclude' : ''}"
                 data-field="${field}" data-value="${escapeAttr(v)}" title="${escapeAttr(v)}">${escapeHtml(field === 'origen' ? displayPerfil(v) : v)}</button>`;
         }).join('');
-        return `<div class="filter-card">
-            <span class="filter-label">${escapeHtml(label)}</span>
-            <div class="filter-chips${scroll ? ' filter-chips-scroll' : ''}">${chips}</div>
-        </div>`;
+        return `<details class="filter-group"${activeCount ? ' open' : ''}>
+            <summary class="filter-group-summary">
+                <span class="filter-group-label">${escapeHtml(label)}</span>
+                ${activeCount ? `<span class="filter-group-count">${activeCount}</span>` : ''}
+            </summary>
+            <div class="filter-group-chips">${chips || '<span class="filter-group-empty">Sin valores</span>'}</div>
+        </details>`;
     }
 
     function renderFilters() {
         const allFields = [...FILTER_LAYOUT.wide, ...FILTER_LAYOUT.compact];
-        filtersBody.innerHTML = `<div class="filters-grid">${allFields.map(field =>
-            renderFilterCell(field, { scroll: field === 'origen' })
+        filtersBody.innerHTML = `<div class="filters-compact">${allFields.map(field =>
+            renderFilterCell(field)
         ).join('')}</div>`;
 
         filtersBody.querySelectorAll('.filter-chip').forEach(btn => {
@@ -628,6 +707,65 @@ document.addEventListener('DOMContentLoaded', () => {
         publisherSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    function initDashboardNav() {
+        const nav = document.getElementById('dashboard-nav');
+        if (!nav) return;
+
+        nav.querySelectorAll('[data-nav-target]').forEach(btn => {
+            btn.addEventListener('click', () => navigateToDashboardSection(btn.dataset.navTarget));
+        });
+
+        const sections = [
+            { id: 'load', el: document.getElementById('load-section') },
+            { id: 'kpi', el: document.querySelector('[data-accordion-id="kpi"]') },
+            { id: 'table', el: document.querySelector('[data-accordion-id="table"]') },
+            { id: 'grupos', el: document.getElementById('grupos-section') },
+            { id: 'publishers', el: document.getElementById('publisher-section') },
+        ].filter(s => s.el);
+
+        if ('IntersectionObserver' in window) {
+            const observer = new IntersectionObserver(entries => {
+                const visible = entries
+                    .filter(e => e.isIntersecting)
+                    .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+                if (visible.length) {
+                    setDashboardNavActive(visible[0].target.dataset.navSection);
+                }
+            }, { rootMargin: '-20% 0px -55% 0px', threshold: [0, 0.15, 0.4] });
+
+            sections.forEach(({ id, el }) => {
+                el.dataset.navSection = id;
+                observer.observe(el);
+            });
+        }
+    }
+
+    function setDashboardNavActive(targetId) {
+        document.querySelectorAll('.dashboard-nav-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.navTarget === targetId);
+        });
+    }
+
+    function navigateToDashboardSection(targetId) {
+        if (!targetId) return;
+        setDashboardNavActive(targetId);
+
+        if (targetId === 'load') {
+            document.getElementById('load-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            expandAccordion('load');
+            return;
+        }
+
+        expandAccordion(targetId);
+        const el = targetId === 'publishers'
+            ? document.getElementById('publisher-section')
+            : targetId === 'grupos'
+                ? document.getElementById('grupos-section')
+                : document.querySelector(`.dashboard-accordion[data-accordion-id="${targetId}"]`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (targetId === 'table') scheduleChartResize();
+    }
+
     function initSectionAccordions() {
         const accordions = document.querySelectorAll('.dashboard-accordion[data-accordion-id]');
         if (!accordions.length) return;
@@ -687,15 +825,76 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id === 'table') scheduleChartResize();
     }
 
+    function prefersHorizontalBarChart() {
+        return window.matchMedia('(max-width: 640px)').matches;
+    }
+
+    function prefersMobileLayout() {
+        return window.matchMedia('(max-width: 640px)').matches;
+    }
+
     function scheduleChartResize() {
         requestAnimationFrame(resizeDashboardCharts);
         setTimeout(resizeDashboardCharts, 420);
     }
 
     function resizeDashboardCharts() {
+        refreshChartScrollWidths();
         barChart?.resize();
         lineChart?.resize();
         publisherDetailChart?.resize();
+    }
+
+    function syncChartScrollWidth(scrollEl, innerEl, itemCount, pxPerItem) {
+        if (!scrollEl || !innerEl || !itemCount) {
+            if (innerEl) {
+                innerEl.style.width = '100%';
+                innerEl.style.minWidth = '100%';
+            }
+            return;
+        }
+        const viewport = scrollEl.clientWidth || scrollEl.parentElement?.clientWidth || 0;
+        const needed = Math.max(viewport, itemCount * pxPerItem);
+        innerEl.style.width = `${needed}px`;
+        innerEl.style.minWidth = `${needed}px`;
+    }
+
+    function syncBarChartDimensions(scrollEl, innerEl, itemCount) {
+        if (!innerEl) return;
+        const horizontal = prefersHorizontalBarChart();
+        scrollEl?.classList.toggle('chart-scroll-wrap--vertical', horizontal);
+        if (!itemCount) {
+            innerEl.style.width = '100%';
+            innerEl.style.minWidth = '100%';
+            innerEl.style.height = horizontal ? '160px' : '210px';
+            innerEl.style.minHeight = horizontal ? '160px' : '210px';
+            return;
+        }
+        if (horizontal) {
+            innerEl.style.width = '100%';
+            innerEl.style.minWidth = '100%';
+            const minHeight = Math.max(160, itemCount * 34 + 28);
+            innerEl.style.height = `${minHeight}px`;
+            innerEl.style.minHeight = `${minHeight}px`;
+            return;
+        }
+        innerEl.style.height = '210px';
+        innerEl.style.minHeight = '210px';
+        syncChartScrollWidth(scrollEl, innerEl, itemCount, 56);
+    }
+
+    function refreshChartScrollWidths() {
+        syncBarChartDimensions(
+            document.getElementById('chart-bar-scroll'),
+            document.getElementById('chart-bar-wrap'),
+            barChart?.data?.labels?.length || 0
+        );
+        syncChartScrollWidth(
+            document.getElementById('chart-line-scroll'),
+            document.getElementById('chart-line-wrap'),
+            lineChart?.data?.labels?.length || 0,
+            42
+        );
     }
 
     function onPivotBodyClick(e) {
@@ -747,7 +946,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initFiltersCollapsed() {
         if (!filtersPanel) return;
-        const collapsed = localStorage.getItem(FILTERS_COLLAPSED_KEY) === '1';
+        const stored = localStorage.getItem(FILTERS_COLLAPSED_KEY);
+        const collapsed = stored === '1' || (stored !== '0' && prefersMobileLayout());
         filtersPanel.classList.toggle('collapsed', collapsed);
         btnToggleFilters.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
         filtersChevron.textContent = collapsed ? '▸' : '▾';
@@ -894,7 +1094,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<th class="sortable ${sortClass}" data-col="${col.id}" scope="col">
                     ${escapeHtml(col.label)}<span class="sort-icon" aria-hidden="true"></span>
                 </th>`;
-            }).join('')}</tr>`;
+            }).join('')}<th class="pub-expand-head" scope="col" aria-hidden="true"></th></tr>`;
             publisherListHead.querySelectorAll('th.sortable').forEach(th => {
                 th.addEventListener('click', () => onPublisherSortColumn(th.dataset.col));
             });
@@ -902,30 +1102,81 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const pubs = sortPublisherRows(filterPublishersForList(filteredPubCache));
         if (!pubs.length) {
-            publisherListBody.innerHTML = `<tr><td colspan="4" class="publisher-list-empty">Sin publicadores con los filtros actuales.</td></tr>`;
+            publisherListBody.innerHTML = `<tr><td colspan="6" class="publisher-list-empty">Sin publicadores con los filtros actuales.</td></tr>`;
             return;
         }
 
-        publisherListBody.innerHTML = pubs.map(pub => {
+        publisherListBody.innerHTML = pubs.flatMap(pub => {
             const key = D.personKey(pub);
             const selected = key === selectedPublisherKey ? ' selected' : '';
-            return `<tr data-publisher-key="${escapeAttr(key)}" class="${selected.trim()}">
-                <td title="${escapeAttr(pub.nombre)}">${escapeHtml(pub.nombre)}</td>
-                <td title="${escapeAttr(displayPerfil(pub.origen))}">${escapeHtml(displayPerfil(pub.origen))}</td>
-                <td>${escapeHtml(showField(pub.fecha_nacimiento))}</td>
-                <td>${escapeHtml(showField(pub.fecha_bautismo))}</td>
+            const expanded = key === expandedPublisherListKey;
+            const nac = showField(pub.fecha_nacimiento);
+            const baut = showField(pub.fecha_bautismo);
+            const mainRow = `<tr data-publisher-key="${escapeAttr(key)}" class="publisher-row${selected}${expanded ? ' is-expanded' : ''}">
+                <td class="pub-cell-name pub-cell-tap" title="${escapeAttr(pub.nombre)}" role="button" tabindex="0">${escapeHtml(pub.nombre)}</td>
+                <td class="pub-cell-profile pub-cell-tap" title="${escapeAttr(displayPerfil(pub.origen))}" role="button" tabindex="0">${escapeHtml(displayPerfil(pub.origen))}</td>
+                <td class="pub-cell-grupo">${escapeHtml(pub.grupo || '—')}</td>
+                <td class="pub-cell-nac pub-date-col" aria-hidden="true">${escapeHtml(nac)}</td>
+                <td class="pub-cell-baut pub-date-col" aria-hidden="true">${escapeHtml(baut)}</td>
+                <td class="pub-cell-expand">
+                    <button type="button" class="pub-expand-btn" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="Ver fechas de nacimiento y bautismo">
+                        <span class="pub-expand-icon" aria-hidden="true"></span>
+                    </button>
+                </td>
             </tr>`;
+            const datesRow = `<tr class="publisher-row-dates${expanded ? '' : ' hidden'}" data-publisher-key="${escapeAttr(key)}">
+                <td colspan="6">
+                    <dl class="pub-dates-kv">
+                        <div class="pub-kv"><dt>Nacimiento</dt><dd>${escapeHtml(nac)}</dd></div>
+                        <div class="pub-kv"><dt>Bautismo</dt><dd>${escapeHtml(baut)}</dd></div>
+                    </dl>
+                </td>
+            </tr>`;
+            return [mainRow, datesRow];
         }).join('');
 
-        publisherListBody.querySelectorAll('tr[data-publisher-key]').forEach(tr => {
-            tr.addEventListener('click', () => selectPublisher(tr.dataset.publisherKey));
+        publisherListBody.querySelectorAll('.pub-expand-btn').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const row = btn.closest('tr[data-publisher-key]');
+                if (!row) return;
+                const key = row.dataset.publisherKey;
+                expandedPublisherListKey = expandedPublisherListKey === key ? '' : key;
+                renderPublisherList();
+            });
+        });
+
+        publisherListBody.querySelectorAll('.pub-cell-tap').forEach(cell => {
+            const open = () => {
+                const tr = cell.closest('tr.publisher-row');
+                if (tr) openPublisherFromList(tr.dataset.publisherKey);
+            };
+            cell.addEventListener('click', e => {
+                e.stopPropagation();
+                open();
+            });
+            cell.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    open();
+                }
+            });
+        });
+    }
+
+    function openPublisherFromList(key) {
+        if (!key) return;
+        selectedPublisherKey = key;
+        renderPublisherList();
+        renderPublisherDetail();
+        expandAccordion('publishers');
+        requestAnimationFrame(() => {
+            document.getElementById('publisher-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     }
 
     function selectPublisher(key) {
-        selectedPublisherKey = key;
-        renderPublisherList();
-        renderPublisherDetail();
+        openPublisherFromList(key);
     }
 
     function showComentario(text) {
@@ -986,37 +1237,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${badges ? `<div class="publisher-badges">${badges}</div>` : ''}
             </div>
             <div class="publisher-monthly-panel">
-                <div class="publisher-monthly-grid">
-                    <div class="publisher-monthly-head">
-                        <span>Mes</span>
-                        <span class="num">Horas</span>
-                        <span class="num">Cursos</span>
-                        <span class="num">Part.</span>
-                        <span class="num">P. aux.</span>
-                        <span class="comment-head">Comentarios</span>
-                    </div>
-                    ${monthly.map(row => {
-                        const focused = focusMes && row.mes === focusMes;
-                        const rowClass = focused
-                            ? 'publisher-monthly-row publisher-monthly-row-focus publisher-monthly-row-flash'
-                            : 'publisher-monthly-row';
-                        const comentario = showComentario(row.notas);
-                        return `<div class="${rowClass}" data-mes="${escapeAttr(row.mes)}">
-                        <span>${escapeHtml(row.mes_label)}</span>
-                        <span class="num">${formatNum(row.horas)}</span>
-                        <span class="num">${formatNum(row.cursos)}</span>
-                        <span class="num">${row.participacion ? 'Sí' : '—'}</span>
-                        <span class="num">${row.precursor_auxiliar ? 'Sí' : '—'}</span>
-                        <span class="comment${comentario === '—' ? ' comment-empty' : ''}" title="${escapeAttr(comentario === '—' ? '' : comentario)}">${escapeHtml(comentario)}</span>
-                    </div>`;
-                    }).join('')}
-                    <div class="publisher-monthly-row publisher-monthly-total">
-                        <span>Total</span>
-                        <span class="num">${formatNum(monthlyTotals.horas)}</span>
-                        <span class="num">${formatNum(monthlyTotals.cursos)}</span>
-                        <span class="num">${formatNum(monthlyTotals.participacion)}</span>
-                        <span class="num">${formatNum(monthlyTotals.precursor_auxiliar)}</span>
-                        <span class="comment comment-empty"></span>
+                <div class="publisher-monthly-scroll">
+                    <div class="publisher-monthly-grid">
+                        <div class="publisher-monthly-head">
+                            <span>Mes</span>
+                            <span class="num">Horas</span>
+                            <span class="num">Cursos</span>
+                            <span class="num">Part.</span>
+                            <span class="num">P. aux.</span>
+                            <span class="comment-head">Comentarios</span>
+                        </div>
+                        ${monthly.map(row => {
+                            const focused = focusMes && row.mes === focusMes;
+                            const rowClass = focused
+                                ? 'publisher-monthly-row publisher-monthly-row-focus publisher-monthly-row-flash'
+                                : 'publisher-monthly-row';
+                            const comentario = showComentario(row.notas);
+                            return `<div class="${rowClass}" data-mes="${escapeAttr(row.mes)}">
+                            <span>${escapeHtml(row.mes_label)}</span>
+                            <span class="num">${formatNum(row.horas)}</span>
+                            <span class="num">${formatNum(row.cursos)}</span>
+                            <span class="num">${row.participacion ? 'Sí' : '—'}</span>
+                            <span class="num">${row.precursor_auxiliar ? 'Sí' : '—'}</span>
+                            <span class="comment${comentario === '—' ? ' comment-empty' : ''}" title="${escapeAttr(comentario === '—' ? '' : comentario)}">${escapeHtml(comentario)}</span>
+                        </div>`;
+                        }).join('')}
+                        <div class="publisher-monthly-row publisher-monthly-total">
+                            <span>Total</span>
+                            <span class="num">${formatNum(monthlyTotals.horas)}</span>
+                            <span class="num">${formatNum(monthlyTotals.cursos)}</span>
+                            <span class="num">${formatNum(monthlyTotals.participacion)}</span>
+                            <span class="num">${formatNum(monthlyTotals.precursor_auxiliar)}</span>
+                            <span class="comment comment-empty"></span>
+                        </div>
                     </div>
                 </div>
                 <div class="publisher-chart-panel">
@@ -1231,11 +1484,12 @@ document.addEventListener('DOMContentLoaded', () => {
         pivotBody.innerHTML = sorted.map((row, rowIdx) =>
             `<tr data-row-index="${rowIdx}">${tableColumns.map(col => {
                 const val = col.getValue(row);
+                const labelAttr = ` data-label="${escapeAttr(col.label)}"`;
                 if (col.type === 'number') {
                     const text = formatNum(val);
-                    return `<td class="num drillable" data-col-id="${col.id}" title="Filtrar detalle por este valor">${text}</td>`;
+                    return `<td class="num drillable" data-col-id="${col.id}"${labelAttr} title="Filtrar detalle por este valor">${text}</td>`;
                 }
-                return `<td>${escapeHtml(val)}</td>`;
+                return `<td${labelAttr}>${escapeHtml(val)}</td>`;
             }).join('')}</tr>`
         ).join('');
 
@@ -1249,28 +1503,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { horas: 0, cursos: 0, participacion: 0, precursor_auxiliar: 0, inactivos: 0 });
 
         const metricIds = D.totalsMetricColumns(totalsScope);
-        const footerMetrics = metricIds.map(id => {
-            if (id === 'publicadores') {
+        pivotFoot.innerHTML = `<tr>${tableColumns.map(col => {
+            const labelAttr = ` data-label="${escapeAttr(col.label)}"`;
+            if (col.type !== 'number') {
+                const isFirst = col.id === 'group_0';
+                return `<td${labelAttr}>${isFirst ? 'Total' : ''}</td>`;
+            }
+            if (col.id === 'publicadores') {
                 let n = kpisCache.publicadores_total ?? 0;
                 if (totalsScope !== 'year') {
                     n = new Set(
                         D.filterMensualByScope(flat.mensual, totalsScope).map(r => D.personKey(r))
                     ).size;
                 }
-                return `<td class="num">${formatNum(n)}</td>`;
+                return `<td class="num"${labelAttr}>${formatNum(n)}</td>`;
             }
-            if (id === 'inactivos') {
+            if (col.id === 'inactivos') {
                 let n = kpisCache.metrics?.inactivos?.total ?? totals.inactivos;
                 if (totalsScope !== 'year') n = totals.inactivos;
-                return `<td class="num">${formatNum(n)}</td>`;
+                return `<td class="num"${labelAttr}>${formatNum(n)}</td>`;
             }
-            return `<td class="num">${formatNum(totals[id] ?? 0)}</td>`;
-        }).join('');
-
-        const groupCells = groupFields.length
-            ? groupFields.map((_, i) => i === 0 ? '<td>Total</td>' : '<td></td>').join('')
-            : '<td>Total</td>';
-        pivotFoot.innerHTML = `<tr>${groupCells}${footerMetrics}</tr>`;
+            return `<td class="num"${labelAttr}>${formatNum(totals[col.id] ?? 0)}</td>`;
+        }).join('')}</tr>`;
     }
 
     function setKpiMode(mode) {
@@ -1377,7 +1631,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }],
                 },
                 options: {
-                    ...chartOptions(metricId),
+                    ...chartBarOptions(metricId),
                     onClick: (_evt, elements) => {
                         if (!elements.length) return;
                         const row = chartBarRowsCache[elements[0].index];
@@ -1385,8 +1639,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                 },
             });
+            refreshChartScrollWidths();
+            requestAnimationFrame(refreshChartScrollWidths);
         } else {
             chartBarRowsCache = [];
+            syncBarChartDimensions(
+                document.getElementById('chart-bar-scroll'),
+                document.getElementById('chart-bar-wrap'),
+                0
+            );
         }
 
         chartLineTrendCache = trend;
@@ -1424,6 +1685,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
             },
         });
+        refreshChartScrollWidths();
+        requestAnimationFrame(refreshChartScrollWidths);
     }
 
     function buildLineChartFocusStyles(trend, focusMes) {
@@ -1472,6 +1735,54 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    function chartValueTooltipLabel(ctx, metricId) {
+        const spec = D.S21_CHART_METRICS.find(m => m.id === metricId);
+        const isAvg = spec?.aggregation === 'avg';
+        const horizontal = ctx.chart.options.indexAxis === 'y';
+        const v = horizontal ? ctx.parsed.x : ctx.parsed.y;
+        if (isAvg) {
+            return `${ctx.dataset.label}: ${v.toLocaleString('es', { maximumFractionDigits: 1 })}`;
+        }
+        return `${ctx.dataset.label}: ${Math.round(v).toLocaleString('es')}`;
+    }
+
+    function chartBarOptions(metricId) {
+        const horizontal = prefersHorizontalBarChart();
+        const base = chartOptions(metricId);
+        if (!horizontal) return base;
+        const spec = D.S21_CHART_METRICS.find(m => m.id === metricId);
+        const isCount = spec?.aggregation === 'count';
+        return {
+            ...base,
+            indexAxis: 'y',
+            plugins: {
+                ...base.plugins,
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            return chartValueTooltipLabel(ctx, metricId);
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: '#8fa3bf',
+                        font: { size: 10 },
+                        precision: isCount ? 0 : undefined,
+                    },
+                    grid: { color: 'rgba(255,255,255,0.06)' },
+                },
+                y: {
+                    ticks: { color: '#8fa3bf', font: { size: 10 }, autoSkip: false },
+                    grid: { display: false },
+                },
+            },
+        };
+    }
+
     function chartOptions(metricId) {
         const spec = D.S21_CHART_METRICS.find(m => m.id === metricId);
         const isAvg = spec?.aggregation === 'avg';
@@ -1484,18 +1795,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 tooltip: {
                     callbacks: {
                         label(ctx) {
-                            const v = ctx.parsed.y;
-                            if (isAvg) {
-                                return `${ctx.dataset.label}: ${v.toLocaleString('es', { maximumFractionDigits: 1 })}`;
-                            }
-                            return `${ctx.dataset.label}: ${Math.round(v).toLocaleString('es')}`;
+                            return chartValueTooltipLabel(ctx, metricId);
                         },
                     },
                 },
             },
             scales: {
                 x: {
-                    ticks: { color: '#8fa3bf', maxRotation: 45, font: { size: 10 } },
+                    ticks: { color: '#8fa3bf', maxRotation: 0, minRotation: 0, font: { size: 10 }, autoSkip: false },
                     grid: { color: 'rgba(255,255,255,0.06)' },
                 },
                 y: {

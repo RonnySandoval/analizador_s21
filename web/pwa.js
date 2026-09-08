@@ -8,9 +8,13 @@
 
     if (versionEl) versionEl.textContent = `v${VERSION}`;
 
+    function syncPwaBarLayout() {
+        document.body.classList.toggle('pwa-bar-visible', !!bar?.classList.contains('visible'));
+    }
+
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').catch(() => {});
+            navigator.serviceWorker.register(window.s21Url('sw.js')).catch(() => {});
         });
     }
 
@@ -19,6 +23,7 @@
         deferredPrompt = e;
         if (bar && !localStorage.getItem('pwa_install_dismissed')) {
             bar.classList.add('visible');
+            syncPwaBarLayout();
         }
     });
 
@@ -28,15 +33,18 @@
         await deferredPrompt.userChoice;
         deferredPrompt = null;
         bar?.classList.remove('visible');
+        syncPwaBarLayout();
     });
 
     btnDismiss?.addEventListener('click', () => {
         localStorage.setItem('pwa_install_dismissed', '1');
         bar?.classList.remove('visible');
+        syncPwaBarLayout();
     });
 
     window.addEventListener('appinstalled', () => {
         bar?.classList.remove('visible');
+        syncPwaBarLayout();
         deferredPrompt = null;
     });
 })();

@@ -34,6 +34,7 @@ function mesLabel(mes, variant = 'completo') {
 
 const S21_GROUP_FIELDS = [
     { id: 'origen', label: 'Perfil' },
+    { id: 'grupo', label: 'Grupo' },
     { id: 'sexo', label: 'Sexo' },
     { id: 'esperanza', label: 'Esperanza' },
     { id: 'anciano', label: 'Anciano' },
@@ -850,7 +851,7 @@ function sortPublishers(rows) {
 
 function publishersToCsv(rows, formatPerfil = v => v) {
     const headers = [
-        'Nombre', 'Perfil', 'Fecha nacimiento', 'Fecha bautismo', 'Sexo', 'Esperanza',
+        'Nombre', 'Perfil', 'Grupo', 'Fecha nacimiento', 'Fecha bautismo', 'Sexo', 'Esperanza',
         'Anciano', 'Siervo ministerial', 'Precursor regular', 'Precursor especial', 'Misionero',
         'Horas', 'Cursos', 'Participación', 'Prec. aux.',
     ];
@@ -859,6 +860,7 @@ function publishersToCsv(rows, formatPerfil = v => v) {
         lines.push([
             csvEscape(row.nombre),
             csvEscape(formatPerfil(row.origen)),
+            csvEscape(row.grupo || '—'),
             csvEscape(row.fecha_nacimiento || ''),
             csvEscape(row.fecha_bautismo || ''),
             csvEscape(row.sexo),

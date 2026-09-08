@@ -15,7 +15,7 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="theme-cyber.css">
-    <link rel="stylesheet" href="dashboard.css?v=32">
+    <link rel="stylesheet" href="dashboard.css?v=51">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -281,8 +281,8 @@
                                     <button type="button" id="btn-export-csv" class="btn-secondary btn-compact">Exportar CSV</button>
                                 </div>
                             </div>
-                            <div class="table-wrap">
-                                <table class="data-table" id="pivot-table">
+                            <div class="table-wrap table-wrap--responsive">
+                                <table class="data-table data-table--cards-mobile" id="pivot-table">
                                     <thead id="pivot-head"></thead>
                                     <tbody id="pivot-body"></tbody>
                                     <tfoot id="pivot-foot"></tfoot>
@@ -291,16 +291,16 @@
                             <div class="summary-charts-block">
                                 <h3 class="summary-subsection-title">Gráficos</h3>
                                 <div class="charts-toolbar">
-                                    <div class="charts-toolbar-metric">
+                                    <div class="charts-toolbar-row charts-toolbar-row--metric">
                                         <label for="metric">Métrica en gráficos</label>
                                         <select id="metric"></select>
                                     </div>
-                                    <div class="charts-toolbar-exclude">
+                                    <div class="charts-toolbar-row charts-toolbar-row--exclude">
                                         <span class="charts-exclude-label">Omitir últimos</span>
                                         <div id="chart-exclude-toggle" class="chart-exclude-toggle" role="tablist" aria-label="Meses omitidos al final del año"></div>
                                         <span class="charts-exclude-label">meses</span>
                                     </div>
-                                    <div id="chart-profile-toggles-wrap" class="chart-profile-toggles-wrap hidden">
+                                    <div id="chart-profile-toggles-wrap" class="charts-toolbar-row charts-toolbar-row--profiles hidden">
                                         <span class="chart-profile-toggles-label">Perfiles en gráfico</span>
                                         <div id="chart-profile-toggles" class="chart-profile-toggles"></div>
                                     </div>
@@ -308,16 +308,64 @@
                                 <div class="chart-grid" id="chart-grid">
                                     <div class="chart-card" id="chart-bar-card">
                                         <h3 id="chart-bar-title">Horas por Perfil</h3>
-                                        <div class="chart-wrap">
-                                            <canvas id="chart-bar"></canvas>
+                                        <div class="chart-scroll-wrap" id="chart-bar-scroll">
+                                            <div class="chart-wrap" id="chart-bar-wrap">
+                                                <canvas id="chart-bar"></canvas>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="chart-card" id="chart-line-card">
                                         <h3>Tendencia mensual</h3>
-                                        <div class="chart-wrap">
-                                            <canvas id="chart-line"></canvas>
+                                        <div class="chart-scroll-wrap" id="chart-line-scroll">
+                                            <div class="chart-wrap" id="chart-line-wrap">
+                                                <canvas id="chart-line"></canvas>
+                                            </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="grupos-section" class="dashboard-section dashboard-section--grupos dashboard-accordion" data-accordion-id="grupos">
+                    <button type="button" class="dashboard-accordion-trigger" aria-expanded="true" aria-controls="accordion-body-grupos">
+                        <span class="dashboard-accordion-trigger-main">
+                            <span class="dashboard-section-title">Grupos</span>
+                            <span class="dashboard-section-sub">Asignación de publicadores por grupo de campo</span>
+                        </span>
+                        <span id="grupos-summary" class="dashboard-accordion-badge grupos-summary-badge"></span>
+                        <span class="dashboard-accordion-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div id="accordion-body-grupos" class="dashboard-accordion-body">
+                        <div class="dashboard-accordion-inner">
+                            <div class="grupos-toolbar">
+                                <label class="grupos-count-field" for="grupos-count">
+                                    <span>Cantidad de grupos</span>
+                                    <input type="number" id="grupos-count" min="1" max="30" value="5" step="1">
+                                </label>
+                            </div>
+                            <div id="grupos-roles-panel" class="grupos-roles-panel"></div>
+                            <div class="grupos-tabs" role="tablist" aria-label="Vista de asignación">
+                                <button type="button" class="grupos-tab-btn active" data-grupos-view="group" role="tab" aria-selected="true">Por grupo</button>
+                                <button type="button" class="grupos-tab-btn" data-grupos-view="profile" role="tab" aria-selected="false">Por perfil</button>
+                            </div>
+                            <div id="grupos-panel-assign" class="grupos-panel"></div>
+                            <div id="grupos-group-modal" class="grupos-modal hidden" role="dialog" aria-modal="true" aria-labelledby="grupos-modal-title" hidden>
+                                <div class="grupos-modal-backdrop" data-grupos-modal-close tabindex="-1"></div>
+                                <div class="grupos-modal-card">
+                                    <h3 id="grupos-modal-title" class="grupos-modal-title">Grupo</h3>
+                                    <dl class="grupos-modal-roles">
+                                        <div class="grupos-modal-role-row">
+                                            <dt>Superintendente</dt>
+                                            <dd id="grupos-modal-sup">—</dd>
+                                        </div>
+                                        <div class="grupos-modal-role-row">
+                                            <dt>Auxiliar</dt>
+                                            <dd id="grupos-modal-aux">—</dd>
+                                        </div>
+                                    </dl>
+                                    <button type="button" class="btn-secondary btn-compact grupos-modal-close" data-grupos-modal-close>Cerrar</button>
                                 </div>
                             </div>
                         </div>
@@ -336,6 +384,11 @@
                         <div class="dashboard-accordion-inner">
                             <div class="publisher-toolbar">
                                 <input type="search" id="publisher-search" class="publisher-search" placeholder="Buscar por nombre o perfil…" autocomplete="off">
+                                <div class="publisher-bulk-grupo">
+                                    <label for="publisher-bulk-grupo" class="sr-only">Asignar visibles a grupo</label>
+                                    <select id="publisher-bulk-grupo" class="publisher-bulk-grupo-select" title="Grupo destino"></select>
+                                    <button type="button" id="btn-publisher-bulk-grupo" class="btn-secondary btn-compact">Asignar visibles</button>
+                                </div>
                                 <button type="button" id="btn-export-publishers" class="btn-secondary btn-compact">Exportar listado CSV</button>
                             </div>
                             <div id="filters-panel" class="filters-panel filters-panel-detail">
@@ -365,7 +418,7 @@
                                 <div id="detail-cross-filter-chips" class="detail-monthly-filter-chips"></div>
                             </div>
                             <div class="publisher-layout">
-                                <div class="publisher-list-wrap table-wrap">
+                                <div class="publisher-list-wrap table-wrap table-wrap--responsive">
                                     <table class="data-table publisher-list-table" id="publisher-list-table">
                                         <thead id="publisher-list-head"></thead>
                                         <tbody id="publisher-list-body"></tbody>
@@ -393,6 +446,31 @@
         </footer>
     </div>
 
+    <nav id="dashboard-nav" class="dashboard-nav dashboard-nav--bottom" aria-label="Ir a sección">
+        <div class="dashboard-nav-inner">
+            <button type="button" class="dashboard-nav-btn" data-nav-target="load" title="Datos" aria-label="Datos">
+                <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+                <span class="dashboard-nav-text">Datos</span>
+            </button>
+            <button type="button" class="dashboard-nav-btn" data-nav-target="kpi" title="Indicadores" aria-label="Indicadores">
+                <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                <span class="dashboard-nav-text">Indicadores</span>
+            </button>
+            <button type="button" class="dashboard-nav-btn" data-nav-target="table" title="Totales" aria-label="Totales">
+                <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M10 4v16"/></svg>
+                <span class="dashboard-nav-text">Totales</span>
+            </button>
+            <button type="button" class="dashboard-nav-btn" data-nav-target="grupos" title="Grupos" aria-label="Grupos">
+                <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                <span class="dashboard-nav-text">Grupos</span>
+            </button>
+            <button type="button" class="dashboard-nav-btn" data-nav-target="publishers" title="Publicadores" aria-label="Publicadores">
+                <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span class="dashboard-nav-text">Publicadores</span>
+            </button>
+        </div>
+    </nav>
+
     <div id="pwa-install-bar" class="pwa-install-bar" role="region" aria-label="Instalar aplicación">
         <span><strong>Instalar app</strong> — acceso rápido desde móvil o escritorio</span>
         <div class="wizard-actions">
@@ -401,9 +479,11 @@
         </div>
     </div>
 
+    <script src="s21-base.js"></script>
     <script src="pwa.js"></script>
-    <script src="dashboard-data.js?v=29"></script>
+    <script src="dashboard-data.js?v=30"></script>
+    <script src="dashboard-grupos.js?v=10"></script>
     <script src="dashboard-wizard.js?v=1"></script>
-    <script src="dashboard.js?v=53"></script>
+    <script src="dashboard.js?v=60"></script>
 </body>
 </html>

@@ -62,14 +62,30 @@
     }
 
     async function fetchServerInfo() {
+        const analyzeBtn = $('btn-wizard-analyze');
+        const chooseLead = document.querySelector('.wizard-step[data-step="choose"] .wizard-lead');
         try {
-            const res = await fetch('/api/info');
+            const res = await fetch(window.s21Url('api/info'));
             if (res.ok) {
+                window.S21_SERVER_AVAILABLE = true;
                 serverInfo = await res.json();
                 defaultOutputDir = (serverInfo.default_dashboard_dir || 'resultados').split(/[/\\]/).pop();
+            } else {
+                window.S21_SERVER_AVAILABLE = false;
             }
         } catch {
-            /* ignore */
+            window.S21_SERVER_AVAILABLE = false;
+        }
+
+        if (analyzeBtn) {
+            analyzeBtn.disabled = !window.S21_SERVER_AVAILABLE;
+            analyzeBtn.title = window.S21_SERVER_AVAILABLE
+                ? ''
+                : 'Requiere el servidor Python en su PC (iniciar_interfaz.bat)';
+        }
+
+        if (chooseLead && !window.S21_SERVER_AVAILABLE) {
+            chooseLead.textContent = 'Sin servidor local: use «Cargar JSON existentes» y «Abrir archivos» para ver el dashboard en móvil o GitHub Pages.';
         }
     }
 
@@ -581,7 +597,7 @@
             };
 
             if (els.runStatus) els.runStatus.textContent = 'Analizando tarjetas en el servidor...';
-            const response = await fetch('/api/ejecutar', {
+            const response = await fetch(window.s21Url('api/ejecutar'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -626,16 +642,16 @@
             els.jsonSourceList.innerHTML = '<p class="wizard-muted">Buscando JSON en el servidor...</p>';
         }
         try {
-            const res = await fetch('/api/dashboard/fuentes');
+            const res = await fetch(window.s21Url('api/dashboard/fuentes'));
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo listar JSON.');
             jsonSources = data.archivos || [];
             selectedJsonRutas = new Set(jsonSources.map(s => s.ruta));
             renderJsonSourceList();
-        } catch (e) {
+        } catch {
             jsonSources = [];
             if (els.jsonSourceList) {
-                els.jsonSourceList.innerHTML = `<p class="wizard-warn">${escapeHtml(e.message)}</p>`;
+                els.jsonSourceList.innerHTML = '<p class="wizard-muted">Modo sin servidor: pulse <strong>Abrir archivos</strong> para cargar JSON desde este dispositivo.</p>';
             }
         }
     }
@@ -800,7 +816,7 @@
         els.runSpinner?.classList.remove('hidden');
 
         try {
-            const response = await fetch('/api/dashboard/cargar', {
+            const response = await fetch(window.s21Url('api/dashboard/cargar'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ rutas, fuente: 'wizard' }),

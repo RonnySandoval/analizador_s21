@@ -23,6 +23,20 @@ O en Windows: `iniciar_interfaz.bat`
 
 Abre `http://localhost:8000/dashboard.html`
 
+## Acceso desde móvil (GitHub Pages)
+
+La interfaz web se publica en GitHub Pages al hacer push a `main`:
+
+**https://ronnysandoval.github.io/analizador_s21/dashboard.html**
+
+En el móvil:
+
+1. Abra ese enlace en Chrome o Safari.
+2. Elija **Cargar JSON existentes** → **Abrir archivos** y seleccione los JSON generados en el PC (puede enviarlos por WhatsApp, Drive, etc.).
+3. Opcional: **Añadir a pantalla de inicio** para usarla como app.
+
+> El análisis de PDFs requiere el servidor Python en su PC. GitHub Pages solo sirve la interfaz para consultar JSON ya exportados.
+
 ## Instalar como app (PWA)
 
 1. Ejecute el servidor en su red local (HTTPS recomendado para producción).

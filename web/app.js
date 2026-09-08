@@ -448,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             statusMessage.textContent = 'Analizando tarjetas S-21 en el servidor...';
-            const response = await fetch('/api/ejecutar', {
+            const response = await fetch(window.s21Url('api/ejecutar'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),

@@ -1,23 +1,31 @@
-const CACHE_NAME = 's21-analizador-v1.0.0';
+const CACHE_NAME = 's21-analizador-v1.1.0';
 const STATIC_ASSETS = [
-    '/dashboard.html',
-    '/index.html',
-    '/style.css',
-    '/theme-cyber.css',
-    '/dashboard.css',
-    '/dashboard-data.js',
-    '/dashboard-wizard.js',
-    '/dashboard.js',
-    '/app.js',
-    '/pwa.js',
-    '/manifest.webmanifest',
-    '/icons/icon-192.png',
-    '/icons/icon-512.png',
+    'dashboard.html',
+    'index.html',
+    'style.css',
+    'theme-cyber.css',
+    'dashboard.css',
+    's21-base.js',
+    'dashboard-data.js',
+    'dashboard-grupos.js',
+    'dashboard-wizard.js',
+    'dashboard.js',
+    'app.js',
+    'pwa.js',
+    'manifest.webmanifest',
+    'icons/icon-192.png',
+    'icons/icon-512.png',
 ];
+
+function assetUrl(name) {
+    return new URL(name, self.location).href;
+}
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).then(() => self.skipWaiting())
+        caches.open(CACHE_NAME)
+            .then((cache) => cache.addAll(STATIC_ASSETS.map(assetUrl)))
+            .then(() => self.skipWaiting())
     );
 });
 
@@ -31,7 +39,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
-    if (url.pathname.startsWith('/api/')) {
+    if (url.pathname.includes('/api/')) {
         event.respondWith(fetch(event.request));
         return;
     }
