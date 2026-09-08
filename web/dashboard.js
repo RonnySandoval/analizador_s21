@@ -166,6 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             setLoadStatus,
         });
+    }
+
     function initGruposModule() {
         if (!G) return;
         G.init({
