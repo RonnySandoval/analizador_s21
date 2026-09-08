@@ -777,6 +777,13 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     line-height: 1.35;
 }
 
+.local-cache-hint {
+    margin: 0.15rem 0 0;
+    font-size: 0.68rem;
+    color: var(--accent-emerald, #34d399);
+    line-height: 1.35;
+}
+
 .file-list {
     list-style: none;
     margin-top: 0.55rem;

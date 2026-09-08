@@ -15,7 +15,7 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="theme-cyber.css">
-    <link rel="stylesheet" href="dashboard.css?v=53">
+    <link rel="stylesheet" href="dashboard.css?v=54">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -228,6 +228,7 @@
                                 <div id="data-sources-bar" class="data-sources-bar">
                                     <div class="data-sources-bar-main">
                                         <span class="data-sources-title">Perfiles cargados</span>
+                                        <p id="local-cache-hint" class="local-cache-hint hidden"></p>
                                         <p id="perfil-aliases-hint" class="perfil-aliases-hint"></p>
                                     </div>
                                     <button type="button" id="btn-reset-perfil-aliases" class="btn-ghost btn-compact">Restaurar sugeridos</button>
@@ -497,8 +498,9 @@
     <script src="s21-base.js"></script>
     <script src="pwa.js"></script>
     <script src="dashboard-data.js?v=30"></script>
+    <script src="dashboard-storage.js?v=1"></script>
     <script src="dashboard-grupos.js?v=10"></script>
     <script src="dashboard-wizard.js?v=3"></script>
-    <script src="dashboard.js?v=60"></script>
+    <script src="dashboard.js?v=61"></script>
 </body>
 </html>

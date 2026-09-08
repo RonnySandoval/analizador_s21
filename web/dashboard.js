@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ACCORDION_STATE_KEY = 'analisis_servicio_accordion_state';
     const PERFIL_ALIASES_KEY = 'analisis_servicio_perfil_aliases';
     const CHART_PROFILES_KEY = 'analisis_servicio_chart_profiles';
+    const Storage = window.S21DashboardStorage;
 
     const FILTER_LAYOUT = {
         wide: ['origen', 'grupo'],
@@ -124,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFiltersCollapsed();
     initWizard();
     initGruposModule();
+    restoreDashboardCache();
 
     function initGruposModule() {
         if (!G) return;
@@ -263,6 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 packages = loadedPackages;
                 currentFuente = meta?.label || 'Carga manual';
                 rebuild();
+                persistDashboardCache(loadedPackages, meta);
             },
             onClear: () => {
                 packages = [];
@@ -270,6 +273,58 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             setLoadStatus,
         });
+    }
+
+    function formatSavedAt(ts) {
+        if (!ts) return '';
+        try {
+            return new Date(ts).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
+        } catch {
+            return '';
+        }
+    }
+
+    async function persistDashboardCache(loadedPackages, meta) {
+        if (!Storage?.isAvailable()) return;
+        try {
+            await Storage.saveDashboardCache(loadedPackages, meta);
+            updateLocalCacheHint(meta?.savedAt || Date.now());
+            const label = meta?.label || currentFuente || 'Carga';
+            const when = formatSavedAt(Date.now());
+            setLoadStatus(`${loadedPackages.length} JSON · ${label} · guardado en este dispositivo${when ? ` (${when})` : ''}`, false);
+        } catch (error) {
+            setLoadStatus(`Datos cargados, pero no se guardaron en el dispositivo: ${error.message}`, true);
+        }
+    }
+
+    async function restoreDashboardCache() {
+        if (!Storage?.isAvailable()) return;
+        try {
+            const cached = await Storage.loadDashboardCache();
+            if (!cached?.packages?.length) return;
+            packages = cached.packages;
+            currentFuente = cached.meta?.label || 'Datos guardados';
+            const when = formatSavedAt(cached.meta?.savedAt);
+            setLoadStatus(
+                `${cached.packages.length} JSON restaurado${when ? ` · guardado ${when}` : ''}`,
+                false
+            );
+            updateLocalCacheHint(cached.meta?.savedAt);
+            window.S21DashboardWizard.showLoaded();
+            rebuild();
+        } catch (error) {
+            console.warn('No se pudo restaurar datos locales', error);
+        }
+    }
+
+    function updateLocalCacheHint(savedAt) {
+        const hint = document.getElementById('local-cache-hint');
+        if (!hint) return;
+        const when = formatSavedAt(savedAt);
+        hint.textContent = when
+            ? `Los datos permanecen en este dispositivo (última carga: ${when}). Use «Limpiar» para borrarlos.`
+            : 'Los datos permanecen guardados en este dispositivo. Use «Limpiar» para borrarlos.';
+        hint.classList.remove('hidden');
     }
 
     function setLoadStatus(text, isWarn) {
@@ -283,6 +338,8 @@ document.addEventListener('DOMContentLoaded', () => {
         packages = [];
         currentFuente = '';
         if (loadStatus) loadStatus.classList.add('hidden');
+        document.getElementById('local-cache-hint')?.classList.add('hidden');
+        Storage?.clearDashboardCache?.().catch(() => {});
         window.S21DashboardWizard.resetAll();
         window.S21DashboardWizard.showWizard();
         rebuild();
