@@ -1,0 +1,60 @@
+[data-theme="light"] {
+    --bg-color: #e8eaee;
+    --bg-grid: rgba(60, 72, 90, 0.06);
+    --card-bg: rgba(255, 255, 255, 0.92);
+    --section-bg: rgba(248, 249, 251, 0.98);
+    --card-border: rgba(100, 116, 139, 0.22);
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --primary: #0891b2;
+    --primary-hover: #0e7490;
+    --primary-glow: rgba(8, 145, 178, 0.2);
+    --accent-magenta: #db2777;
+    --accent-purple: #7c3aed;
+    --accent-amber: #d97706;
+    --accent-green: #059669;
+    --accent-emerald: #059669;
+    --primary-gradient: linear-gradient(135deg, #0891b2 0%, #7c3aed 55%, #db2777 100%);
+    --success: #059669;
+    --error: #dc2626;
+    --warning: #d97706;
+    --shadow: 0 4px 24px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] body {
+    background-image:
+        linear-gradient(var(--bg-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px),
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(8, 145, 178, 0.08), transparent);
+    background-size: 48px 48px, 48px 48px, auto;
+}
+
+[data-theme="light"] body::before {
+    opacity: 0;
+}
+
+[data-theme="light"] h1,
+[data-theme="light"] .dashboard-header h1 {
+    filter: none;
+}
+
+[data-theme="light"] .dashboard-section {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
+}
+
+[data-theme="light"] .grupos-matrix-name-col,
+[data-theme="light"] .grupos-matrix-name,
+[data-theme="light"] .grupos-matrix-table thead th {
+    background: rgba(248, 250, 252, 0.98);
+}
+
+[data-theme="light"] .datos-panel-sheet,
+[data-theme="light"] .datos-modal-card {
+    background: #f8fafc;
+    color: var(--text-main);
+}
+
+[data-theme="light"] .dashboard-nav--bottom {
+    background: rgba(255, 255, 255, 0.95);
+    border-top-color: rgba(100, 116, 139, 0.2);
+}

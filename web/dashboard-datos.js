@@ -1,0 +1,350 @@
+(function () {
+    const Storage = window.S21DashboardStorage;
+    const D = () => window.S21DashboardData;
+
+    let callbacks = {};
+    let pendingSave = null;
+    let pendingSaveResolve = null;
+
+    function $(id) {
+        return document.getElementById(id);
+    }
+
+    function escapeHtml(s) {
+        return String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function formatSavedAt(ts) {
+        if (!ts) return '';
+        try {
+            return new Date(ts).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
+        } catch {
+            return '';
+        }
+    }
+
+    function autoDatasetName(serviceYear, profileSummary) {
+        const year = serviceYear ? ` ${serviceYear}` : '';
+        if (!profileSummary?.length) return `Carga${year}`.trim();
+        if (profileSummary.length === 1) return `${profileSummary[0].titulo || profileSummary[0].origen}${year}`.trim();
+        return `${profileSummary.length} perfiles${year}`.trim();
+    }
+
+    function buildDatasetFromPackages(packages, meta = {}, existingId = null) {
+        const flat = D().flattenPackages(packages);
+        const analysis = D().analyzePackageYears(packages);
+        const origins = D().uniqueValues(flat.publicadores, 'origen');
+        const profileSummary = origins.map(origen => {
+            const pkg = packages.find(p => p.origen === origen);
+            return {
+                origen,
+                titulo: pkg?.titulo || origen,
+                count: flat.publicadores.filter(p => p.origen === origen).length,
+            };
+        });
+        const serviceYear = analysis.years.length === 1
+            ? analysis.years[0]
+            : (meta.añoMeta?.valor ?? null);
+
+        return {
+            id: existingId || crypto.randomUUID(),
+            name: meta.name || autoDatasetName(serviceYear, profileSummary),
+            packages,
+            meta: {
+                label: meta.label || '',
+                folderLabel: meta.folderLabel || '',
+                añoMeta: meta.añoMeta || null,
+            },
+            savedAt: Date.now(),
+            serviceYear,
+            packageCount: packages.length,
+            publisherCount: flat.publicadores.length,
+            profileSummary,
+            isBundle: packages.length > 1,
+        };
+    }
+
+    function findDuplicateConflicts(packages, datasets) {
+        const flat = D().flattenPackages(packages);
+        const newOrigens = new Set(D().uniqueValues(flat.publicadores, 'origen'));
+        const analysis = D().analyzePackageYears(packages);
+        const newYear = analysis.years.length === 1 ? analysis.years[0] : null;
+
+        return datasets.map(ds => {
+            const overlap = (ds.profileSummary || []).filter(p => newOrigens.has(p.origen));
+            if (!overlap.length) return null;
+            const sameYear = !newYear || !ds.serviceYear || newYear === ds.serviceYear;
+            if (!sameYear) return null;
+            return { dataset: ds, overlap };
+        }).filter(Boolean);
+    }
+
+    function openPanel() {
+        const panel = $('datos-panel');
+        panel?.classList.remove('hidden');
+        if (panel) panel.hidden = false;
+        document.body.classList.add('datos-panel-open');
+        renderHistory();
+    }
+
+    function closePanel() {
+        const panel = $('datos-panel');
+        panel?.classList.add('hidden');
+        if (panel) panel.hidden = true;
+        document.body.classList.remove('datos-panel-open');
+    }
+
+    function bindPanelEvents() {
+        $('btn-open-datos-panel')?.addEventListener('click', openPanel);
+        $('datos-panel-close')?.addEventListener('click', closePanel);
+        $('datos-panel-backdrop')?.addEventListener('click', closePanel);
+
+        $('btn-datos-new-load')?.addEventListener('click', () => {
+            window.S21DashboardWizard?.showWizard();
+            $('datos-wizard-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
+        $('btn-datos-clear-link')?.addEventListener('click', () => openClearModal());
+
+        $('datos-save-cancel')?.addEventListener('click', () => closeSaveModal(null));
+        $('datos-save-add')?.addEventListener('click', () => closeSaveModal('add'));
+        $('datos-save-replace')?.addEventListener('click', () => closeSaveModal('replace'));
+
+        $('datos-clear-cancel')?.addEventListener('click', () => closeClearModal(false));
+        $('datos-clear-confirm')?.addEventListener('click', () => confirmClearModal());
+
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            if (!$('datos-save-modal')?.classList.contains('hidden')) closeSaveModal(null);
+            else if (!$('datos-clear-modal')?.classList.contains('hidden')) closeClearModal(false);
+            else if (!$('datos-panel')?.classList.contains('hidden')) closePanel();
+        });
+    }
+
+    async function renderHistory() {
+        const listEl = $('dataset-history-list');
+        const dupEl = $('dataset-duplicate-hint');
+        if (!listEl || !Storage?.isAvailable()) return;
+
+        const datasets = await Storage.listDatasets();
+        const activeId = await Storage.getActiveDatasetId();
+        const conflicts = findInternalDuplicates(datasets);
+
+        if (dupEl) {
+            if (conflicts.length) {
+                dupEl.classList.remove('hidden');
+                dupEl.innerHTML = `<strong>Duplicados detectados:</strong> ${conflicts.map(c =>
+                    `«${escapeHtml(c.a.name)}» y «${escapeHtml(c.b.name)}» comparten perfiles del año ${c.year}`
+                ).join('; ')}. Borre cargas redundantes para evitar confusiones.`;
+            } else {
+                dupEl.classList.add('hidden');
+                dupEl.innerHTML = '';
+            }
+        }
+
+        if (!datasets.length) {
+            listEl.innerHTML = '<p class="datos-muted">Sin cargas guardadas. Use «Nueva carga» para añadir JSON.</p>';
+            return;
+        }
+
+        listEl.innerHTML = datasets.map(ds => {
+            const active = ds.id === activeId;
+            const profiles = (ds.profileSummary || [])
+                .map(p => escapeHtml(p.titulo || p.origen))
+                .slice(0, 4)
+                .join(', ');
+            const more = (ds.profileSummary?.length || 0) > 4 ? '…' : '';
+            return `<article class="dataset-card${active ? ' is-active' : ''}" data-dataset-id="${escapeHtml(ds.id)}">
+                <div class="dataset-card-main">
+                    <strong class="dataset-card-name">${escapeHtml(ds.name)}</strong>
+                    <span class="dataset-card-meta">${ds.packageCount} JSON · ${ds.publisherCount} pub.${ds.serviceYear ? ` · ${ds.serviceYear}` : ''}</span>
+                    <span class="dataset-card-profiles">${profiles}${more}</span>
+                    <span class="dataset-card-date">${formatSavedAt(ds.savedAt)}</span>
+                </div>
+                <div class="dataset-card-actions">
+                    ${active ? '<span class="dataset-active-badge">Activa</span>' : `<button type="button" class="btn-secondary btn-compact btn-dataset-activate" data-id="${escapeHtml(ds.id)}">Activar</button>`}
+                    <button type="button" class="btn-ghost btn-compact btn-dataset-delete" data-id="${escapeHtml(ds.id)}" title="Eliminar esta carga">✕</button>
+                </div>
+            </article>`;
+        }).join('');
+
+        listEl.querySelectorAll('.btn-dataset-activate').forEach(btn => {
+            btn.addEventListener('click', () => activateDataset(btn.dataset.id));
+        });
+        listEl.querySelectorAll('.btn-dataset-delete').forEach(btn => {
+            btn.addEventListener('click', () => deleteDatasetById(btn.dataset.id));
+        });
+    }
+
+    function findInternalDuplicates(datasets) {
+        const pairs = [];
+        for (let i = 0; i < datasets.length; i++) {
+            for (let j = i + 1; j < datasets.length; j++) {
+                const a = datasets[i];
+                const b = datasets[j];
+                if (a.serviceYear && b.serviceYear && a.serviceYear !== b.serviceYear) continue;
+                const aOrig = new Set((a.profileSummary || []).map(p => p.origen));
+                const overlap = (b.profileSummary || []).filter(p => aOrig.has(p.origen));
+                if (overlap.length) pairs.push({ a, b, year: a.serviceYear || b.serviceYear || '—', overlap });
+            }
+        }
+        return pairs;
+    }
+
+    async function activateDataset(id) {
+        const ds = await Storage.getDataset(id);
+        if (!ds?.packages?.length) return;
+        await Storage.setActiveDatasetId(id);
+        callbacks.onDatasetActivated?.(ds.packages, {
+            label: ds.meta?.label || ds.name,
+            folderLabel: ds.meta?.folderLabel,
+            añoMeta: ds.meta?.añoMeta,
+            datasetId: ds.id,
+            skipSavePrompt: true,
+        });
+        await renderHistory();
+        closePanel();
+    }
+
+    async function deleteDatasetById(id) {
+        const ds = await Storage.getDataset(id);
+        if (!ds) return;
+        const ok = confirm(`¿Eliminar la carga «${ds.name}»?\n\nSe borrará del dispositivo (no afecta archivos originales).`);
+        if (!ok) return;
+        const activeId = await Storage.getActiveDatasetId();
+        await Storage.deleteDataset(id);
+        if (activeId === id) {
+            const remaining = await Storage.listDatasets();
+            if (remaining.length) await activateDataset(remaining[0].id);
+            else callbacks.onAllDatasetsCleared?.();
+        }
+        await renderHistory();
+    }
+
+    function openSaveModal(packages, meta, conflicts, atMax) {
+        pendingSave = { packages, meta };
+        const modal = $('datos-save-modal');
+        const body = $('datos-save-modal-body');
+        const addBtn = $('datos-save-add');
+        const replaceBtn = $('datos-save-replace');
+
+        let html = '<p>¿Cómo desea guardar esta carga en el dispositivo?</p>';
+        if (conflicts.length) {
+            html += '<div class="datos-warn-box"><strong>Posible duplicado</strong><ul>';
+            conflicts.forEach(c => {
+                const names = c.overlap.map(o => escapeHtml(o.titulo || o.origen)).join(', ');
+                html += `<li>Coincide con «${escapeHtml(c.dataset.name)}» (${names}). Mantener ambas puede mostrar datos redundantes.</li>`;
+            });
+            html += '</ul></div>';
+        }
+        if (atMax) {
+            html += '<p class="datos-warn-box">Ha alcanzado el máximo de 15 cargas. Use «Reemplazar activa» o borre cargas antiguas.</p>';
+            addBtn.disabled = true;
+        } else {
+            addBtn.disabled = false;
+        }
+
+        if (body) body.innerHTML = html;
+        modal?.classList.remove('hidden');
+        modal.hidden = false;
+        replaceBtn?.focus();
+    }
+
+    function closeSaveModal(action) {
+        $('datos-save-modal')?.classList.add('hidden');
+        const modal = $('datos-save-modal');
+        if (modal) modal.hidden = true;
+        pendingSave = null;
+        const resolve = pendingSaveResolve;
+        pendingSaveResolve = null;
+        resolve?.(action || null);
+    }
+
+    async function promptSaveAction(packages, meta) {
+        if (!Storage?.isAvailable()) return 'add';
+        const datasets = await Storage.listDatasets();
+        if (!datasets.length) return 'add';
+
+        const conflicts = findDuplicateConflicts(packages, datasets);
+        const atMax = datasets.length >= Storage.MAX_DATASETS;
+
+        return new Promise(resolve => {
+            pendingSaveResolve = resolve;
+            pendingSave = { packages, meta };
+            openSaveModal(packages, meta, conflicts, atMax);
+        });
+    }
+
+    async function persistSave(action, packages, meta) {
+        const activeId = await Storage.getActiveDatasetId();
+        let dataset;
+
+        if (action === 'replace' && activeId) {
+            const existing = await Storage.getDataset(activeId);
+            dataset = buildDatasetFromPackages(packages, meta, activeId);
+            dataset.name = meta.name || existing?.name || dataset.name;
+        } else {
+            dataset = buildDatasetFromPackages(packages, meta);
+        }
+
+        await Storage.putDataset(dataset);
+        await Storage.setActiveDatasetId(dataset.id);
+        await Storage.enforceMaxDatasets();
+        await renderHistory();
+        callbacks.onDatasetSaved?.(dataset);
+    }
+
+    function openClearModal() {
+        const modal = $('datos-clear-modal');
+        const input = $('datos-clear-confirm-input');
+        if (input) input.value = '';
+        $('datos-clear-grupos') && ($('datos-clear-grupos').checked = false);
+        modal?.classList.remove('hidden');
+        modal.hidden = false;
+    }
+
+    function closeClearModal() {
+        $('datos-clear-modal')?.classList.add('hidden');
+        $('datos-clear-modal').hidden = true;
+    }
+
+    function confirmClearModal() {
+        const input = $('datos-clear-confirm-input');
+        if (input?.value?.trim().toUpperCase() !== 'BORRAR') {
+            alert('Escriba BORRAR para confirmar.');
+            return;
+        }
+        const alsoGrupos = $('datos-clear-grupos')?.checked;
+        closeClearModal();
+        callbacks.onClearAll?.(alsoGrupos);
+    }
+
+    async function init(options) {
+        callbacks = options || {};
+        bindPanelEvents();
+
+        if (Storage?.isAvailable()) {
+            const existing = await Storage.listDatasets();
+            if (!existing.length) {
+                await Storage.migrateLegacyCache((packages, meta) =>
+                    buildDatasetFromPackages(packages, meta));
+            }
+        }
+    }
+
+    window.S21DashboardDatos = {
+        init,
+        openPanel,
+        closePanel,
+        renderHistory,
+        promptSaveAction,
+        persistSave,
+        buildDatasetFromPackages,
+        findDuplicateConflicts,
+        formatSavedAt,
+    };
+})();

@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const PERFIL_ALIASES_KEY = 'analisis_servicio_perfil_aliases';
     const CHART_PROFILES_KEY = 'analisis_servicio_chart_profiles';
     const Storage = window.S21DashboardStorage;
+    const Datos = window.S21DashboardDatos;
 
     const FILTER_LAYOUT = {
         wide: ['origen', 'grupo'],
@@ -16,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const dropZone = document.getElementById('drop-zone');
-    const btnClearData = document.getElementById('btn-clear-data');
+    const btnClearData = document.getElementById('btn-clear-data'); // legacy, may be null
     const loadStatus = document.getElementById('load-status');
     const dataSourcesBar = document.getElementById('data-sources-bar');
     const fileList = document.getElementById('file-list');
@@ -123,10 +124,48 @@ document.addEventListener('DOMContentLoaded', () => {
     initSectionAccordions();
     initDashboardNav();
     initFiltersCollapsed();
+    initDatosModule();
     initWizard();
     initGruposModule();
     restoreDashboardCache();
 
+    function initDatosModule() {
+        if (!Datos) return;
+        Datos.init({
+            onDatasetActivated: (loadedPackages, meta) => applyPackages(loadedPackages, meta),
+            onAllDatasetsCleared: () => clearAll(false),
+            onClearAll: alsoGrupos => clearAll(alsoGrupos),
+        });
+    }
+
+    async function applyPackages(loadedPackages, meta, options = {}) {
+        packages = loadedPackages;
+        currentFuente = meta?.label || meta?.name || 'Carga';
+        rebuild();
+        if (!options.skipStatus) {
+            setLoadStatus(`${loadedPackages.length} JSON · ${currentFuente}`, false);
+        }
+    }
+
+    function initWizard() {
+        window.S21DashboardWizard.init({
+            onPackagesLoaded: async (loadedPackages, meta) => {
+                if (!Datos) {
+                    await applyPackages(loadedPackages, meta);
+                    return;
+                }
+                const action = await Datos.promptSaveAction(loadedPackages, meta);
+                if (!action) return;
+                await applyPackages(loadedPackages, meta);
+                await Datos.persistSave(action, loadedPackages, meta);
+                Datos.closePanel();
+            },
+            onClear: () => {
+                packages = [];
+                currentFuente = '';
+            },
+            setLoadStatus,
+        });
     function initGruposModule() {
         if (!G) return;
         G.init({
@@ -196,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function bindEvents() {
-        btnClearData.addEventListener('click', clearAll);
+        btnClearData?.addEventListener('click', () => clearAll(false));
         btnToggleFilters.addEventListener('click', toggleFilters);
         filterModeBtns.forEach(btn => {
             btn.addEventListener('click', () => setFilterMode(btn.dataset.filterMode));
@@ -259,22 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function initWizard() {
-        window.S21DashboardWizard.init({
-            onPackagesLoaded: (loadedPackages, meta) => {
-                packages = loadedPackages;
-                currentFuente = meta?.label || 'Carga manual';
-                rebuild();
-                persistDashboardCache(loadedPackages, meta);
-            },
-            onClear: () => {
-                packages = [];
-                currentFuente = '';
-            },
-            setLoadStatus,
-        });
-    }
-
     function formatSavedAt(ts) {
         if (!ts) return '';
         try {
@@ -284,47 +307,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function persistDashboardCache(loadedPackages, meta) {
-        if (!Storage?.isAvailable()) return;
-        try {
-            await Storage.saveDashboardCache(loadedPackages, meta);
-            updateLocalCacheHint(meta?.savedAt || Date.now());
-            const label = meta?.label || currentFuente || 'Carga';
-            const when = formatSavedAt(Date.now());
-            setLoadStatus(`${loadedPackages.length} JSON · ${label} · guardado en este dispositivo${when ? ` (${when})` : ''}`, false);
-        } catch (error) {
-            setLoadStatus(`Datos cargados, pero no se guardaron en el dispositivo: ${error.message}`, true);
-        }
-    }
-
     async function restoreDashboardCache() {
         if (!Storage?.isAvailable()) return;
         try {
-            const cached = await Storage.loadDashboardCache();
-            if (!cached?.packages?.length) return;
-            packages = cached.packages;
-            currentFuente = cached.meta?.label || 'Datos guardados';
-            const when = formatSavedAt(cached.meta?.savedAt);
-            setLoadStatus(
-                `${cached.packages.length} JSON restaurado${when ? ` · guardado ${when}` : ''}`,
-                false
-            );
-            updateLocalCacheHint(cached.meta?.savedAt);
+            const active = await Storage.getActiveDataset();
+            if (!active?.packages?.length) return;
+            await applyPackages(active.packages, {
+                label: active.name || active.meta?.label,
+                ...active.meta,
+            }, { skipStatus: false });
+            const when = formatSavedAt(active.savedAt);
+            setLoadStatus(`${active.packages.length} JSON restaurado${when ? ` · ${when}` : ''}`, false);
             window.S21DashboardWizard.showLoaded();
-            rebuild();
+            Datos?.renderHistory();
         } catch (error) {
             console.warn('No se pudo restaurar datos locales', error);
         }
-    }
-
-    function updateLocalCacheHint(savedAt) {
-        const hint = document.getElementById('local-cache-hint');
-        if (!hint) return;
-        const when = formatSavedAt(savedAt);
-        hint.textContent = when
-            ? `Los datos permanecen en este dispositivo (última carga: ${when}). Use «Limpiar» para borrarlos.`
-            : 'Los datos permanecen guardados en este dispositivo. Use «Limpiar» para borrarlos.';
-        hint.classList.remove('hidden');
     }
 
     function setLoadStatus(text, isWarn) {
@@ -334,15 +332,19 @@ document.addEventListener('DOMContentLoaded', () => {
         loadStatus.classList.remove('hidden');
     }
 
-    function clearAll() {
+    function clearAll(alsoGrupos = false) {
         packages = [];
         currentFuente = '';
         if (loadStatus) loadStatus.classList.add('hidden');
-        document.getElementById('local-cache-hint')?.classList.add('hidden');
         Storage?.clearDashboardCache?.().catch(() => {});
+        if (alsoGrupos && G) {
+            localStorage.removeItem(G.GRUPOS_KEY);
+            G.render?.();
+        }
         window.S21DashboardWizard.resetAll();
         window.S21DashboardWizard.showWizard();
         rebuild();
+        Datos?.renderHistory();
     }
 
     function rebuild() {
@@ -350,7 +352,6 @@ document.addEventListener('DOMContentLoaded', () => {
             flat = { mensual: [], publicadores: [] };
             dashboardContent.classList.add('hidden');
             emptyState.classList.remove('hidden');
-            btnClearData.classList.add('hidden');
             destroyCharts();
             destroyPublisherDetailChart();
             selectedPublisherKey = '';
@@ -380,7 +381,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderFileList();
         emptyState.classList.add('hidden');
         dashboardContent.classList.remove('hidden');
-        btnClearData.classList.remove('hidden');
         refresh();
     }
 
@@ -773,7 +773,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const sections = [
-            { id: 'load', el: document.getElementById('load-section') },
             { id: 'kpi', el: document.querySelector('[data-accordion-id="kpi"]') },
             { id: 'table', el: document.querySelector('[data-accordion-id="table"]') },
             { id: 'grupos', el: document.getElementById('grupos-section') },
@@ -806,12 +805,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function navigateToDashboardSection(targetId) {
         if (!targetId) return;
         setDashboardNavActive(targetId);
-
-        if (targetId === 'load') {
-            document.getElementById('load-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            expandAccordion('load');
-            return;
-        }
 
         expandAccordion(targetId);
         const el = targetId === 'publishers'

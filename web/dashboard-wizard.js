@@ -85,7 +85,7 @@
         }
 
         if (chooseLead && !window.S21_SERVER_AVAILABLE) {
-            chooseLead.textContent = 'Sin servidor local: use «Cargar JSON existentes» y «Abrir archivos» para ver el dashboard en móvil o GitHub Pages.';
+            chooseLead.textContent = 'Sin servidor: cargue JSON (.zip, .txt o archivos). Ver Ayuda abajo.';
         }
     }
 
@@ -653,9 +653,8 @@
         } catch {
             jsonSources = [];
             if (els.jsonSourceList) {
-                els.jsonSourceList.innerHTML = '<p class="wizard-muted">Pulse <strong>Abrir archivos</strong> y seleccione uno o más JSON de este dispositivo.</p>';
+                els.jsonSourceList.innerHTML = '<p class="wizard-muted">Pulse <strong>Abrir archivos</strong> o use Pegar JSON abajo.</p>';
             }
-            $('wizard-json-mobile-hint')?.classList.remove('hidden');
         }
     }
 

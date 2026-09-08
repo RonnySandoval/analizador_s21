@@ -1,5 +1,5 @@
 html.dashboard-root {
-    font-size: 18px;
+    font-size: calc(20px * var(--app-font-scale, 1));
 }
 
 .dashboard-body {
@@ -3626,5 +3626,325 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
     .dashboard-nav-btn {
         padding: 0.38rem 0.2rem;
+    }
+}
+
+/* --- Datos panel & preferences --- */
+.btn-datos-header {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    background: rgba(52, 211, 153, 0.1);
+    color: var(--accent-emerald, #34d399);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 44px;
+}
+
+.btn-datos-header svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.load-status--global {
+    margin-bottom: 0.75rem;
+}
+
+.datos-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.datos-panel.hidden {
+    display: none;
+}
+
+.datos-panel-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+}
+
+.datos-panel-sheet {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 26rem);
+    max-height: 100%;
+    overflow-y: auto;
+    background: rgba(8, 12, 24, 0.98);
+    border-left: 1px solid rgba(52, 211, 153, 0.25);
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.45);
+    padding: 0 0 2rem;
+}
+
+.datos-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: sticky;
+    top: 0;
+    background: inherit;
+    z-index: 2;
+}
+
+.datos-panel-header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.datos-panel-close {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+}
+
+.datos-panel-body {
+    padding: 0.75rem 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.datos-section-title {
+    margin: 0 0 0.5rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.datos-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.datos-section-head .datos-section-title {
+    margin: 0;
+}
+
+.datos-muted {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.dataset-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.dataset-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(10, 16, 28, 0.5);
+}
+
+.dataset-card.is-active {
+    border-color: rgba(52, 211, 153, 0.45);
+    background: rgba(52, 211, 153, 0.08);
+}
+
+.dataset-card-name {
+    display: block;
+    font-size: 0.85rem;
+}
+
+.dataset-card-meta,
+.dataset-card-profiles,
+.dataset-card-date {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.dataset-card-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.dataset-active-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--accent-emerald, #34d399);
+}
+
+.dataset-duplicate-hint {
+    margin: 0 0 0.5rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.1);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--text-main);
+}
+
+.pref-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+    font-size: 0.85rem;
+}
+
+.pref-range {
+    width: 8rem;
+    max-width: 45%;
+}
+
+.pref-toggle {
+    width: 2.5rem;
+    height: 1.35rem;
+}
+
+.datos-help {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.78rem;
+}
+
+.datos-help summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.datos-help p {
+    margin: 0.45rem 0 0;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.datos-clear-wrap {
+    margin: 0.5rem 0 0;
+    text-align: center;
+}
+
+.datos-clear-link {
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0.35rem;
+}
+
+.datos-clear-link:hover {
+    color: var(--error);
+}
+
+.datos-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.datos-modal.hidden {
+    display: none;
+}
+
+.datos-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+}
+
+.datos-modal-card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 22rem);
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    background: rgba(8, 12, 24, 0.98);
+}
+
+.datos-modal-title {
+    margin: 0 0 0.65rem;
+    font-size: 1rem;
+}
+
+.datos-modal-body {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+.datos-modal-body p {
+    margin: 0 0 0.5rem;
+}
+
+.datos-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    justify-content: flex-end;
+    margin-top: 0.85rem;
+}
+
+.datos-warn-box {
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.08);
+    font-size: 0.78rem;
+}
+
+.datos-warn-box ul {
+    margin: 0.35rem 0 0;
+    padding-left: 1.1rem;
+}
+
+.datos-clear-input {
+    width: 100%;
+    margin-top: 0.35rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(5, 8, 18, 0.85);
+    color: var(--text-main);
+}
+
+body.datos-panel-open {
+    overflow: hidden;
+}
+
+@media (max-width: 640px) {
+    .datos-panel-sheet {
+        width: 100%;
     }
 }

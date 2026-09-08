@@ -15,12 +15,14 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="theme-cyber.css">
-    <link rel="stylesheet" href="dashboard.css?v=54">
+    <link rel="stylesheet" href="theme-light.css">
+    <link rel="stylesheet" href="dashboard.css?v=55">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="dashboard-preferences.js?v=1"></script>
 </head>
 <body class="dashboard-body">
     <div class="container dashboard-container">
@@ -29,220 +31,17 @@
                 <div class="logo-icon">📊</div>
                 <div>
                     <h1>Análisis de Servicio</h1>
-                    <p class="subtitle">Analice tarjetas S-21 y explore horas, cursos y participación</p>
+                    <p class="subtitle">Horas, cursos y participación</p>
                 </div>
             </div>
+            <button type="button" id="btn-open-datos-panel" class="btn-datos-header" aria-label="Datos y configuración">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+                <span>Datos</span>
+            </button>
         </header>
 
         <main class="main-card dashboard-main">
-            <section id="load-section" class="dashboard-section dashboard-section--load dashboard-accordion" data-accordion-id="load">
-                <button type="button" class="dashboard-accordion-trigger" aria-expanded="true" aria-controls="accordion-body-load">
-                    <span class="dashboard-accordion-trigger-main">
-                        <span class="dashboard-section-title">Datos</span>
-                        <span class="dashboard-section-sub">Analice PDF o cargue JSON para el dashboard</span>
-                    </span>
-                    <span class="dashboard-accordion-chevron" aria-hidden="true"></span>
-                </button>
-                <div id="accordion-body-load" class="dashboard-accordion-body">
-                    <div class="dashboard-accordion-inner">
-                        <div id="load-status" class="load-status hidden"></div>
-
-                        <div id="load-wizard" class="load-wizard">
-                            <div class="wizard-step active" data-step="choose">
-                                <p class="wizard-lead">No hay datos cargados. Elija cómo obtener los JSON del dashboard.</p>
-                                <div class="wizard-actions">
-                                    <button type="button" id="btn-wizard-analyze" class="btn-primary">Analizar tarjetas PDF</button>
-                                    <button type="button" id="btn-wizard-load" class="btn-secondary">Cargar JSON existentes</button>
-                                </div>
-                            </div>
-
-                            <div class="wizard-step hidden" data-step="pdfs">
-                                <p class="wizard-step-label">Paso 1 de 4</p>
-                                <h3 class="wizard-step-title">Carpetas con tarjetas PDF</h3>
-                                <div class="folder-panel wizard-folder-panel">
-                                    <ul id="wizard-folder-list" class="folder-list"></ul>
-                                    <p id="wizard-folder-empty" class="folder-empty">Ninguna carpeta seleccionada</p>
-                                    <input type="file" id="wizard-fallback-folder" webkitdirectory multiple hidden>
-                                    <p class="folder-hint">Elija una carpeta con PDFs o una carpeta padre con subcarpetas.</p>
-                                    <div class="origin-actions origin-actions-row">
-                                        <button type="button" id="btn-wizard-add-folder" class="btn-secondary btn-compact">Agregar carpeta(s)</button>
-                                        <button type="button" id="btn-wizard-remove-folder" class="btn-ghost btn-compact">Quitar</button>
-                                        <button type="button" id="btn-wizard-clear-folders" class="btn-ghost btn-compact">Limpiar</button>
-                                    </div>
-                                </div>
-                                <div class="wizard-nav">
-                                    <button type="button" id="btn-wizard-pdfs-back" class="btn-ghost">Atrás</button>
-                                    <button type="button" id="btn-wizard-pdfs-next" class="btn-primary">Siguiente</button>
-                                </div>
-                            </div>
-
-                            <div class="wizard-step hidden" data-step="year">
-                                <p class="wizard-step-label">Paso 2 de 4</p>
-                                <h3 class="wizard-step-title">Año de servicio</h3>
-                                <div class="wizard-field">
-                                    <label for="wizard-anio-servicio">Año de servicio</label>
-                                    <input type="number" id="wizard-anio-servicio" min="2010" max="2040" step="1">
-                                    <p id="wizard-anio-hint" class="field-hint"></p>
-                                </div>
-                                <p class="wizard-muted">Si los PDF indican otro año, el analizador mostrará advertencias o bloqueará la mezcla.</p>
-                                <div class="wizard-nav">
-                                    <button type="button" id="btn-wizard-year-back" class="btn-ghost">Atrás</button>
-                                    <button type="button" id="btn-wizard-year-next" class="btn-primary">Siguiente</button>
-                                </div>
-                            </div>
-
-                            <div class="wizard-step hidden" data-step="grouping">
-                                <p class="wizard-step-label">Paso 3 de 4</p>
-                                <h3 class="wizard-step-title">Agrupación y formatos</h3>
-                                <div class="options-grid wizard-options">
-                                    <div class="option-block">
-                                        <span class="option-label">Agrupación JSON</span>
-                                        <div class="pill-group pill-group-vertical">
-                                            <label class="pill-option pill-radio">
-                                                <input type="radio" name="wizard_modo_agrupacion" value="por_carpeta" checked>
-                                                <span>Un JSON por carpeta de origen</span>
-                                            </label>
-                                            <label class="pill-option pill-radio">
-                                                <input type="radio" name="wizard_modo_agrupacion" value="integrado">
-                                                <span>Todo en un solo JSON</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="option-block">
-                                        <span class="option-label">Formatos</span>
-                                        <div class="pill-group">
-                                            <label class="pill-option">
-                                                <input type="checkbox" id="wizard-fmt-json" checked>
-                                                <span>JSON</span>
-                                            </label>
-                                            <label class="pill-option">
-                                                <input type="checkbox" id="wizard-fmt-csv" checked>
-                                                <span>CSV</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="option-block">
-                                        <span class="option-label">Columnas CSV</span>
-                                        <div class="pill-group pill-group-vertical">
-                                            <label class="pill-option pill-radio">
-                                                <input type="radio" name="wizard_modo_csv" value="unificado" checked>
-                                                <span>Horas + cursos juntos</span>
-                                            </label>
-                                            <label class="pill-option pill-radio">
-                                                <input type="radio" name="wizard_modo_csv" value="separado">
-                                                <span>CSV aparte por métrica</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="wizard-nav">
-                                    <button type="button" id="btn-wizard-group-back" class="btn-ghost">Atrás</button>
-                                    <button type="button" id="btn-wizard-group-next" class="btn-primary">Siguiente</button>
-                                </div>
-                            </div>
-
-                            <div class="wizard-step hidden" data-step="output">
-                                <p class="wizard-step-label">Paso 4 de 4</p>
-                                <h3 class="wizard-step-title">Carpeta de salida</h3>
-                                <div class="compact-grid wizard-output-fields">
-                                    <div class="field-block span-2">
-                                        <label for="wizard-carpeta-destino">Carpeta en el servidor (opcional)</label>
-                                        <div class="input-with-button">
-                                            <input type="text" id="wizard-carpeta-destino" placeholder="Por defecto: resultados/">
-                                            <button type="button" id="btn-wizard-browse-dest" class="btn-secondary btn-browse">Explorar</button>
-                                        </div>
-                                        <p id="wizard-dest-local-hint" class="field-hint hidden"></p>
-                                    </div>
-                                    <div class="field-block">
-                                        <label for="wizard-nombre-base">Nombre base / subcarpeta</label>
-                                        <input type="text" id="wizard-nombre-base" value="registros">
-                                    </div>
-                                </div>
-                                <label class="inline-switch wizard-switch" for="wizard-en-carpeta-aparte">
-                                    <input type="checkbox" id="wizard-en-carpeta-aparte" checked>
-                                    <span class="mini-slider" aria-hidden="true"></span>
-                                    <span class="switch-label">Crear subcarpeta con el nombre base</span>
-                                </label>
-                                <div id="wizard-output-preview" class="wizard-output-preview"></div>
-                                <div class="wizard-nav">
-                                    <button type="button" id="btn-wizard-output-back" class="btn-ghost">Atrás</button>
-                                    <button type="button" id="btn-wizard-execute" class="btn-primary">Ejecutar analizador</button>
-                                </div>
-                            </div>
-
-                            <div class="wizard-step hidden" data-step="run">
-                                <div class="wizard-run-box">
-                                    <div id="wizard-run-spinner" class="spinner"></div>
-                                    <p id="wizard-run-status">Procesando...</p>
-                                    <button type="button" id="btn-wizard-run-retry" class="btn-secondary hidden">Volver al paso anterior</button>
-                                </div>
-                            </div>
-
-                            <div class="wizard-step hidden" data-step="json-pick">
-                                <h3 class="wizard-step-title">Seleccionar JSON</h3>
-                                <div id="wizard-json-source-list" class="wizard-json-sources"></div>
-                                <div class="wizard-actions wizard-actions-wrap">
-                                    <button type="button" id="btn-wizard-json-select-all" class="btn-ghost btn-compact">Marcar todos</button>
-                                    <button type="button" id="btn-wizard-json-clear" class="btn-ghost btn-compact">Desmarcar</button>
-                                    <button type="button" id="btn-wizard-json-pick" class="btn-secondary btn-compact">Abrir archivos</button>
-                                    <input type="file" id="wizard-file-input" accept=".json,.txt,.zip,application/json,application/zip,text/plain,*/*" multiple hidden>
-                                </div>
-                                <p id="wizard-json-mobile-hint" class="wizard-mobile-json-hint hidden">
-                                    <strong>WhatsApp / móvil:</strong> no abra el archivo con Word (lo convierte a .docx y deja de servir).
-                                    Desde el PC envíe un <strong>.zip</strong> con los JSON, o renombre cada archivo a <code>.txt</code> antes de enviarlo.
-                                    En WhatsApp: mantenga pulsado el adjunto → <strong>Guardar</strong> (sin abrir) → luego <strong>Abrir archivos</strong> aquí.
-                                </p>
-                                <details class="wizard-json-paste-panel">
-                                    <summary>Pegar JSON o cargar .zip / .txt</summary>
-                                    <p class="wizard-muted">Si Word ya dañó el archivo, pida el JSON original en el PC o pegue aquí el contenido (debe empezar con <code>{</code>).</p>
-                                    <div class="wizard-json-paste-actions">
-                                        <button type="button" id="btn-wizard-json-clipboard" class="btn-ghost btn-compact">Pegar desde portapapeles</button>
-                                        <button type="button" id="btn-wizard-json-paste-load" class="btn-primary btn-compact">Cargar texto</button>
-                                    </div>
-                                    <textarea id="wizard-json-paste" class="wizard-json-paste" rows="6" placeholder='{"origen":"...","registros":[...]}' spellcheck="false"></textarea>
-                                </details>
-                                <div class="wizard-nav">
-                                    <button type="button" id="btn-wizard-json-back" class="btn-ghost">Atrás</button>
-                                    <button type="button" id="btn-wizard-json-next" class="btn-primary">Siguiente</button>
-                                </div>
-                            </div>
-
-                            <div class="wizard-step hidden" data-step="json-year">
-                                <h3 class="wizard-step-title">Año de servicio</h3>
-                                <p class="wizard-muted">Los archivos seleccionados pertenecen a más de un año. Elija cuál cargar en el dashboard.</p>
-                                <div id="wizard-json-year-warn"></div>
-                                <div class="wizard-field">
-                                    <label for="wizard-json-year-select">Año a cargar</label>
-                                    <select id="wizard-json-year-select"></select>
-                                </div>
-                                <div id="wizard-json-year-pick" class="wizard-json-year-pick"></div>
-                                <div class="wizard-nav">
-                                    <button type="button" id="btn-wizard-json-year-back" class="btn-ghost">Atrás</button>
-                                    <button type="button" id="btn-wizard-json-year-confirm" class="btn-primary">Cargar dashboard</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="load-loaded" class="load-loaded hidden">
-                            <div id="drop-zone" class="load-panel has-sources">
-                                <div id="data-sources-bar" class="data-sources-bar">
-                                    <div class="data-sources-bar-main">
-                                        <span class="data-sources-title">Perfiles cargados</span>
-                                        <p id="local-cache-hint" class="local-cache-hint hidden"></p>
-                                        <p id="perfil-aliases-hint" class="perfil-aliases-hint"></p>
-                                    </div>
-                                    <button type="button" id="btn-reset-perfil-aliases" class="btn-ghost btn-compact">Restaurar sugeridos</button>
-                                </div>
-                                <ul id="file-list" class="file-list"></ul>
-                                <div class="load-actions">
-                                    <button type="button" id="btn-new-load" class="btn-secondary">Nueva carga</button>
-                                    <button type="button" id="btn-clear-data" class="btn-ghost">Limpiar</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <div id="load-status" class="load-status load-status--global hidden"></div>
 
             <section id="dashboard-content" class="hidden dashboard-stack">
                 <section class="dashboard-section dashboard-section--kpi dashboard-accordion" data-accordion-id="kpi">
@@ -453,7 +252,7 @@
             </section>
 
             <div id="empty-state" class="empty-state">
-                Cargue datos con el asistente de arriba: analice tarjetas PDF o seleccione JSON existentes.
+                Pulse <strong>Datos</strong> arriba para cargar JSON, ver cargas guardadas o cambiar ajustes.
             </div>
         </main>
         <footer class="app-footer">
@@ -462,13 +261,242 @@
         </footer>
     </div>
 
+    <div id="datos-panel" class="datos-panel hidden" role="dialog" aria-modal="true" aria-labelledby="datos-panel-title" hidden>
+        <div id="datos-panel-backdrop" class="datos-panel-backdrop" tabindex="-1"></div>
+        <div class="datos-panel-sheet">
+            <header class="datos-panel-header">
+                <h2 id="datos-panel-title">Datos y configuración</h2>
+                <button type="button" id="datos-panel-close" class="datos-panel-close" aria-label="Cerrar">×</button>
+            </header>
+            <div class="datos-panel-body">
+                <section class="datos-section">
+                    <div class="datos-section-head">
+                        <h3 class="datos-section-title">Cargas guardadas</h3>
+                        <button type="button" id="btn-datos-new-load" class="btn-secondary btn-compact">+ Nueva carga</button>
+                    </div>
+                    <p id="dataset-duplicate-hint" class="dataset-duplicate-hint hidden"></p>
+                    <div id="dataset-history-list" class="dataset-history-list"></div>
+                </section>
+
+                <section id="datos-wizard-wrap" class="datos-section">
+                    <div id="load-wizard" class="load-wizard">
+                        <div class="wizard-step active" data-step="choose">
+                            <p class="wizard-lead">Elija cómo obtener JSON.</p>
+                            <div class="wizard-actions">
+                                <button type="button" id="btn-wizard-analyze" class="btn-primary">Analizar PDF</button>
+                                <button type="button" id="btn-wizard-load" class="btn-secondary">Cargar JSON</button>
+                            </div>
+                        </div>
+                        <div class="wizard-step hidden" data-step="pdfs">
+                            <p class="wizard-step-label">Paso 1 de 4</p>
+                            <h3 class="wizard-step-title">Carpetas PDF</h3>
+                            <div class="folder-panel wizard-folder-panel">
+                                <ul id="wizard-folder-list" class="folder-list"></ul>
+                                <p id="wizard-folder-empty" class="folder-empty">Ninguna carpeta</p>
+                                <input type="file" id="wizard-fallback-folder" webkitdirectory multiple hidden>
+                                <div class="origin-actions origin-actions-row">
+                                    <button type="button" id="btn-wizard-add-folder" class="btn-secondary btn-compact">Agregar</button>
+                                    <button type="button" id="btn-wizard-remove-folder" class="btn-ghost btn-compact">Quitar</button>
+                                    <button type="button" id="btn-wizard-clear-folders" class="btn-ghost btn-compact">Limpiar</button>
+                                </div>
+                            </div>
+                            <div class="wizard-nav">
+                                <button type="button" id="btn-wizard-pdfs-back" class="btn-ghost">Atrás</button>
+                                <button type="button" id="btn-wizard-pdfs-next" class="btn-primary">Siguiente</button>
+                            </div>
+                        </div>
+                        <div class="wizard-step hidden" data-step="year">
+                            <p class="wizard-step-label">Paso 2 de 4</p>
+                            <h3 class="wizard-step-title">Año de servicio</h3>
+                            <div class="wizard-field">
+                                <label for="wizard-anio-servicio">Año</label>
+                                <input type="number" id="wizard-anio-servicio" min="2010" max="2040" step="1">
+                                <p id="wizard-anio-hint" class="field-hint"></p>
+                            </div>
+                            <div class="wizard-nav">
+                                <button type="button" id="btn-wizard-year-back" class="btn-ghost">Atrás</button>
+                                <button type="button" id="btn-wizard-year-next" class="btn-primary">Siguiente</button>
+                            </div>
+                        </div>
+                        <div class="wizard-step hidden" data-step="grouping">
+                            <p class="wizard-step-label">Paso 3 de 4</p>
+                            <h3 class="wizard-step-title">Formatos</h3>
+                            <div class="options-grid wizard-options">
+                                <div class="option-block">
+                                    <span class="option-label">Agrupación</span>
+                                    <div class="pill-group pill-group-vertical">
+                                        <label class="pill-option pill-radio"><input type="radio" name="wizard_modo_agrupacion" value="por_carpeta" checked><span>Por carpeta</span></label>
+                                        <label class="pill-option pill-radio"><input type="radio" name="wizard_modo_agrupacion" value="integrado"><span>Un solo JSON</span></label>
+                                    </div>
+                                </div>
+                                <div class="option-block">
+                                    <span class="option-label">Salida</span>
+                                    <div class="pill-group">
+                                        <label class="pill-option"><input type="checkbox" id="wizard-fmt-json" checked><span>JSON</span></label>
+                                        <label class="pill-option"><input type="checkbox" id="wizard-fmt-csv" checked><span>CSV</span></label>
+                                    </div>
+                                </div>
+                                <div class="option-block">
+                                    <span class="option-label">CSV</span>
+                                    <div class="pill-group pill-group-vertical">
+                                        <label class="pill-option pill-radio"><input type="radio" name="wizard_modo_csv" value="unificado" checked><span>Unificado</span></label>
+                                        <label class="pill-option pill-radio"><input type="radio" name="wizard_modo_csv" value="separado"><span>Por métrica</span></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="wizard-nav">
+                                <button type="button" id="btn-wizard-group-back" class="btn-ghost">Atrás</button>
+                                <button type="button" id="btn-wizard-group-next" class="btn-primary">Siguiente</button>
+                            </div>
+                        </div>
+                        <div class="wizard-step hidden" data-step="output">
+                            <p class="wizard-step-label">Paso 4 de 4</p>
+                            <h3 class="wizard-step-title">Salida</h3>
+                            <div class="compact-grid wizard-output-fields">
+                                <div class="field-block span-2">
+                                    <label for="wizard-carpeta-destino">Carpeta servidor</label>
+                                    <div class="input-with-button">
+                                        <input type="text" id="wizard-carpeta-destino" placeholder="resultados/">
+                                        <button type="button" id="btn-wizard-browse-dest" class="btn-secondary btn-browse">Explorar</button>
+                                    </div>
+                                    <p id="wizard-dest-local-hint" class="field-hint hidden"></p>
+                                </div>
+                                <div class="field-block">
+                                    <label for="wizard-nombre-base">Nombre base</label>
+                                    <input type="text" id="wizard-nombre-base" value="registros">
+                                </div>
+                            </div>
+                            <label class="inline-switch wizard-switch" for="wizard-en-carpeta-aparte">
+                                <input type="checkbox" id="wizard-en-carpeta-aparte" checked>
+                                <span class="mini-slider" aria-hidden="true"></span>
+                                <span class="switch-label">Subcarpeta con nombre base</span>
+                            </label>
+                            <div id="wizard-output-preview" class="wizard-output-preview"></div>
+                            <div class="wizard-nav">
+                                <button type="button" id="btn-wizard-output-back" class="btn-ghost">Atrás</button>
+                                <button type="button" id="btn-wizard-execute" class="btn-primary">Ejecutar</button>
+                            </div>
+                        </div>
+                        <div class="wizard-step hidden" data-step="run">
+                            <div class="wizard-run-box">
+                                <div id="wizard-run-spinner" class="spinner"></div>
+                                <p id="wizard-run-status">Procesando...</p>
+                                <button type="button" id="btn-wizard-run-retry" class="btn-secondary hidden">Volver</button>
+                            </div>
+                        </div>
+                        <div class="wizard-step hidden" data-step="json-pick">
+                            <h3 class="wizard-step-title">Seleccionar JSON</h3>
+                            <div id="wizard-json-source-list" class="wizard-json-sources"></div>
+                            <div class="wizard-actions wizard-actions-wrap">
+                                <button type="button" id="btn-wizard-json-select-all" class="btn-ghost btn-compact">Todos</button>
+                                <button type="button" id="btn-wizard-json-clear" class="btn-ghost btn-compact">Ninguno</button>
+                                <button type="button" id="btn-wizard-json-pick" class="btn-secondary btn-compact">Abrir archivos</button>
+                                <input type="file" id="wizard-file-input" accept=".json,.txt,.zip,application/json,application/zip,text/plain,*/*" multiple hidden>
+                            </div>
+                            <details class="wizard-json-paste-panel">
+                                <summary>Pegar JSON / .zip / .txt</summary>
+                                <div class="wizard-json-paste-actions">
+                                    <button type="button" id="btn-wizard-json-clipboard" class="btn-ghost btn-compact">Pegar</button>
+                                    <button type="button" id="btn-wizard-json-paste-load" class="btn-primary btn-compact">Cargar</button>
+                                </div>
+                                <textarea id="wizard-json-paste" class="wizard-json-paste" rows="5" spellcheck="false"></textarea>
+                            </details>
+                            <div class="wizard-nav">
+                                <button type="button" id="btn-wizard-json-back" class="btn-ghost">Atrás</button>
+                                <button type="button" id="btn-wizard-json-next" class="btn-primary">Siguiente</button>
+                            </div>
+                        </div>
+                        <div class="wizard-step hidden" data-step="json-year">
+                            <h3 class="wizard-step-title">Año de servicio</h3>
+                            <div id="wizard-json-year-warn"></div>
+                            <div class="wizard-field">
+                                <label for="wizard-json-year-select">Año</label>
+                                <select id="wizard-json-year-select"></select>
+                            </div>
+                            <div id="wizard-json-year-pick" class="wizard-json-year-pick"></div>
+                            <div class="wizard-nav">
+                                <button type="button" id="btn-wizard-json-year-back" class="btn-ghost">Atrás</button>
+                                <button type="button" id="btn-wizard-json-year-confirm" class="btn-primary">Cargar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="load-loaded" class="load-loaded hidden">
+                        <div id="drop-zone" class="load-panel has-sources">
+                            <div id="data-sources-bar" class="data-sources-bar">
+                                <div class="data-sources-bar-main">
+                                    <span class="data-sources-title">Alias de perfiles</span>
+                                    <p id="perfil-aliases-hint" class="perfil-aliases-hint"></p>
+                                </div>
+                                <button type="button" id="btn-reset-perfil-aliases" class="btn-ghost btn-compact">Restaurar</button>
+                            </div>
+                            <ul id="file-list" class="file-list"></ul>
+                            <button type="button" id="btn-new-load" class="btn-secondary btn-compact">Otra carga</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="datos-settings-block" class="datos-section">
+                    <h3 class="datos-section-title">Ajustes</h3>
+                    <label class="pref-row" for="pref-theme-toggle">
+                        <span>Tema claro</span>
+                        <input type="checkbox" id="pref-theme-toggle" class="pref-toggle">
+                    </label>
+                    <label class="pref-row" for="pref-font-scale">
+                        <span>Tamaño texto <output id="pref-font-scale-value">Normal</output></span>
+                        <input type="range" id="pref-font-scale" class="pref-range">
+                    </label>
+                </section>
+
+                <details class="datos-help">
+                    <summary>Cargar JSON en móvil (WhatsApp)</summary>
+                    <p>No abra con Word. Envíe un <strong>.zip</strong> desde el PC o renombre a <strong>.txt</strong>. Guarde el adjunto sin abrir → Abrir archivos aquí.</p>
+                </details>
+                <details class="datos-help">
+                    <summary>Servidor local vs móvil</summary>
+                    <p>Analizar PDF requiere el servidor en PC. En móvil/GitHub Pages solo cargue JSON ya exportados. Los datos quedan en este dispositivo.</p>
+                </details>
+
+                <p class="datos-clear-wrap">
+                    <button type="button" id="btn-datos-clear-link" class="datos-clear-link">Borrar todos los datos locales…</button>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div id="datos-save-modal" class="datos-modal hidden" role="dialog" aria-modal="true" hidden>
+        <div class="datos-modal-backdrop"></div>
+        <div class="datos-modal-card">
+            <h3 class="datos-modal-title">Guardar carga</h3>
+            <div id="datos-save-modal-body" class="datos-modal-body"></div>
+            <div class="datos-modal-actions">
+                <button type="button" id="datos-save-cancel" class="btn-ghost">Cancelar</button>
+                <button type="button" id="datos-save-replace" class="btn-secondary">Reemplazar activa</button>
+                <button type="button" id="datos-save-add" class="btn-primary">Añadir al historial</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="datos-clear-modal" class="datos-modal hidden" role="dialog" aria-modal="true" hidden>
+        <div class="datos-modal-backdrop"></div>
+        <div class="datos-modal-card">
+            <h3 class="datos-modal-title">Borrar datos locales</h3>
+            <div class="datos-modal-body">
+                <p>Se eliminarán <strong>todas las cargas guardadas</strong> en este dispositivo. El dashboard quedará vacío.</p>
+                <p>Los archivos JSON originales en su PC no se modifican.</p>
+                <label class="pref-row"><input type="checkbox" id="datos-clear-grupos"> También borrar asignación de grupos</label>
+                <label class="datos-clear-confirm-label" for="datos-clear-confirm-input">Escriba <strong>BORRAR</strong> para confirmar</label>
+                <input type="text" id="datos-clear-confirm-input" class="datos-clear-input" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="datos-modal-actions">
+                <button type="button" id="datos-clear-cancel" class="btn-ghost">Cancelar</button>
+                <button type="button" id="datos-clear-confirm" class="btn-primary datos-clear-confirm-btn">Borrar</button>
+            </div>
+        </div>
+    </div>
+
     <nav id="dashboard-nav" class="dashboard-nav dashboard-nav--bottom" aria-label="Ir a sección">
         <div class="dashboard-nav-inner">
-            <button type="button" class="dashboard-nav-btn" data-nav-target="load" title="Datos" aria-label="Datos">
-                <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-                <span class="dashboard-nav-text">Datos</span>
-            </button>
-            <button type="button" class="dashboard-nav-btn" data-nav-target="kpi" title="Indicadores" aria-label="Indicadores">
+            <button type="button" class="dashboard-nav-btn active" data-nav-target="kpi" title="Indicadores" aria-label="Indicadores">
                 <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
                 <span class="dashboard-nav-text">Indicadores</span>
             </button>
@@ -498,9 +526,10 @@
     <script src="s21-base.js"></script>
     <script src="pwa.js"></script>
     <script src="dashboard-data.js?v=30"></script>
-    <script src="dashboard-storage.js?v=1"></script>
+    <script src="dashboard-storage.js?v=2"></script>
+    <script src="dashboard-datos.js?v=1"></script>
     <script src="dashboard-grupos.js?v=10"></script>
-    <script src="dashboard-wizard.js?v=3"></script>
-    <script src="dashboard.js?v=61"></script>
+    <script src="dashboard-wizard.js?v=4"></script>
+    <script src="dashboard.js?v=62"></script>
 </body>
 </html>
