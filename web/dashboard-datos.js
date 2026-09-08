@@ -83,12 +83,13 @@
         }).filter(Boolean);
     }
 
-    function openPanel() {
+    async function openPanel() {
         const panel = $('datos-panel');
         panel?.classList.remove('hidden');
         if (panel) panel.hidden = false;
         document.body.classList.add('datos-panel-open');
-        renderHistory();
+        await callbacks.onPanelOpen?.();
+        await renderHistory();
     }
 
     function closePanel() {
@@ -158,25 +159,33 @@
                 .slice(0, 4)
                 .join(', ');
             const more = (ds.profileSummary?.length || 0) > 4 ? '…' : '';
+            const openLabel = active ? 'Abrir' : 'Activar';
             return `<article class="dataset-card${active ? ' is-active' : ''}" data-dataset-id="${escapeHtml(ds.id)}">
-                <div class="dataset-card-main">
+                <button type="button" class="dataset-card-main btn-dataset-open" data-id="${escapeHtml(ds.id)}" aria-label="${openLabel} carga ${escapeHtml(ds.name)}">
                     <strong class="dataset-card-name">${escapeHtml(ds.name)}</strong>
                     <span class="dataset-card-meta">${ds.packageCount} JSON · ${ds.publisherCount} pub.${ds.serviceYear ? ` · ${ds.serviceYear}` : ''}</span>
                     <span class="dataset-card-profiles">${profiles}${more}</span>
                     <span class="dataset-card-date">${formatSavedAt(ds.savedAt)}</span>
-                </div>
+                </button>
                 <div class="dataset-card-actions">
-                    ${active ? '<span class="dataset-active-badge">Activa</span>' : `<button type="button" class="btn-secondary btn-compact btn-dataset-activate" data-id="${escapeHtml(ds.id)}">Activar</button>`}
+                    ${active ? '<span class="dataset-active-badge">Activa</span>' : ''}
+                    <button type="button" class="btn-primary btn-compact btn-dataset-open" data-id="${escapeHtml(ds.id)}">${openLabel}</button>
                     <button type="button" class="btn-ghost btn-compact btn-dataset-delete" data-id="${escapeHtml(ds.id)}" title="Eliminar esta carga">✕</button>
                 </div>
             </article>`;
         }).join('');
 
-        listEl.querySelectorAll('.btn-dataset-activate').forEach(btn => {
-            btn.addEventListener('click', () => activateDataset(btn.dataset.id));
+        listEl.querySelectorAll('.btn-dataset-open').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                activateDataset(btn.dataset.id);
+            });
         });
         listEl.querySelectorAll('.btn-dataset-delete').forEach(btn => {
-            btn.addEventListener('click', () => deleteDatasetById(btn.dataset.id));
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                deleteDatasetById(btn.dataset.id);
+            });
         });
     }
 
@@ -197,9 +206,17 @@
 
     async function activateDataset(id) {
         const ds = await Storage.getDataset(id);
-        if (!ds?.packages?.length) return;
+        if (!ds) {
+            alert('No se encontró esa carga en el dispositivo.');
+            await renderHistory();
+            return;
+        }
+        if (!ds.packages?.length) {
+            alert(`La carga «${ds.name}» no tiene datos JSON guardados.\n\nElimínela y vuelva a cargar los archivos con «Nueva carga».`);
+            return;
+        }
         await Storage.setActiveDatasetId(id);
-        callbacks.onDatasetActivated?.(ds.packages, {
+        await callbacks.onDatasetActivated?.(ds.packages, {
             label: ds.meta?.label || ds.name,
             folderLabel: ds.meta?.folderLabel,
             añoMeta: ds.meta?.añoMeta,

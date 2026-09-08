@@ -3761,6 +3761,25 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     background: rgba(10, 16, 28, 0.5);
 }
 
+.dataset-card-main {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.dataset-card-main:hover,
+.dataset-card-main:focus-visible {
+    outline: none;
+    background: rgba(255, 255, 255, 0.04);
+}
+
 .dataset-card.is-active {
     border-color: rgba(52, 211, 153, 0.45);
     background: rgba(52, 211, 153, 0.08);

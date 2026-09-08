@@ -132,7 +132,25 @@ document.addEventListener('DOMContentLoaded', () => {
     function initDatosModule() {
         if (!Datos) return;
         Datos.init({
-            onDatasetActivated: (loadedPackages, meta) => applyPackages(loadedPackages, meta),
+            onDatasetActivated: async (loadedPackages, meta) => {
+                await applyPackages(loadedPackages, meta);
+                window.S21DashboardWizard?.showLoaded();
+            },
+            onPanelOpen: async () => {
+                if (packages.length || !Storage?.isAvailable()) return;
+                try {
+                    const active = await Storage.getActiveDataset();
+                    if (!active?.packages?.length) return;
+                    await applyPackages(active.packages, {
+                        label: active.name || active.meta?.label,
+                        ...active.meta,
+                    });
+                    setLoadStatus(`${active.packages.length} JSON · ${active.name || 'Carga activa'}`, false);
+                    window.S21DashboardWizard?.showLoaded();
+                } catch (error) {
+                    console.warn('No se pudo restaurar la carga activa al abrir Datos', error);
+                }
+            },
             onAllDatasetsCleared: () => clearAll(false),
             onClearAll: alsoGrupos => clearAll(alsoGrupos),
         });
