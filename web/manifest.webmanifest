@@ -1,0 +1,33 @@
+{
+    "name": "Análisis de Servicio S-21",
+    "short_name": "S-21",
+    "description": "Analizador de tarjetas S-21 y dashboard de horas, cursos y participación",
+    "start_url": "/dashboard.html",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#05060d",
+    "theme_color": "#00e5ff",
+    "lang": "es",
+    "categories": ["productivity", "utilities"],
+    "icons": [
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

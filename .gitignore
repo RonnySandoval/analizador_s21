@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+
+# Datos locales / congregación (no subir a repos públicos)
+resultados/*
+!resultados/.gitkeep
+*.pdf
+Precursores*/
+Publicadores*/
+Inactivos*/
+precursores/
+
+# IDE / OS
+.cursor/
+.vscode/
+*.swp
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
