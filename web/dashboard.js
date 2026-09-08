@@ -9,11 +9,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const Datos = window.S21DashboardDatos;
 
     const FILTER_LAYOUT = {
-        wide: ['origen', 'grupo'],
-        compact: [
-            'sexo', 'esperanza', 'anciano', 'siervo_ministerial',
-            'precursor_regular', 'precursor_especial', 'misionero',
+        rows: [
+            ['origen', 'grupo'],
+            ['sexo', 'esperanza'],
+            ['anciano', 'siervo_ministerial'],
+            ['precursor_regular', 'precursor_especial', 'misionero'],
         ],
+    };
+
+    const FILTER_FIELDS = FILTER_LAYOUT.rows.flat();
+
+    const FILTER_SHORT_LABELS = {
+        origen: 'Perfil',
+        grupo: 'Grupo',
+        sexo: 'Sexo',
+        esperanza: 'Esper.',
+        anciano: 'Anc.',
+        siervo_ministerial: 'S. min.',
+        precursor_regular: 'P.reg',
+        precursor_especial: 'P.esp',
+        misionero: 'Mis.',
     };
 
     const dropZone = document.getElementById('drop-zone');
@@ -92,8 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let expandedPublisherListKey = '';
     let perfilAliases = {};
     let congregacionDetectada = null;
-
-    const FILTER_FIELDS = [...FILTER_LAYOUT.wide, ...FILTER_LAYOUT.compact];
 
     const KPI_ITEMS = [
         { key: 'publicadores', label: 'Publicadores' },
@@ -595,14 +608,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function buildDefaultFilters() {
         const f = {};
-        for (const field of [...FILTER_LAYOUT.wide, ...FILTER_LAYOUT.compact]) {
+        for (const field of FILTER_FIELDS) {
             f[field] = [];
         }
         return f;
     }
 
+    function filterFieldLabel(field, short = false) {
+        if (short && FILTER_SHORT_LABELS[field]) return FILTER_SHORT_LABELS[field];
+        return D.S21_GROUP_FIELDS.find(g => g.id === field)?.label || field;
+    }
+
     function renderFilterCell(field) {
-        const label = D.S21_GROUP_FIELDS.find(g => g.id === field)?.label || field;
+        const label = filterFieldLabel(field);
+        const shortLabel = filterFieldLabel(field, true);
         const values = D.uniqueValues(flat.mensual, field);
         if (!filters[field]) filters[field] = [];
         const activeCount = filters[field].length;
@@ -612,8 +631,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 data-field="${field}" data-value="${escapeAttr(v)}" title="${escapeAttr(v)}">${escapeHtml(field === 'origen' ? displayPerfil(v) : v)}</button>`;
         }).join('');
         return `<details class="filter-group"${activeCount ? ' open' : ''}>
-            <summary class="filter-group-summary">
-                <span class="filter-group-label">${escapeHtml(label)}</span>
+            <summary class="filter-group-summary" title="${escapeAttr(label)}">
+                <span class="filter-group-label">
+                    <span class="filter-label-full">${escapeHtml(label)}</span>
+                    <span class="filter-label-short" aria-hidden="true">${escapeHtml(shortLabel)}</span>
+                </span>
                 ${activeCount ? `<span class="filter-group-count">${activeCount}</span>` : ''}
             </summary>
             <div class="filter-group-chips">${chips || '<span class="filter-group-empty">Sin valores</span>'}</div>
@@ -621,9 +643,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderFilters() {
-        const allFields = [...FILTER_LAYOUT.wide, ...FILTER_LAYOUT.compact];
-        filtersBody.innerHTML = `<div class="filters-compact">${allFields.map(field =>
-            renderFilterCell(field)
+        filtersBody.innerHTML = `<div class="filters-compact">${FILTER_LAYOUT.rows.map(row =>
+            `<div class="filters-row${row.length > 2 ? ' filters-row--triple' : ''}">${row.map(field =>
+                renderFilterCell(field)
+            ).join('')}</div>`
         ).join('')}</div>`;
 
         filtersBody.querySelectorAll('.filter-chip').forEach(btn => {
@@ -1012,7 +1035,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!filtersSummary) return;
         const parts = [];
         const prefix = filterMode === 'exclude' ? 'Excl. ' : '';
-        for (const field of [...FILTER_LAYOUT.wide, ...FILTER_LAYOUT.compact]) {
+        for (const field of FILTER_FIELDS) {
             const selected = filters[field] || [];
             if (selected.length) {
                 const label = D.S21_GROUP_FIELDS.find(g => g.id === field)?.label || field;

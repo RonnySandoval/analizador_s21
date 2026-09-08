@@ -18,10 +18,10 @@ description: UX and visual design rules for the S-21 analizador dashboard (typog
 
 ## Navigation
 
-- **Top header:** app title + **gear icon** (`btn-settings-header`, id `btn-open-datos-panel`) opens the settings sheet
-- **Settings sheet tabs:** **Datos** | **Apariencia** — do not mix data loads with appearance controls in one undifferentiated list
-- **Bottom nav:** Indicadores, Totales, Grupos, Publicadores only (4 items)
-- Do not put settings in bottom nav
+- **Top header:** app title + subtitle only (no config controls)
+- **Fixed app footer** (`#dashboard-app-footer`): always visible — app title, **⚙ config** (opens settings → Datos tab), **☀ / 🌙 theme** (two buttons replacing the old toggle)
+- **Section nav** (`dashboard-nav--bottom`): Indicadores, Totales, Grupos, Publicadores — sits **above** the app footer
+- Font size slider stays in settings → Apariencia tab (long-press footer title opens it as shortcut)
 
 ## Settings sheet structure
 
@@ -33,7 +33,7 @@ description: UX and visual design rules for the S-21 analizador dashboard (typog
 - Borrar datos locales (discreto, modal con confirmación)
 
 ### Tab «Apariencia»
-- Tema claro / oscuro
+- Tema claro / oscuro (same two buttons as footer; synced)
 - Deslizador tamaño de texto (aplica en vivo vía `--app-font-scale`)
 
 ## Light theme contrast (required)

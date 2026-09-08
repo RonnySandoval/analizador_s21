@@ -2,6 +2,8 @@
     const PREFS_KEY = 'analisis_servicio_prefs';
     const DEFAULTS = { theme: 'dark', fontScale: 1 };
 
+    let prefs = loadPrefs();
+
     function loadPrefs() {
         try {
             const raw = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null');
@@ -21,11 +23,13 @@
         return Math.min(1.25, Math.max(0.85, Math.round(n * 100) / 100));
     }
 
-    function savePrefs(prefs) {
+    function savePrefs(next) {
+        prefs = next;
         localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
     }
 
-    function applyPrefs(prefs) {
+    function applyPrefs(next) {
+        prefs = next;
         const root = document.documentElement;
         root.dataset.theme = prefs.theme;
         root.style.setProperty('--app-font-scale', String(prefs.fontScale));
@@ -33,26 +37,39 @@
         if (meta) {
             meta.content = prefs.theme === 'light' ? '#e8eaee' : '#00e5ff';
         }
+        syncThemeChoiceButtons(prefs.theme);
         window.dispatchEvent(new CustomEvent('s21-prefs-changed', { detail: { ...prefs } }));
     }
 
+    function setTheme(theme) {
+        const next = { ...prefs, theme: theme === 'light' ? 'light' : 'dark' };
+        savePrefs(next);
+        applyPrefs(next);
+    }
+
+    function syncThemeChoiceButtons(theme) {
+        document.querySelectorAll('[data-theme-choice]').forEach(btn => {
+            const active = btn.dataset.themeChoice === theme;
+            btn.classList.toggle('is-active', active);
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+    }
+
+    function bindThemeChoiceButtons() {
+        document.querySelectorAll('[data-theme-choice]').forEach(btn => {
+            btn.addEventListener('click', () => setTheme(btn.dataset.themeChoice));
+        });
+    }
+
     function initPreferencesUI() {
-        const prefs = loadPrefs();
+        prefs = loadPrefs();
         applyPrefs(prefs);
 
-        const themeToggle = document.getElementById('pref-theme-toggle');
         const fontSlider = document.getElementById('pref-font-scale');
         const fontValue = document.getElementById('pref-font-scale-value');
         const settingsBlock = document.getElementById('datos-settings-block');
 
-        if (themeToggle) {
-            themeToggle.checked = prefs.theme === 'light';
-            themeToggle.addEventListener('change', () => {
-                prefs.theme = themeToggle.checked ? 'light' : 'dark';
-                savePrefs(prefs);
-                applyPrefs(prefs);
-            });
-        }
+        bindThemeChoiceButtons();
 
         if (fontSlider) {
             fontSlider.min = '85';
@@ -61,15 +78,17 @@
             fontSlider.value = String(Math.round(prefs.fontScale * 100));
             updateFontLabel(fontValue, prefs.fontScale);
             fontSlider.addEventListener('input', () => {
-                prefs.fontScale = clampFontScale(Number(fontSlider.value) / 100);
-                savePrefs(prefs);
-                applyPrefs(prefs);
-                updateFontLabel(fontValue, prefs.fontScale);
+                const next = {
+                    ...prefs,
+                    fontScale: clampFontScale(Number(fontSlider.value) / 100),
+                };
+                savePrefs(next);
+                applyPrefs(next);
+                updateFontLabel(fontValue, next.fontScale);
             });
         }
 
-        const title = document.querySelector('.dashboard-header h1');
-        title?.addEventListener('contextmenu', e => {
+        document.querySelector('.dashboard-app-footer-title')?.addEventListener('contextmenu', e => {
             e.preventDefault();
             window.S21DashboardDatos?.setSettingsTab?.('apariencia');
             window.S21DashboardDatos?.openPanel?.();
@@ -89,6 +108,7 @@
         loadPrefs,
         savePrefs,
         applyPrefs,
+        setTheme,
         initPreferencesUI,
         clampFontScale,
     };
