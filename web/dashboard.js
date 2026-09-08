@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const pivotBody = document.getElementById('pivot-body');
     const pivotFoot = document.getElementById('pivot-foot');
     const btnExportCsv = document.getElementById('btn-export-csv');
+    const btnExportPng = document.getElementById('btn-export-png');
+    const btnExportPdf = document.getElementById('btn-export-pdf');
     const chartGrid = document.getElementById('chart-grid');
     const chartBarCard = document.getElementById('chart-bar-card');
     const chartBarTitle = document.getElementById('chart-bar-title');
@@ -67,7 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const publisherListHead = document.getElementById('publisher-list-head');
     const publisherDetailEmpty = document.getElementById('publisher-detail-empty');
     const publisherDetailContent = document.getElementById('publisher-detail-content');
-    const btnExportPublishers = document.getElementById('btn-export-publishers');
+    const btnExportPublishersCsv = document.getElementById('btn-export-publishers-csv');
+    const btnExportPublishersPng = document.getElementById('btn-export-publishers-png');
+    const btnExportPublishersPdf = document.getElementById('btn-export-publishers-pdf');
     const publisherBulkGrupo = document.getElementById('publisher-bulk-grupo');
     const btnPublisherBulkGrupo = document.getElementById('btn-publisher-bulk-grupo');
     const detailCrossFilter = document.getElementById('detail-cross-filter');
@@ -295,7 +299,11 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', () => setKpiMode(btn.dataset.kpiMode));
         });
         btnExportCsv.addEventListener('click', exportCsv);
-        if (btnExportPublishers) btnExportPublishers.addEventListener('click', exportPublishersCsv);
+        btnExportPng?.addEventListener('click', () => runTableExport('totals', 'image'));
+        btnExportPdf?.addEventListener('click', () => runTableExport('totals', 'pdf'));
+        btnExportPublishersCsv?.addEventListener('click', exportPublishersCsv);
+        btnExportPublishersPng?.addEventListener('click', () => runTableExport('publishers', 'image'));
+        btnExportPublishersPdf?.addEventListener('click', () => runTableExport('publishers', 'pdf'));
         if (btnPublisherBulkGrupo) {
             btnPublisherBulkGrupo.addEventListener('click', () => {
                 const groupNum = Number(publisherBulkGrupo?.value);
@@ -1502,11 +1510,136 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!pubs.length) return;
         const csv = D.publishersToCsv(pubs, displayPerfil);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `publicadores_${new Date().toISOString().slice(0, 10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(a.href);
+        window.S21DashboardExport?.downloadBlob(blob, `publicadores_${new Date().toISOString().slice(0, 10)}.csv`);
+    }
+
+    function totalsScopeLabel() {
+        if (!totalsScope || totalsScope === 'year') return 'Año completo';
+        return D.mesLabel(totalsScope, 'completo');
+    }
+
+    function buildTotalsExportSpec() {
+        if (!aggregated.length) return null;
+        const sorted = sortRows(aggregated, tableColumns);
+        const headers = tableColumns.map(c => c.label);
+        const numericColumns = new Set(
+            tableColumns.map((c, i) => (c.type === 'number' ? i : -1)).filter(i => i >= 0)
+        );
+        const rows = sorted.map(row => tableColumns.map(col => {
+            const val = col.getValue(row);
+            return col.type === 'number' ? formatNum(val) : String(val ?? '');
+        }));
+
+        const totals = sorted.reduce((acc, r) => {
+            acc.horas += r.horas;
+            acc.cursos += r.cursos;
+            acc.participacion += r.participacion;
+            acc.precursor_auxiliar += r.precursor_auxiliar;
+            acc.inactivos += r.inactivos || 0;
+            return acc;
+        }, { horas: 0, cursos: 0, participacion: 0, precursor_auxiliar: 0, inactivos: 0 });
+
+        const footerRow = tableColumns.map(col => {
+            if (col.type !== 'number') {
+                return col.id === 'group_0' ? 'Total' : '';
+            }
+            if (col.id === 'publicadores') {
+                let n = kpisCache.publicadores_total ?? 0;
+                if (totalsScope !== 'year') {
+                    n = new Set(
+                        D.filterMensualByScope(flat.mensual, totalsScope).map(r => D.personKey(r))
+                    ).size;
+                }
+                return formatNum(n);
+            }
+            if (col.id === 'inactivos') {
+                let n = kpisCache.metrics?.inactivos?.total ?? totals.inactivos;
+                if (totalsScope !== 'year') n = totals.inactivos;
+                return formatNum(n);
+            }
+            return formatNum(totals[col.id] ?? 0);
+        });
+
+        const g1 = group1.value;
+        const g2 = group2.value;
+        const groupFields = [g1, g2].filter((v, i, arr) => v && arr.indexOf(v) === i);
+        const groupLabels = groupFields.map(f => D.S21_GROUP_FIELDS.find(g => g.id === f)?.label || f);
+
+        return {
+            title: 'Análisis de Servicio — Totales',
+            subtitle: `Alcance: ${totalsScopeLabel()} · Agrupado: ${groupLabels.join(' / ') || '—'}`,
+            headers,
+            rows,
+            footerRow,
+            numericColumns,
+            filenameBase: 'analisis_servicio',
+        };
+    }
+
+    function buildPublishersExportSpec() {
+        const pubs = sortPublisherRows(filterPublishersForList(filteredPubCache));
+        if (!pubs.length) return null;
+        const headers = [
+            'Nombre', 'Perfil', 'Grupo', 'Nacimiento', 'Bautismo', 'Sexo', 'Esperanza',
+            'Anciano', 'S. min.', 'P. reg.', 'P. esp.', 'Mis.',
+            'Horas', 'Cursos', 'Part.', 'Prec. aux.',
+        ];
+        const numericColumns = new Set([12, 13, 14, 15]);
+        const rows = pubs.map(row => [
+            row.nombre,
+            displayPerfil(row.origen),
+            row.grupo || '—',
+            row.fecha_nacimiento || '',
+            row.fecha_bautismo || '',
+            row.sexo,
+            row.esperanza,
+            row.anciano,
+            row.siervo_ministerial,
+            row.precursor_regular,
+            row.precursor_especial,
+            row.misionero,
+            formatNum(row.total_horas),
+            formatNum(row.total_cursos),
+            formatNum(row.meses_participacion),
+            formatNum(row.meses_precursor_aux),
+        ]);
+        const filterNote = publisherSearchQuery ? ` · Búsqueda: «${publisherSearchQuery}»` : '';
+        return {
+            title: 'Publicadores',
+            subtitle: `${pubs.length} registro${pubs.length === 1 ? '' : 's'}${filterNote}`,
+            headers,
+            rows,
+            numericColumns,
+            filenameBase: 'publicadores',
+        };
+    }
+
+    async function runTableExport(kind, format) {
+        const Export = window.S21DashboardExport;
+        if (!Export) {
+            setLoadStatus('Exportación no disponible.', true);
+            return;
+        }
+        const spec = kind === 'publishers' ? buildPublishersExportSpec() : buildTotalsExportSpec();
+        if (!spec) {
+            setLoadStatus('No hay datos para exportar.', true);
+            return;
+        }
+        try {
+            setLoadStatus(format === 'image' ? 'Generando imagen…' : 'Generando PDF…', false);
+            const result = format === 'image'
+                ? await Export.exportTableImage(spec)
+                : await Export.exportTablePdf(spec);
+            if (result === 'shared') {
+                setLoadStatus('Listo para compartir (WhatsApp, etc.).', false);
+            } else if (result === 'downloaded') {
+                setLoadStatus(format === 'image'
+                    ? 'Imagen descargada. Ábrala y compártala por WhatsApp.'
+                    : 'PDF descargado.', false);
+            }
+        } catch (err) {
+            setLoadStatus(err?.message || 'No se pudo exportar.', true);
+        }
     }
 
     function showField(val) {
@@ -1960,11 +2093,7 @@ document.addEventListener('DOMContentLoaded', () => {
             totalsScope
         );
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `analisis_servicio_${new Date().toISOString().slice(0, 10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(a.href);
+        window.S21DashboardExport?.downloadBlob(blob, `analisis_servicio_${new Date().toISOString().slice(0, 10)}.csv`);
     }
 
     function toggleFilters() {

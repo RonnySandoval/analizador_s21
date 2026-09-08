@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="theme-cyber.css">
     <link rel="stylesheet" href="theme-light.css">
-    <link rel="stylesheet" href="dashboard.css?v=64">
+    <link rel="stylesheet" href="dashboard.css?v=65">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -74,7 +74,7 @@
                     <button type="button" class="dashboard-accordion-trigger" aria-expanded="true" aria-controls="accordion-body-table">
                         <span class="dashboard-accordion-trigger-main">
                             <span class="dashboard-section-title">Totales</span>
-                            <span class="dashboard-section-sub">Totales por año o por mes · agrupe y exporte a CSV</span>
+                            <span class="dashboard-section-sub">Totales por año o por mes · exporte CSV, imagen o PDF</span>
                         </span>
                         <span class="dashboard-accordion-chevron" aria-hidden="true"></span>
                     </button>
@@ -95,8 +95,10 @@
                                         <option value="">— Ninguno —</option>
                                     </select>
                                 </div>
-                                <div class="toolbar-actions">
-                                    <button type="button" id="btn-export-csv" class="btn-secondary btn-compact">Exportar CSV</button>
+                                <div class="toolbar-actions export-actions">
+                                    <button type="button" id="btn-export-csv" class="btn-secondary btn-compact">CSV</button>
+                                    <button type="button" id="btn-export-png" class="btn-secondary btn-compact btn-export-share" title="Imagen PNG — ideal para WhatsApp">Imagen</button>
+                                    <button type="button" id="btn-export-pdf" class="btn-secondary btn-compact">PDF</button>
                                 </div>
                             </div>
                             <div class="table-wrap table-wrap--responsive">
@@ -207,7 +209,11 @@
                                     <select id="publisher-bulk-grupo" class="publisher-bulk-grupo-select" title="Grupo destino"></select>
                                     <button type="button" id="btn-publisher-bulk-grupo" class="btn-secondary btn-compact">Asignar visibles</button>
                                 </div>
-                                <button type="button" id="btn-export-publishers" class="btn-secondary btn-compact">Exportar listado CSV</button>
+                                <div class="export-actions">
+                                    <button type="button" id="btn-export-publishers-csv" class="btn-secondary btn-compact">CSV</button>
+                                    <button type="button" id="btn-export-publishers-png" class="btn-secondary btn-compact btn-export-share" title="Imagen PNG — ideal para WhatsApp">Imagen</button>
+                                    <button type="button" id="btn-export-publishers-pdf" class="btn-secondary btn-compact">PDF</button>
+                                </div>
                             </div>
                             <div id="filters-panel" class="filters-panel filters-panel-detail">
                                 <div class="filters-bar">
@@ -537,6 +543,10 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+    <script src="dashboard-export.js?v=1"></script>
     <script src="s21-base.js"></script>
     <script src="pwa.js"></script>
     <script src="dashboard-data.js?v=30"></script>
@@ -544,6 +554,6 @@
     <script src="dashboard-datos.js?v=4"></script>
     <script src="dashboard-grupos.js?v=10"></script>
     <script src="dashboard-wizard.js?v=4"></script>
-    <script src="dashboard.js?v=69"></script>
+    <script src="dashboard.js?v=70"></script>
 </body>
 </html>
