@@ -15,11 +15,12 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="theme-cyber.css">
-    <link rel="stylesheet" href="dashboard.css?v=52">
+    <link rel="stylesheet" href="dashboard.css?v=53">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body class="dashboard-body">
     <div class="container dashboard-container">
@@ -184,13 +185,22 @@
                                     <button type="button" id="btn-wizard-json-select-all" class="btn-ghost btn-compact">Marcar todos</button>
                                     <button type="button" id="btn-wizard-json-clear" class="btn-ghost btn-compact">Desmarcar</button>
                                     <button type="button" id="btn-wizard-json-pick" class="btn-secondary btn-compact">Abrir archivos</button>
-                                    <input type="file" id="wizard-file-input" accept=".json,application/json,text/json,text/plain,*/*" multiple hidden>
+                                    <input type="file" id="wizard-file-input" accept=".json,.txt,.zip,application/json,application/zip,text/plain,*/*" multiple hidden>
                                 </div>
                                 <p id="wizard-json-mobile-hint" class="wizard-mobile-json-hint hidden">
-                                    <strong>Móvil:</strong> guarde primero el JSON desde WhatsApp (Descargas o Documentos).
-                                    Luego pulse <strong>Abrir archivos</strong> y elija esa carpeta.
-                                    Si no lo ve, en el explorador seleccione «Todos los archivos» o renombre el archivo con extensión <code>.json</code>.
+                                    <strong>WhatsApp / móvil:</strong> no abra el archivo con Word (lo convierte a .docx y deja de servir).
+                                    Desde el PC envíe un <strong>.zip</strong> con los JSON, o renombre cada archivo a <code>.txt</code> antes de enviarlo.
+                                    En WhatsApp: mantenga pulsado el adjunto → <strong>Guardar</strong> (sin abrir) → luego <strong>Abrir archivos</strong> aquí.
                                 </p>
+                                <details class="wizard-json-paste-panel">
+                                    <summary>Pegar JSON o cargar .zip / .txt</summary>
+                                    <p class="wizard-muted">Si Word ya dañó el archivo, pida el JSON original en el PC o pegue aquí el contenido (debe empezar con <code>{</code>).</p>
+                                    <div class="wizard-json-paste-actions">
+                                        <button type="button" id="btn-wizard-json-clipboard" class="btn-ghost btn-compact">Pegar desde portapapeles</button>
+                                        <button type="button" id="btn-wizard-json-paste-load" class="btn-primary btn-compact">Cargar texto</button>
+                                    </div>
+                                    <textarea id="wizard-json-paste" class="wizard-json-paste" rows="6" placeholder='{"origen":"...","registros":[...]}' spellcheck="false"></textarea>
+                                </details>
                                 <div class="wizard-nav">
                                     <button type="button" id="btn-wizard-json-back" class="btn-ghost">Atrás</button>
                                     <button type="button" id="btn-wizard-json-next" class="btn-primary">Siguiente</button>
@@ -488,7 +498,7 @@
     <script src="pwa.js"></script>
     <script src="dashboard-data.js?v=30"></script>
     <script src="dashboard-grupos.js?v=10"></script>
-    <script src="dashboard-wizard.js?v=2"></script>
+    <script src="dashboard-wizard.js?v=3"></script>
     <script src="dashboard.js?v=60"></script>
 </body>
 </html>

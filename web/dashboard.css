@@ -598,6 +598,42 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     color: var(--accent-emerald, #34d399);
 }
 
+.wizard-json-paste-panel {
+    margin-top: 0.85rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(10, 16, 28, 0.35);
+}
+
+.wizard-json-paste-panel summary {
+    cursor: pointer;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.wizard-json-paste-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 0.55rem 0;
+}
+
+.wizard-json-paste {
+    width: 100%;
+    min-height: 6rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(5, 8, 18, 0.85);
+    color: var(--text-main);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    resize: vertical;
+}
+
 .wizard-output-preview {
     margin-top: 1rem;
     padding: 0.75rem 0.9rem;

@@ -171,6 +171,8 @@
             renderJsonSourceList();
         });
         $('wizard-file-input')?.addEventListener('change', onManualJsonFiles);
+        $('btn-wizard-json-paste-load')?.addEventListener('click', onPasteJsonLoad);
+        $('btn-wizard-json-clipboard')?.addEventListener('click', onPasteFromClipboard);
         $('btn-wizard-json-next')?.addEventListener('click', onJsonSourcesNext);
 
         $('btn-wizard-json-year-back')?.addEventListener('click', () => showStep('json-pick'));
@@ -695,39 +697,81 @@
         });
     }
 
-    async function onManualJsonFiles() {
-        const input = $('wizard-file-input');
-        const selected = Array.from(input?.files || []);
-        if (!selected.length) return;
+    function isZipBuffer(buffer) {
+        const u8 = new Uint8Array(buffer);
+        return u8.length >= 2 && u8[0] === 0x50 && u8[1] === 0x4B;
+    }
 
+    function isWordDocument(name, buffer, text) {
+        if (/\.docx?$/i.test(name)) return true;
+        if (isZipBuffer(buffer) && /\.docx?$/i.test(name)) return true;
+        const sample = String(text || '').slice(0, 400);
+        return sample.includes('word/document') || sample.includes('<?xml') && sample.includes('w:document');
+    }
+
+    async function extractJsonEntriesFromZipBuffer(buffer) {
+        if (typeof JSZip === 'undefined') {
+            throw new Error('No se pudo cargar soporte ZIP. Recargue la página.');
+        }
+        const zip = await JSZip.loadAsync(buffer);
+        const entries = [];
+        for (const [path, entry] of Object.entries(zip.files)) {
+            if (entry.dir) continue;
+            const baseName = path.split('/').pop() || path;
+            if (/\.docx?$/i.test(baseName)) continue;
+            if (!/\.(json|txt)$/i.test(baseName)) continue;
+            const text = await entry.async('string');
+            entries.push({ text, fileName: baseName });
+        }
+        return entries;
+    }
+
+    async function extractJsonEntriesFromFile(file) {
+        const buffer = await file.arrayBuffer();
+        const name = file.name || 'archivo';
+
+        if (/\.docx?$/i.test(name)) {
+            throw new Error('Es un documento de Word (.docx), no JSON. No lo abra con Word: pida el .json original o un .zip desde el PC.');
+        }
+
+        if (/\.zip$/i.test(name)) {
+            const entries = await extractJsonEntriesFromZipBuffer(buffer);
+            if (!entries.length) throw new Error('El ZIP no contiene archivos .json o .txt');
+            return entries;
+        }
+
+        const text = new TextDecoder('utf-8').decode(buffer);
+        if (isWordDocument(name, buffer, text)) {
+            throw new Error('Parece un documento de Word, no JSON. Envíe el archivo como .zip o .txt desde el PC.');
+        }
+
+        return [{ text, fileName: name }];
+    }
+
+    function packagesFromEntries(entries) {
         const packages = [];
         const errors = [];
-
-        for (const file of selected) {
+        for (const entry of entries) {
             try {
-                const text = await file.text();
-                if (!String(text || '').trim()) {
-                    errors.push(`${file.name}: archivo vacío`);
+                const text = String(entry.text || '').trim();
+                if (!text) {
+                    errors.push(`${entry.fileName}: vacío`);
                     continue;
                 }
-                packages.push(D.parseJsonPackage(text, file.name));
+                if (!text.startsWith('{') && !text.startsWith('[')) {
+                    errors.push(`${entry.fileName}: no parece JSON (debe empezar con { )`);
+                    continue;
+                }
+                packages.push(D.parseJsonPackage(text, entry.fileName));
             } catch (e) {
-                errors.push(`${file.name}: ${e.message}`);
+                errors.push(`${entry.fileName}: ${e.message}`);
             }
         }
+        return { packages, errors };
+    }
 
-        if (!packages.length) {
-            alert(errors.length
-                ? `No se pudo leer ningún JSON válido.\n\n${errors.slice(0, 4).join('\n')}`
-                : 'No se seleccionaron archivos.');
-            return;
-        }
-
-        if (errors.length) {
-            alert(`Se cargaron ${packages.length} archivo(s). Otros no eran JSON válido:\n${errors.slice(0, 3).join('\n')}`);
-        }
-
-        input.value = '';
+    async function ingestLocalPackages(packages, label = 'Archivos locales') {
+        if (!packages.length) return;
 
         const analysis = D.analyzePackageYears(packages);
         if (analysis.years.length > 1) {
@@ -739,7 +783,7 @@
                     nombre: p.fileName,
                 }))])),
             }, null, null);
-            pendingPackages = { label: 'Archivos locales', packagesRaw: packages };
+            pendingPackages = { label, packagesRaw: packages };
             return;
         }
 
@@ -750,8 +794,83 @@
             filtered = D.filterPackagesByYear(packages, analysis.years[0]);
         }
 
-        await finishJsonLoad(filtered, 'Archivos locales', null,
+        await finishJsonLoad(filtered, label, null,
             analysis.years.length === 1 ? { valor: analysis.years[0] } : null);
+    }
+
+    async function onPasteFromClipboard() {
+        const area = $('wizard-json-paste');
+        if (!area) return;
+        try {
+            if (!navigator.clipboard?.readText) {
+                alert('Su navegador no permite pegar desde el portapapeles. Pegue manualmente en el cuadro de texto.');
+                return;
+            }
+            const text = await navigator.clipboard.readText();
+            if (!text?.trim()) {
+                alert('El portapapeles está vacío.');
+                return;
+            }
+            area.value = text;
+            area.focus();
+        } catch {
+            alert('No se pudo leer el portapapeles. Pegue manualmente con pulsación larga en el cuadro de texto.');
+        }
+    }
+
+    async function onPasteJsonLoad() {
+        const area = $('wizard-json-paste');
+        const text = area?.value?.trim();
+        if (!text) {
+            alert('Pegue el contenido JSON en el cuadro de texto.');
+            return;
+        }
+        const { packages, errors } = packagesFromEntries([{ text, fileName: 'pegado.json' }]);
+        if (!packages.length) {
+            alert(errors[0] || 'El texto pegado no es JSON válido.');
+            return;
+        }
+        if (area) area.value = '';
+        await ingestLocalPackages(packages, 'JSON pegado');
+    }
+
+    async function onManualJsonFiles() {
+        const input = $('wizard-file-input');
+        const selected = Array.from(input?.files || []);
+        if (!selected.length) return;
+
+        const allEntries = [];
+        const errors = [];
+
+        for (const file of selected) {
+            try {
+                const entries = await extractJsonEntriesFromFile(file);
+                if (!entries.length) {
+                    errors.push(`${file.name}: no contenía JSON (.json o .txt)`);
+                    continue;
+                }
+                allEntries.push(...entries);
+            } catch (e) {
+                errors.push(`${file.name}: ${e.message}`);
+            }
+        }
+
+        const { packages, errors: parseErrors } = packagesFromEntries(allEntries);
+        errors.push(...parseErrors);
+
+        if (!packages.length) {
+            alert(errors.length
+                ? `No se pudo leer ningún JSON válido.\n\n${errors.slice(0, 5).join('\n')}`
+                : 'No se seleccionaron archivos.');
+            return;
+        }
+
+        if (errors.length) {
+            alert(`Se cargaron ${packages.length} JSON. Avisos:\n${errors.slice(0, 4).join('\n')}`);
+        }
+
+        input.value = '';
+        await ingestLocalPackages(packages);
     }
 
     async function onJsonSourcesNext() {
