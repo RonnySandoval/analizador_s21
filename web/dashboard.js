@@ -316,6 +316,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 scheduleChartResize();
             }
         });
+
+        window.addEventListener('s21-prefs-changed', () => {
+            scheduleChartResize();
+        });
     }
 
     function formatSavedAt(ts) {

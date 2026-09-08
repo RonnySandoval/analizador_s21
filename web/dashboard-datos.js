@@ -99,10 +99,32 @@
         document.body.classList.remove('datos-panel-open');
     }
 
+    function setSettingsTab(tabId) {
+        const tabs = document.querySelectorAll('.settings-tab');
+        const panels = document.querySelectorAll('.settings-tab-panel');
+        tabs.forEach(tab => {
+            const active = tab.dataset.settingsTab === tabId;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        panels.forEach(panel => {
+            const show = panel.id === `settings-panel-${tabId}`;
+            panel.classList.toggle('hidden', !show);
+            panel.hidden = !show;
+        });
+    }
+
     function bindPanelEvents() {
-        $('btn-open-datos-panel')?.addEventListener('click', openPanel);
+        $('btn-open-datos-panel')?.addEventListener('click', () => {
+            setSettingsTab('datos');
+            openPanel();
+        });
         $('datos-panel-close')?.addEventListener('click', closePanel);
         $('datos-panel-backdrop')?.addEventListener('click', closePanel);
+
+        document.querySelectorAll('.settings-tab').forEach(tab => {
+            tab.addEventListener('click', () => setSettingsTab(tab.dataset.settingsTab));
+        });
 
         $('btn-datos-new-load')?.addEventListener('click', () => {
             window.S21DashboardWizard?.showWizard();
@@ -363,5 +385,6 @@
         buildDatasetFromPackages,
         findDuplicateConflicts,
         formatSavedAt,
+        setSettingsTab,
     };
 })();

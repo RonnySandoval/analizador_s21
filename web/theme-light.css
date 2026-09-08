@@ -58,3 +58,78 @@
     background: rgba(255, 255, 255, 0.95);
     border-top-color: rgba(100, 116, 139, 0.2);
 }
+
+/* KPI cards: light surfaces + readable labels (WCAG-friendly on soft gray UI) */
+[data-theme="light"] .kpi-card {
+    background: #ffffff;
+    border-color: rgba(100, 116, 139, 0.28);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+[data-theme="light"] .kpi-value {
+    color: #0e7490;
+}
+
+[data-theme="light"] .kpi-label {
+    color: #334155;
+    font-weight: 600;
+}
+
+[data-theme="light"] .kpi-hint {
+    color: #64748b;
+}
+
+[data-theme="light"] .kpi-mode-toggle {
+    background: #f1f5f9;
+    border-color: rgba(100, 116, 139, 0.28);
+}
+
+[data-theme="light"] .kpi-mode-btn {
+    color: #64748b;
+}
+
+[data-theme="light"] .kpi-mode-btn:hover {
+    color: #1e293b;
+}
+
+[data-theme="light"] .kpi-mode-btn.active {
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(8, 145, 178, 0.25);
+}
+
+[data-theme="light"] .btn-settings-header {
+    border-color: rgba(100, 116, 139, 0.35);
+    background: rgba(255, 255, 255, 0.85);
+    color: #475569;
+}
+
+[data-theme="light"] .btn-settings-header:hover,
+[data-theme="light"] .btn-settings-header:focus-visible {
+    color: #1e293b;
+    border-color: rgba(100, 116, 139, 0.5);
+    background: #ffffff;
+}
+
+[data-theme="light"] .settings-tabs {
+    border-bottom-color: rgba(100, 116, 139, 0.2);
+}
+
+[data-theme="light"] .settings-tab.active {
+    background: rgba(8, 145, 178, 0.1);
+}
+
+[data-theme="light"] .dataset-card {
+    background: #ffffff;
+    border-color: rgba(100, 116, 139, 0.25);
+}
+
+[data-theme="light"] .dataset-card.is-active {
+    background: rgba(5, 150, 105, 0.08);
+    border-color: rgba(5, 150, 105, 0.4);
+}
+
+[data-theme="light"] .dataset-card-main:hover,
+[data-theme="light"] .dataset-card-main:focus-visible {
+    background: rgba(241, 245, 249, 0.95);
+}

@@ -2151,7 +2151,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 @media (max-width: 768px) {
     html.dashboard-root {
-        font-size: 15px;
+        font-size: calc(15px * var(--app-font-scale, 1));
     }
 
     body.dashboard-body {
@@ -2705,7 +2705,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 @media (max-width: 480px) {
     html.dashboard-root {
-        font-size: 14px;
+        font-size: calc(14px * var(--app-font-scale, 1));
     }
 
     body.dashboard-body {
@@ -3629,25 +3629,81 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     }
 }
 
-/* --- Datos panel & preferences --- */
-.btn-datos-header {
+/* --- Settings panel & preferences --- */
+.btn-settings-header {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.45rem 0.75rem;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
     border-radius: 10px;
-    border: 1px solid rgba(52, 211, 153, 0.35);
-    background: rgba(52, 211, 153, 0.1);
-    color: var(--accent-emerald, #34d399);
-    font-size: 0.82rem;
-    font-weight: 600;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(148, 163, 184, 0.08);
+    color: var(--text-muted);
     cursor: pointer;
-    min-height: 44px;
+    flex-shrink: 0;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-.btn-datos-header svg {
-    width: 1.1rem;
-    height: 1.1rem;
+.btn-settings-header:hover,
+.btn-settings-header:focus-visible {
+    color: var(--text-main);
+    border-color: rgba(148, 163, 184, 0.55);
+    background: rgba(148, 163, 184, 0.14);
+    outline: none;
+}
+
+.btn-settings-header svg {
+    width: 1.35rem;
+    height: 1.35rem;
+}
+
+.settings-tabs {
+    display: flex;
+    gap: 0.35rem;
+    padding: 0.55rem 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: sticky;
+    top: 3.1rem;
+    background: inherit;
+    z-index: 2;
+}
+
+.settings-tab {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.settings-tab:hover {
+    color: var(--text-main);
+}
+
+.settings-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.settings-tab-panel.hidden {
+    display: none;
+}
+
+.datos-section-lead {
+    margin: -0.15rem 0 0.65rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.4;
 }
 
 .load-status--global {

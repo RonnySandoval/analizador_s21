@@ -33,6 +33,7 @@
         if (meta) {
             meta.content = prefs.theme === 'light' ? '#e8eaee' : '#00e5ff';
         }
+        window.dispatchEvent(new CustomEvent('s21-prefs-changed', { detail: { ...prefs } }));
     }
 
     function initPreferencesUI() {
@@ -70,8 +71,9 @@
         const title = document.querySelector('.dashboard-header h1');
         title?.addEventListener('contextmenu', e => {
             e.preventDefault();
+            window.S21DashboardDatos?.setSettingsTab?.('apariencia');
+            window.S21DashboardDatos?.openPanel?.();
             settingsBlock?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            document.getElementById('datos-panel')?.classList.remove('hidden');
         });
     }
 
