@@ -13,6 +13,35 @@
     --warning: #fbbf24;
     --radius: 14px;
     --shadow: 0 0 40px rgba(0, 229, 255, 0.08), 0 20px 50px rgba(0, 0, 0, 0.55);
+    /* Dashboard surfaces (dark defaults) */
+    --surface-elevated: rgba(10, 16, 28, 0.55);
+    --surface-muted: rgba(10, 16, 28, 0.45);
+    --surface-subtle: rgba(10, 16, 28, 0.4);
+    --surface-input: #0a101c;
+    --surface-input-hover: #111827;
+    --surface-pill: #070b14;
+    --surface-active-text: #041018;
+    --surface-overlay: rgba(8, 12, 24, 0.98);
+    --surface-border-subtle: rgba(255, 255, 255, 0.07);
+    --surface-border-faint: rgba(255, 255, 255, 0.06);
+    --surface-border-light: rgba(255, 255, 255, 0.08);
+    --surface-border-medium: rgba(255, 255, 255, 0.1);
+    --surface-hover: rgba(255, 255, 255, 0.03);
+    --surface-hover-strong: rgba(255, 255, 255, 0.06);
+    --surface-dashed-bg: rgba(0, 0, 0, 0.15);
+    --surface-row-hover: rgba(255, 255, 255, 0.03);
+    --chart-tick: #8fa3bf;
+    --chart-grid: rgba(255, 255, 255, 0.06);
+    --chart-bar-bg: rgba(56, 189, 248, 0.65);
+    --chart-bar-border: rgba(56, 189, 248, 1);
+    --chart-bar-fill: rgba(56, 189, 248, 0.12);
+    --chart-line: rgba(16, 185, 129, 0.85);
+    --chart-line-fill: rgba(16, 185, 129, 0.12);
+    --chart-line-point: rgba(16, 185, 129, 1);
+    --chart-line-point-dim: rgba(16, 185, 129, 0.35);
+    --chart-line-point-border-dim: rgba(16, 185, 129, 0.45);
+    --chart-focus-tick: #38bdf8;
+    --chart-focus-tick-muted: #6b8299;
 }
 
 * {

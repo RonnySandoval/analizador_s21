@@ -319,6 +319,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('s21-prefs-changed', () => {
             scheduleChartResize();
+            if (packages.length) {
+                refreshCharts();
+                if (selectedPublisherKey) renderPublisherDetail();
+            }
         });
     }
 
@@ -1401,6 +1405,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const labels = monthly.map(r => r.mes_corto || D.mesLabel(r.mes, 'corto'));
         const data = monthly.map(r => publisherMetricValue(r, metricId));
         const isBinary = metricId === 'participacion' || metricId === 'precursor_auxiliar';
+        const c = chartPalette();
 
         publisherDetailChart = new Chart(canvas, {
             type: 'line',
@@ -1409,16 +1414,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 datasets: [{
                     label: spec.label,
                     data,
-                    borderColor: 'rgba(56, 189, 248, 1)',
-                    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                    borderColor: c.barBorder,
+                    backgroundColor: c.barFill,
                     fill: true,
                     tension: 0.3,
                     pointRadius: monthly.map(r => focusMes && r.mes === focusMes ? 5 : 2),
                     pointBackgroundColor: monthly.map(r =>
-                        focusMes && r.mes === focusMes ? 'rgba(251, 191, 36, 1)' : 'rgba(56, 189, 248, 1)'
+                        focusMes && r.mes === focusMes ? '#f59e0b' : c.barBorder
                     ),
                     pointBorderColor: monthly.map(r =>
-                        focusMes && r.mes === focusMes ? 'rgba(251, 191, 36, 1)' : 'rgba(56, 189, 248, 1)'
+                        focusMes && r.mes === focusMes ? '#f59e0b' : c.barBorder
                     ),
                     pointHoverRadius: 4,
                 }],
@@ -1440,14 +1445,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 scales: {
                     x: {
-                        ticks: { color: '#8fa3bf', font: { size: 10 }, maxRotation: 0 },
-                        grid: { color: 'rgba(255,255,255,0.06)' },
+                        ticks: { color: c.tick, font: { size: 10 }, maxRotation: 0 },
+                        grid: { color: c.grid },
                     },
                     y: {
                         beginAtZero: true,
                         max: isBinary ? 1 : undefined,
                         ticks: {
-                            color: '#8fa3bf',
+                            color: c.tick,
                             font: { size: 10 },
                             stepSize: isBinary ? 1 : undefined,
                             callback(v) {
@@ -1455,7 +1460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 return v;
                             },
                         },
-                        grid: { color: 'rgba(255,255,255,0.06)' },
+                        grid: { color: c.grid },
                     },
                 },
             },
@@ -1698,8 +1703,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     datasets: [{
                         label: chartLabel,
                         data: barData,
-                        backgroundColor: 'rgba(56, 189, 248, 0.65)',
-                        borderColor: 'rgba(56, 189, 248, 1)',
+                        backgroundColor: chartPalette().barBg,
+                        borderColor: chartPalette().barBorder,
                         borderWidth: 1,
                         borderRadius: 4,
                     }],
@@ -1740,8 +1745,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 datasets: [{
                     label: chartLabel,
                     data: lineData,
-                    borderColor: 'rgba(16, 185, 129, 0.85)',
-                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    borderColor: chartPalette().line,
+                    backgroundColor: chartPalette().lineFill,
                     fill: true,
                     tension: 0.3,
                     pointRadius: lineStyles.pointRadius,
@@ -1763,22 +1768,42 @@ document.addEventListener('DOMContentLoaded', () => {
         requestAnimationFrame(refreshChartScrollWidths);
     }
 
+    function chartPalette() {
+        const root = getComputedStyle(document.documentElement);
+        const v = name => root.getPropertyValue(name).trim();
+        return {
+            tick: v('--chart-tick') || '#8fa3bf',
+            grid: v('--chart-grid') || 'rgba(255,255,255,0.06)',
+            barBg: v('--chart-bar-bg') || 'rgba(56, 189, 248, 0.65)',
+            barBorder: v('--chart-bar-border') || 'rgba(56, 189, 248, 1)',
+            barFill: v('--chart-bar-fill') || 'rgba(56, 189, 248, 0.12)',
+            line: v('--chart-line') || 'rgba(16, 185, 129, 0.85)',
+            lineFill: v('--chart-line-fill') || 'rgba(16, 185, 129, 0.12)',
+            linePoint: v('--chart-line-point') || 'rgba(16, 185, 129, 1)',
+            linePointDim: v('--chart-line-point-dim') || 'rgba(16, 185, 129, 0.35)',
+            linePointBorderDim: v('--chart-line-point-border-dim') || 'rgba(16, 185, 129, 0.45)',
+            focusTick: v('--chart-focus-tick') || '#38bdf8',
+            focusTickMuted: v('--chart-focus-tick-muted') || '#6b8299',
+        };
+    }
+
     function buildLineChartFocusStyles(trend, focusMes) {
+        const c = chartPalette();
         if (!focusMes) {
             return {
                 pointRadius: 3,
-                pointBackgroundColor: 'rgba(16, 185, 129, 1)',
-                pointBorderColor: 'rgba(16, 185, 129, 1)',
+                pointBackgroundColor: c.linePoint,
+                pointBorderColor: c.linePoint,
                 pointBorderWidth: 1,
             };
         }
         return {
             pointRadius: trend.map(t => t.mes === focusMes ? 6 : 3),
             pointBackgroundColor: trend.map(t =>
-                t.mes === focusMes ? 'rgba(56, 189, 248, 1)' : 'rgba(16, 185, 129, 0.35)'
+                t.mes === focusMes ? c.focusTick : c.linePointDim
             ),
             pointBorderColor: trend.map(t =>
-                t.mes === focusMes ? '#7dd3fc' : 'rgba(16, 185, 129, 0.45)'
+                t.mes === focusMes ? c.focusTick : c.linePointBorderDim
             ),
             pointBorderWidth: trend.map(t => t.mes === focusMes ? 2 : 1),
         };
@@ -1797,7 +1822,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         ...base.scales.x.ticks,
                         color(ctx) {
                             const mes = trend[ctx.index]?.mes;
-                            return mes === focusMes ? '#38bdf8' : '#6b8299';
+                            const c = chartPalette();
+                            return mes === focusMes ? c.focusTick : c.focusTickMuted;
                         },
                         font(ctx) {
                             const mes = trend[ctx.index]?.mes;
@@ -1823,6 +1849,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function chartBarOptions(metricId) {
         const horizontal = prefersHorizontalBarChart();
         const base = chartOptions(metricId);
+        const c = chartPalette();
         if (!horizontal) return base;
         const spec = D.S21_CHART_METRICS.find(m => m.id === metricId);
         const isCount = spec?.aggregation === 'count';
@@ -1843,14 +1870,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 x: {
                     beginAtZero: true,
                     ticks: {
-                        color: '#8fa3bf',
+                        color: c.tick,
                         font: { size: 10 },
                         precision: isCount ? 0 : undefined,
                     },
-                    grid: { color: 'rgba(255,255,255,0.06)' },
+                    grid: { color: c.grid },
                 },
                 y: {
-                    ticks: { color: '#8fa3bf', font: { size: 10 }, autoSkip: false },
+                    ticks: { color: c.tick, font: { size: 10 }, autoSkip: false },
                     grid: { display: false },
                 },
             },
@@ -1861,6 +1888,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const spec = D.S21_CHART_METRICS.find(m => m.id === metricId);
         const isAvg = spec?.aggregation === 'avg';
         const isCount = spec?.aggregation === 'count';
+        const c = chartPalette();
         return {
             responsive: true,
             maintainAspectRatio: false,
@@ -1876,17 +1904,17 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             scales: {
                 x: {
-                    ticks: { color: '#8fa3bf', maxRotation: 0, minRotation: 0, font: { size: 10 }, autoSkip: false },
-                    grid: { color: 'rgba(255,255,255,0.06)' },
+                    ticks: { color: c.tick, maxRotation: 0, minRotation: 0, font: { size: 10 }, autoSkip: false },
+                    grid: { color: c.grid },
                 },
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        color: '#8fa3bf',
+                        color: c.tick,
                         font: { size: 10 },
                         precision: isCount ? 0 : undefined,
                     },
-                    grid: { color: 'rgba(255,255,255,0.06)' },
+                    grid: { color: c.grid },
                 },
             },
         };

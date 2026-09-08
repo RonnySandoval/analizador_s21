@@ -54,7 +54,7 @@ html.dashboard-root {
 }
 
 .dashboard-accordion-trigger:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-hover-strong);
 }
 
 .dashboard-accordion-trigger-main {
@@ -67,8 +67,8 @@ html.dashboard-root {
     width: 1.65rem;
     height: 1.65rem;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--surface-hover-strong);
+    border: 1px solid var(--surface-border-medium);
     position: relative;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease;
 }
@@ -106,8 +106,8 @@ html.dashboard-root {
     white-space: nowrap;
     padding: 0.22rem 0.55rem;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--surface-hover-strong);
+    border: 1px solid var(--surface-border-medium);
 }
 
 .dashboard-accordion-badge:not(:empty) {
@@ -144,7 +144,7 @@ html.dashboard-root {
 }
 
 .dashboard-accordion:not(.collapsed) .dashboard-accordion-trigger {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--surface-border-light);
 }
 
 .dashboard-section-header {
@@ -327,7 +327,7 @@ html.dashboard-root {
 
 .dashboard-nav-btn:hover {
     color: var(--text-main);
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-hover-strong);
 }
 
 .dashboard-nav-btn.active {
@@ -424,7 +424,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     gap: 0.5rem;
     margin-top: 0.75rem;
     padding: 0.55rem 0.65rem;
-    background: rgba(10, 16, 28, 0.55);
+    background: var(--surface-elevated);
     border: 1px solid var(--card-border);
     border-radius: 8px;
     text-align: left;
@@ -602,8 +602,8 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     margin-top: 0.85rem;
     padding: 0.65rem 0.75rem;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(10, 16, 28, 0.35);
+    border: 1px solid var(--surface-border-light);
+    background: var(--surface-subtle);
 }
 
 .wizard-json-paste-panel summary {
@@ -625,7 +625,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     min-height: 6rem;
     padding: 0.55rem 0.65rem;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--surface-border-medium);
     background: rgba(5, 8, 18, 0.85);
     color: var(--text-main);
     font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -743,7 +743,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .load-panel {
-    background: rgba(10, 16, 28, 0.45);
+    background: var(--surface-muted);
     border: 1px dashed var(--card-border);
     border-radius: 10px;
     padding: 1rem;
@@ -795,7 +795,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     flex-direction: column;
     gap: 0.28rem;
     padding: 0.5rem 0.6rem;
-    background: #0a101c;
+    background: var(--surface-input);
     border: 1px solid var(--card-border);
     border-radius: 8px;
     margin-bottom: 0.4rem;
@@ -824,7 +824,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     font-size: 0.82rem;
     font-weight: 500;
     color: var(--text-main);
-    background: #070b14;
+    background: var(--surface-pill);
     border: 1px solid var(--card-border);
     border-radius: 6px;
 }
@@ -870,7 +870,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     gap: 2px;
     padding: 3px;
     margin: 0 auto 0.75rem;
-    background: #070b14;
+    background: var(--surface-pill);
     border: 1px solid var(--card-border);
     border-radius: 999px;
 }
@@ -903,7 +903,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .kpi-mode-btn.active {
     background: var(--primary);
-    color: #041018;
+    color: var(--surface-active-text);
     box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35), 0 4px 14px rgba(56, 189, 248, 0.25);
 }
 
@@ -926,8 +926,8 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .kpi-card {
-    background: rgba(10, 16, 28, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--surface-elevated);
+    border: 1px solid var(--surface-border-faint);
     border-radius: 10px;
     padding: 0.7rem 0.5rem 0.65rem;
     text-align: center;
@@ -987,7 +987,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0.5rem 0.6rem;
     border-radius: 8px;
     border: 1px solid var(--card-border);
-    background: #0a101c;
+    background: var(--surface-input);
     color: var(--text-main);
     font-family: inherit;
     font-size: 0.85rem;
@@ -1001,7 +1001,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .filters-panel {
-    background: rgba(10, 16, 28, 0.45);
+    background: var(--surface-muted);
     border: 1px solid var(--card-border);
     border-radius: 10px;
     overflow: hidden;
@@ -1037,7 +1037,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     display: inline-flex;
     gap: 2px;
     padding: 2px;
-    background: #070b14;
+    background: var(--surface-pill);
     border: 1px solid var(--card-border);
     border-radius: 999px;
 }
@@ -1058,7 +1058,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .filter-mode-btn.active {
     background: var(--primary);
-    color: #041018;
+    color: var(--surface-active-text);
 }
 
 .filters-panel-detail .filters-body {
@@ -1139,9 +1139,9 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .filter-group {
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--surface-border-subtle);
     border-radius: 8px;
-    background: rgba(10, 16, 28, 0.4);
+    background: var(--surface-subtle);
     overflow: hidden;
 }
 
@@ -1229,8 +1229,8 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     flex-direction: column;
     gap: 0.28rem;
     padding: 0.4rem 0.42rem 0.45rem;
-    background: rgba(10, 16, 28, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: var(--surface-elevated);
+    border: 1px solid var(--surface-border-subtle);
     border-radius: 8px;
 }
 
@@ -1278,8 +1278,8 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     max-width: 100%;
     padding: 0.24rem 0.42rem;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--surface-border-light);
+    background: var(--surface-hover);
     color: var(--text-muted);
     font-size: 0.74rem;
     font-family: inherit;
@@ -1294,7 +1294,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .filter-chip:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--surface-hover-strong);
     color: var(--text-main);
 }
 
@@ -1354,7 +1354,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0.4rem 0.55rem;
     border-radius: 8px;
     border: 1px solid var(--card-border);
-    background: #0a101c;
+    background: var(--surface-input);
     color: var(--text-main);
     font-family: inherit;
     font-size: 0.82rem;
@@ -1374,7 +1374,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .charts-toolbar-row--profiles {
     padding-top: 0.35rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--surface-border-faint);
 }
 
 .charts-toolbar-row--profiles.hidden {
@@ -1394,7 +1394,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     flex-wrap: wrap;
     gap: 2px;
     padding: 2px;
-    background: #070b14;
+    background: var(--surface-pill);
     border: 1px solid var(--card-border);
     border-radius: 999px;
 }
@@ -1419,7 +1419,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .chart-exclude-btn.active {
     background: var(--primary);
-    color: #041018;
+    color: var(--surface-active-text);
 }
 
 .chart-profile-toggles-label {
@@ -1572,7 +1572,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .data-table th {
-    background: #0a101c;
+    background: var(--surface-input);
     color: var(--text-muted);
     font-size: 0.72rem;
     text-transform: uppercase;
@@ -1591,7 +1591,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .data-table th.sortable:hover {
     color: var(--text-main);
-    background: #111827;
+    background: var(--surface-input-hover);
 }
 
 .data-table th .sort-icon {
@@ -1622,7 +1622,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .data-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-hover);
 }
 
 .data-table .num {
@@ -1773,7 +1773,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0.38rem 0.5rem;
     border-radius: 8px;
     border: 1px solid var(--card-border);
-    background: #0a101c;
+    background: var(--surface-input);
     color: var(--text-main);
     font-family: inherit;
     font-size: 0.78rem;
@@ -1785,7 +1785,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0.45rem 0.6rem;
     border-radius: 8px;
     border: 1px solid var(--card-border);
-    background: #0a101c;
+    background: var(--surface-input);
     color: var(--text-main);
     font-family: inherit;
     font-size: 0.85rem;
@@ -1849,8 +1849,8 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .publisher-detail {
     min-width: 0;
-    background: rgba(10, 16, 28, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: var(--surface-elevated);
+    border: 1px solid var(--surface-border-subtle);
     border-radius: 8px;
     padding: 0.65rem;
 }
@@ -1875,7 +1875,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     display: inline-flex;
     gap: 2px;
     padding: 2px;
-    background: #070b14;
+    background: var(--surface-pill);
     border: 1px solid var(--card-border);
     border-radius: 999px;
     align-self: flex-start;
@@ -1902,7 +1902,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .publisher-metric-btn.active {
     background: var(--primary);
-    color: #041018;
+    color: var(--surface-active-text);
 }
 
 .publisher-chart-wrap {
@@ -2018,7 +2018,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     justify-content: center;
     width: 1.65rem;
     height: 1.65rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--surface-border-medium);
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.05);
     cursor: pointer;
@@ -2279,7 +2279,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
         gap: 0.35rem;
         padding: 0.45rem 0.5rem;
         border: none;
-        background: rgba(10, 16, 28, 0.45);
+        background: var(--surface-muted);
         border-radius: 8px;
     }
 
@@ -2312,7 +2312,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
         padding: 0.45rem 0.35rem;
         min-height: auto;
         border: none;
-        background: rgba(10, 16, 28, 0.35);
+        background: var(--surface-subtle);
         border-radius: 8px;
     }
 
@@ -2436,14 +2436,14 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     .data-table--cards-mobile tbody tr {
         display: block;
         padding: 0.55rem 0.65rem;
-        background: rgba(10, 16, 28, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--surface-elevated);
+        border: 1px solid var(--surface-border-light);
         border-radius: 10px;
         cursor: pointer;
     }
 
     .data-table--cards-mobile tbody tr:hover {
-        background: rgba(10, 16, 28, 0.72);
+        background: var(--surface-elevated);
     }
 
     .data-table--cards-mobile tbody td {
@@ -2573,8 +2573,8 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
     .publisher-list-table tbody tr.publisher-row {
         padding: 0.55rem 0.65rem 0.4rem;
-        background: rgba(10, 16, 28, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--surface-elevated);
+        border: 1px solid var(--surface-border-light);
         border-radius: 10px;
         cursor: pointer;
     }
@@ -2592,8 +2592,8 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     .publisher-list-table tbody tr.publisher-row-dates:not(.hidden) {
         margin-top: -0.45rem;
         padding: 0 0.65rem 0.55rem;
-        background: rgba(10, 16, 28, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--surface-elevated);
+        border: 1px solid var(--surface-border-light);
         border-top: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 0 0 10px 10px;
     }
@@ -2747,7 +2747,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0.38rem 0.45rem;
     border-radius: 8px;
     border: 1px solid var(--card-border);
-    background: #0a101c;
+    background: var(--surface-input);
     color: var(--text-main);
     font-family: inherit;
     font-size: 0.85rem;
@@ -2773,9 +2773,9 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .grupos-roles-accordion {
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--surface-border-light);
     border-radius: 10px;
-    background: rgba(10, 16, 28, 0.45);
+    background: var(--surface-muted);
     overflow: hidden;
 }
 
@@ -2798,7 +2798,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .grupos-roles-accordion-body {
     padding: 0 0.75rem 0.75rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--surface-border-faint);
 }
 
 .grupos-group-list {
@@ -2815,9 +2815,9 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .grupos-others-details {
     margin-top: 0.55rem;
-    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border: 1px dashed var(--surface-border-medium);
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.15);
+    background: var(--surface-dashed-bg);
 }
 
 .grupos-others-summary {
@@ -2871,9 +2871,9 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .grupos-role-card {
     padding: 0.55rem 0.65rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--surface-border-light);
     border-radius: 10px;
-    background: rgba(10, 16, 28, 0.45);
+    background: var(--surface-muted);
 }
 
 .grupos-role-card-title {
@@ -2885,8 +2885,8 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .grupos-tab-btn {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--surface-border-medium);
+    background: var(--surface-hover);
     color: var(--text-muted);
     padding: 0.42rem 0.75rem;
     border-radius: 999px;
@@ -2912,9 +2912,9 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 .grupos-group-card,
 .grupos-profile-card {
     margin-bottom: 0.55rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--surface-border-light);
     border-radius: 10px;
-    background: rgba(10, 16, 28, 0.45);
+    background: var(--surface-muted);
     overflow: hidden;
 }
 
@@ -2951,7 +2951,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 .grupos-group-body,
 .grupos-profile-body {
     padding: 0 0.75rem 0.75rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--surface-border-faint);
 }
 
 .grupos-roles-row {
@@ -2984,7 +2984,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0.38rem 0.5rem;
     border-radius: 8px;
     border: 1px solid var(--card-border);
-    background: #0a101c;
+    background: var(--surface-input);
     color: var(--text-main);
     font-family: inherit;
     font-size: 0.8rem;
@@ -3005,7 +3005,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-hover-strong);
     color: var(--text-muted);
     font-size: 1rem;
     line-height: 1;
@@ -3030,7 +3030,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     list-style: none;
     border: 1px solid rgba(52, 211, 153, 0.35);
     border-radius: 8px;
-    background: rgba(8, 12, 24, 0.98);
+    background: var(--surface-overlay);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
@@ -3073,7 +3073,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0.38rem 0.5rem;
     border-radius: 8px;
     border: 1px solid var(--card-border);
-    background: #0a101c;
+    background: var(--surface-input);
     color: var(--text-main);
     font-family: inherit;
     font-size: 0.8rem;
@@ -3126,7 +3126,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .grupos-member-check:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-hover-strong);
 }
 
 .grupos-member-name {
@@ -3176,7 +3176,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0.38rem 0.5rem;
     border-radius: 8px;
     border: 1px solid var(--card-border);
-    background: #0a101c;
+    background: var(--surface-input);
     color: var(--text-main);
     font-family: inherit;
     font-size: 0.8rem;
@@ -3196,7 +3196,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0.42rem 0.55rem;
     border-radius: 8px;
     border: 1px solid var(--card-border);
-    background: #0a101c;
+    background: var(--surface-input);
     color: var(--text-main);
     font-family: inherit;
     font-size: 0.82rem;
@@ -3211,7 +3211,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     max-height: 420px;
     overflow-x: hidden;
     overflow-y: auto;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--surface-border-light);
     border-radius: 10px;
     width: 100%;
 }
@@ -3229,7 +3229,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .grupos-matrix-table th,
 .grupos-matrix-table td {
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--surface-border-faint);
     padding: 0.35rem 0.45rem;
     vertical-align: middle;
 }
@@ -3239,7 +3239,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     position: sticky;
     left: 0;
     z-index: 2;
-    background: rgba(8, 12, 24, 0.98);
+    background: var(--surface-overlay);
     text-align: left;
     width: 11rem;
     min-width: 9rem;
@@ -3254,7 +3254,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     position: sticky;
     top: 0;
     z-index: 3;
-    background: rgba(8, 12, 24, 0.98);
+    background: var(--surface-overlay);
     font-weight: 600;
     color: var(--text-muted);
     text-align: center;
@@ -3290,7 +3290,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     z-index: 1;
     background: rgba(12, 20, 36, 0.98);
     border-top: 2px solid rgba(52, 211, 153, 0.28);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--surface-border-light);
     padding: 0.45rem 0.55rem;
     text-align: left;
     font-weight: 600;
@@ -3328,9 +3328,9 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .grupos-matrix-profile-block {
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--surface-border-light);
     border-radius: 10px;
-    background: rgba(10, 16, 28, 0.45);
+    background: var(--surface-muted);
     overflow: hidden;
 }
 
@@ -3351,7 +3351,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 
 .grupos-matrix-profile-block .grupos-matrix-scroll {
     max-height: 280px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--surface-border-faint);
     border-radius: 0;
 }
 
@@ -3432,7 +3432,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 1rem 1.1rem;
     border-radius: 12px;
     border: 1px solid rgba(52, 211, 153, 0.35);
-    background: rgba(8, 12, 24, 0.98);
+    background: var(--surface-overlay);
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
 }
 
@@ -3528,7 +3528,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 0.4rem 0.55rem;
     border-radius: 8px;
     border: 1px solid rgba(52, 211, 153, 0.35);
-    background: rgba(8, 12, 24, 0.98);
+    background: var(--surface-overlay);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
     pointer-events: none;
     transform: translate(-50%, -100%);
@@ -3663,7 +3663,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     display: flex;
     gap: 0.35rem;
     padding: 0.55rem 1rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--surface-border-light);
     position: sticky;
     top: 3.1rem;
     background: inherit;
@@ -3735,7 +3735,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     width: min(100%, 26rem);
     max-height: 100%;
     overflow-y: auto;
-    background: rgba(8, 12, 24, 0.98);
+    background: var(--surface-overlay);
     border-left: 1px solid rgba(52, 211, 153, 0.25);
     box-shadow: -8px 0 32px rgba(0, 0, 0, 0.45);
     padding: 0 0 2rem;
@@ -3747,7 +3747,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     justify-content: space-between;
     gap: 0.5rem;
     padding: 0.85rem 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--surface-border-light);
     position: sticky;
     top: 0;
     background: inherit;
@@ -3813,8 +3813,8 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     gap: 0.5rem;
     padding: 0.55rem 0.65rem;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(10, 16, 28, 0.5);
+    border: 1px solid var(--surface-border-light);
+    background: var(--surface-elevated);
 }
 
 .dataset-card-main {
@@ -3833,7 +3833,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 .dataset-card-main:hover,
 .dataset-card-main:focus-visible {
     outline: none;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-hover-strong);
 }
 
 .dataset-card.is-active {
@@ -3901,7 +3901,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 .datos-help {
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--surface-border-light);
     border-radius: 8px;
     padding: 0.45rem 0.65rem;
     font-size: 0.78rem;
@@ -3964,7 +3964,7 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
     padding: 1rem;
     border-radius: 12px;
     border: 1px solid rgba(52, 211, 153, 0.35);
-    background: rgba(8, 12, 24, 0.98);
+    background: var(--surface-overlay);
 }
 
 .datos-modal-title {

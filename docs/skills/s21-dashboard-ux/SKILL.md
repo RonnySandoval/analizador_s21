@@ -38,17 +38,22 @@ description: UX and visual design rules for the S-21 analizador dashboard (typog
 
 ## Light theme contrast (required)
 
-Light mode is a soft gray UI, not pure white. KPI and cards must stay readable:
+Light mode uses **semantic surface tokens** defined in `style.css` (`--surface-*`, `--chart-*`) and overridden in `theme-light.css`. Never hardcode dark rgba backgrounds in components — use variables so light mode stays coherent.
 
-| Element | Rule |
-|---------|------|
-| `.kpi-card` | White `#ffffff` surface, visible border — never dark translucent overlay on light sections |
-| `.kpi-label` | `#334155` or darker, weight 600 |
-| `.kpi-value` | `#0e7490` (primary dark cyan) |
-| `.kpi-hint` | `#64748b` minimum |
-| `.kpi-mode-toggle` | Light pill `#f1f5f9`; active tab white text on primary |
+| Token | Light value | Used for |
+|-------|-------------|----------|
+| `--surface-elevated` | `#ffffff` | KPI cards, filter cards, list items |
+| `--surface-muted` | `#f8fafc` | Grupos cards, filters panel, charts toolbar inner |
+| `--surface-input` | `#ffffff` | selects, inputs, table headers |
+| `--surface-pill` | `#f1f5f9` | mode toggles, pill groups |
+| `--text-main` | `#1e293b` | body text on light surfaces |
+| `--text-muted` | `#64748b` | labels; use `#475569` for small caps on white |
+| `--chart-tick` | `#475569` | Chart.js axis labels |
+| `--chart-grid` | `rgba(100,116,139,0.22)` | Chart.js grid lines |
 
-Define light overrides in `theme-light.css`, not scattered one-offs.
+Chart.js reads `--chart-*` via `chartPalette()` in `dashboard.js`; re-render charts on `s21-prefs-changed`.
+
+Dark mode keeps existing cyber palette; do not change dark token defaults unless fixing a bug.
 
 ## Copy rules
 
@@ -78,8 +83,10 @@ Define light overrides in `theme-light.css`, not scattered one-offs.
 
 | File | Role |
 |------|------|
+| `web/style.css` | Base tokens incl. `--surface-*`, `--chart-*` |
+| `web/theme-light.css` | Light overrides for all surface/chart tokens |
 | `web/dashboard-preferences.js` | Theme + font scale |
-| `web/theme-light.css` | Light theme variables + contrast overrides |
 | `web/dashboard-storage.js` | IndexedDB datasets |
 | `web/dashboard-datos.js` | Settings panel, tabs, modals, history UI |
-| `web/dashboard.css` | Layout, panel, modals, font-scale base |
+| `web/dashboard.css` | Layout; uses surface tokens, not hardcoded dark rgba |
+| `web/dashboard.js` | `chartPalette()` for Chart.js theme colors |
