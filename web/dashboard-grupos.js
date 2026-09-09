@@ -6,7 +6,12 @@
     let config = defaultConfig();
     let assignView = 'group';
     let matrixSearch = '';
+    let groupSearchByNum = {};
+    let othersAccordionOpenByNum = {};
     let matrixProfilesExpanded = null;
+    let openGroupCards = null;
+    let rolesAccordionOpen = false;
+    let persistGruposEnabled = false;
     let ctx = null;
     let roleComboBlurTimer = null;
 
@@ -38,6 +43,47 @@
 
     function saveConfig() {
         localStorage.setItem(GRUPOS_KEY, JSON.stringify(config));
+        if (persistGruposEnabled) {
+            ctx?.onPersistConfig?.(getConfigSnapshot());
+        }
+    }
+
+    function getConfigSnapshot() {
+        return {
+            groupCount: config.groupCount,
+            assignments: { ...config.assignments },
+            roles: JSON.parse(JSON.stringify(config.roles || {})),
+        };
+    }
+
+    function importConfig(external) {
+        if (external && typeof external === 'object') {
+            config = normalizeConfig({
+                groupCount: Number(external.groupCount) || 5,
+                assignments: external.assignments && typeof external.assignments === 'object'
+                    ? { ...external.assignments } : {},
+                roles: external.roles && typeof external.roles === 'object'
+                    ? JSON.parse(JSON.stringify(external.roles)) : {},
+            });
+        } else {
+            config = defaultConfig();
+        }
+        localStorage.setItem(GRUPOS_KEY, JSON.stringify(config));
+        const countInput = document.getElementById('grupos-count');
+        if (countInput) countInput.value = config.groupCount;
+        render();
+    }
+
+    function setPersistGrupos(enabled, options = {}) {
+        persistGruposEnabled = !!enabled;
+        const checkbox = document.getElementById('grupos-persist-checkbox');
+        if (checkbox) checkbox.checked = persistGruposEnabled;
+        if (options.silent) return;
+        if (persistGruposEnabled) {
+            ctx?.onPersistConfig?.(getConfigSnapshot());
+        } else {
+            ctx?.onPersistDisabled?.();
+        }
     }
 
     function normalizeConfig(cfg) {
@@ -95,8 +141,15 @@
         }
         config = normalizeConfig(config);
         saveConfig();
-        const patchMatrix = options.matrixPatch && assignView === 'profile';
-        notifyChange(patchMatrix ? { matrixPatch: key } : {});
+        if (options.matrixPatch && assignView === 'profile') {
+            notifyChange({ matrixPatch: key });
+            return;
+        }
+        if (assignView === 'group' && options.groupPatch != null) {
+            notifyChange({ groupPatch: Number(options.groupPatch) });
+            return;
+        }
+        notifyChange();
     }
 
     function assignMany(keys, groupNum) {
@@ -133,7 +186,7 @@
 
         config = normalizeConfig(config);
         saveConfig();
-        notifyChange();
+        notifyChange({ rolesPatch: groupNum });
     }
 
     function applyToRows(rows) {
@@ -151,7 +204,34 @@
             renderSummary();
             return;
         }
+        if (options.rolesPatch != null) {
+            patchGroupRolesUi(options.rolesPatch);
+            renderSummary();
+            renderAssignPanel();
+            return;
+        }
+        if (options.groupPatch != null) {
+            updateGroupCardLists(Number(options.groupPatch));
+            renderSummary();
+            return;
+        }
         render();
+    }
+
+    function captureRolesAccordionState() {
+        const acc = document.querySelector('.grupos-roles-accordion');
+        if (acc) rolesAccordionOpen = acc.open;
+    }
+
+    function patchGroupRolesUi(groupNum) {
+        const role = config.roles[String(groupNum)] || {};
+        document.querySelectorAll(`.grupos-role-combo[data-grupo-role="${groupNum}"]`).forEach(combo => {
+            const key = combo.dataset.roleType === 'superintendent'
+                ? role.superintendent
+                : role.auxiliary;
+            syncRoleComboUi(combo, key || '');
+            closeRoleDropdown(combo);
+        });
     }
 
     function captureMatrixScrollState() {
@@ -191,9 +271,9 @@
         });
 
         const pub = publisherByKey(key);
-        const nameEl = row.querySelector('.grupos-matrix-name-text');
-        if (pub && nameEl) {
-            nameEl.innerHTML = `${escapeHtml(pub.nombre)}${roleBadgesHtml(key)}`;
+        const nameBtn = row.querySelector('.grupos-publisher-name-btn');
+        if (pub && nameBtn) {
+            nameBtn.innerHTML = `${personNameInner(pub)}${roleBadgesHtml(key)}`;
         }
     }
 
@@ -269,16 +349,33 @@
         return { members, others: others.sort(sortByName) };
     }
 
+    function personNameInner(p) {
+        const Icons = window.S21DashboardIcons;
+        const name = escapeHtml(p.nombre);
+        return Icons?.personNameInnerHtml(p, name) || `<span class="person-name-text">${name}</span>`;
+    }
+
+    function publisherNameBtnHtml(p, key, extraHtml = '', options = {}) {
+        const { groupNum, isMember } = options;
+        const inner = `${personNameInner(p)}${extraHtml}`;
+        if (isMember === false && groupNum != null) {
+            return `<button type="button" class="grupos-publisher-name-btn grupos-publisher-name-btn--assign" data-grupos-action="assign" data-grupos-assign="${groupNum}" data-person-key="${escapeAttr(key)}" title="Añadir ${escapeAttr(p.nombre)} al grupo ${groupNum}" aria-label="Añadir ${escapeAttr(p.nombre)} al grupo ${groupNum}">${inner}</button>`;
+        }
+        return `<button type="button" class="grupos-publisher-name-btn" data-grupos-action="detail" data-person-key="${escapeAttr(key)}" title="Ver registro mensual de ${escapeAttr(p.nombre)}" aria-label="Ver registro mensual de ${escapeAttr(p.nombre)}">${inner}</button>`;
+    }
+
     function renderMemberCheck(p, groupNum, checked, chip) {
         const k = personKey(p);
-        return `<label class="grupos-member-check">
-            <input type="checkbox" data-grupo-check="${groupNum}" data-person-key="${escapeAttr(k)}"${checked ? ' checked' : ''}>
+        return `<div class="grupos-member-check">
+            <input type="checkbox" class="grupos-member-checkbox" data-grupo-check="${groupNum}" data-person-key="${escapeAttr(k)}"${checked ? ' checked' : ''} aria-label="Asignar ${escapeAttr(p.nombre)} al grupo ${groupNum}">
             <span class="grupos-member-check-main">
-                <span class="grupos-member-name">${escapeHtml(p.nombre)}</span>
+                <span class="grupos-member-name-row">
+                    ${publisherNameBtnHtml(p, k, '', { groupNum, isMember: checked })}
+                </span>
                 ${roleChipHtml(chip)}
             </span>
             <span class="grupos-member-profile">${escapeHtml(displayPerfil(p.origen))}</span>
-        </label>`;
+        </div>`;
     }
 
     function renderSummary() {
@@ -301,15 +398,24 @@
     }
 
     function filterPublishersByQuery(pubs, q) {
-        if (!q) return pubs;
+        const query = String(q || '').trim();
+        if (!query) return pubs;
+        const TM = window.S21TextMatch;
+        if (!TM) return pubs;
         const matchingOrigenes = new Set();
         for (const origen of new Set(pubs.map(p => p.origen))) {
-            if (displayPerfil(origen).toLowerCase().includes(q)) matchingOrigenes.add(origen);
+            if (TM.textMatchesQuery(displayPerfil(origen), query)) matchingOrigenes.add(origen);
         }
         return pubs.filter(p =>
             matchingOrigenes.has(p.origen) ||
-            String(p.nombre).toLowerCase().includes(q)
+            TM.publisherMatchesQuery(p, query, displayPerfil)
         );
+    }
+
+    function firstDisplayName(fullName) {
+        if (!fullName || fullName === '—') return '—';
+        const first = String(fullName).trim().split(/\s+/)[0];
+        return first || '—';
     }
 
     function roleCombo(groupNum, roleType, selectedKey) {
@@ -337,7 +443,10 @@
             return;
         }
 
-        panel.innerHTML = `<details class="grupos-roles-accordion">
+        captureRolesAccordionState();
+        const openAttr = rolesAccordionOpen ? ' open' : '';
+
+        panel.innerHTML = `<details class="grupos-roles-accordion"${openAttr}>
             <summary class="grupos-roles-accordion-summary">
                 <span>Superintendentes y auxiliares</span>
                 <span class="grupos-group-badge">${config.groupCount} grupos</span>
@@ -358,35 +467,101 @@
         </details>`;
     }
 
-    function renderGroupListView() {
-        const pubs = sortedPublishers();
-        if (!pubs.length) return '<p class="grupos-empty">No hay publicadores cargados.</p>';
+    function getGroupSearch(groupNum) {
+        return groupSearchByNum[String(groupNum)] || '';
+    }
 
-        return `<div class="grupos-group-list">${Array.from({ length: config.groupCount }, (_, i) => {
+    function captureOthersAccordionState() {
+        document.querySelectorAll('.grupos-others-details[data-group-others]').forEach(el => {
+            const g = el.dataset.groupOthers;
+            if (g) othersAccordionOpenByNum[g] = el.open;
+        });
+    }
+
+    function isOthersAccordionOpen(groupNum) {
+        if (getGroupSearch(groupNum).trim()) return true;
+        return !!othersAccordionOpenByNum[String(groupNum)];
+    }
+
+    function syncOthersAccordionOpen(groupNum, card) {
+        const root = card || document.querySelector(`.grupos-group-card[data-group-num="${groupNum}"]`);
+        const othersDetails = root?.querySelector('.grupos-others-details[data-group-others]');
+        if (!othersDetails) return;
+        const query = getGroupSearch(groupNum).trim();
+        if (query) {
+            othersAccordionOpenByNum[String(groupNum)] = true;
+            othersDetails.open = true;
+            return;
+        }
+        othersDetails.open = !!othersAccordionOpenByNum[String(groupNum)];
+    }
+
+    function pubsForGroupSearch(allPubs, groupNum) {
+        const query = getGroupSearch(groupNum).trim();
+        return query ? filterPublishersByQuery(allPubs, query) : allPubs;
+    }
+
+    function renderGroupCardListsHtml(groupNum, members, others) {
+        const membersHtml = members.length
+            ? members.map(({ pub, chip }) => renderMemberCheck(pub, groupNum, true, chip)).join('')
+            : '<p class="grupos-empty-inline">Ningún miembro asignado.</p>';
+        const othersHtml = others.length
+            ? others.map(p => renderMemberCheck(p, groupNum, false, null)).join('')
+            : '<p class="grupos-empty-inline">Todos los publicadores están en este grupo.</p>';
+        return { membersHtml, othersHtml };
+    }
+
+    function updateGroupCardLists(groupNum) {
+        const card = document.querySelector(`.grupos-group-card[data-group-num="${groupNum}"]`);
+        if (!card) return;
+        const allPubs = sortedPublishers();
+        const { members, others } = splitGroupPublishers(groupNum, pubsForGroupSearch(allPubs, groupNum));
+        const { membersHtml, othersHtml } = renderGroupCardListsHtml(groupNum, members, others);
+        const membersList = card.querySelector('.grupos-member-list--in');
+        const othersList = card.querySelector('.grupos-member-list--out');
+        const badge = card.querySelector('.grupos-group-badge');
+        const othersSummary = card.querySelector('.grupos-others-summary');
+        if (membersList) membersList.innerHTML = membersHtml;
+        if (othersList) othersList.innerHTML = othersHtml;
+        if (badge) {
+            badge.textContent = `${members.length} miembro${members.length === 1 ? '' : 's'}`;
+        }
+        if (othersSummary) {
+            othersSummary.textContent = `No pertenecen al grupo (${others.length})`;
+        }
+        syncOthersAccordionOpen(groupNum, card);
+    }
+
+    function renderGroupListView() {
+        const allPubs = sortedPublishers();
+        if (!allPubs.length) return '<p class="grupos-empty">No hay publicadores cargados.</p>';
+
+        const cards = Array.from({ length: config.groupCount }, (_, i) => {
             const g = i + 1;
-            const { members, others } = splitGroupPublishers(g, pubs);
-            return `<details class="grupos-group-card"${g === 1 ? ' open' : ''}>
+            const { members, others } = splitGroupPublishers(g, pubsForGroupSearch(allPubs, g));
+            const { membersHtml, othersHtml } = renderGroupCardListsHtml(g, members, others);
+            const openDefault = openGroupCards === null ? g === 1 : openGroupCards.has(g);
+            return `<details class="grupos-group-card" data-group-num="${g}"${openDefault ? ' open' : ''}>
                 <summary class="grupos-group-summary">
                     <span class="grupos-group-title">Grupo ${g}</span>
                     <span class="grupos-group-badge">${members.length} miembro${members.length === 1 ? '' : 's'}</span>
                 </summary>
                 <div class="grupos-group-body">
-                    <div class="grupos-member-list grupos-member-list--in">
-                        ${members.length
-                            ? members.map(({ pub, chip }) => renderMemberCheck(pub, g, true, chip)).join('')
-                            : '<p class="grupos-empty-inline">Ningún miembro asignado.</p>'}
+                    <div class="grupos-group-search-wrap">
+                        <input type="search" class="grupos-group-search grupos-panel-search" data-group-num="${g}"
+                            placeholder="Buscar en este grupo…" value="${escapeAttr(getGroupSearch(g))}"
+                            autocomplete="off" spellcheck="false" aria-label="Buscar publicadores en grupo ${g}">
                     </div>
-                    <details class="grupos-others-details">
+                    <div class="grupos-member-list grupos-member-list--in">${membersHtml}</div>
+                    <details class="grupos-others-details" data-group-others="${g}"${isOthersAccordionOpen(g) ? ' open' : ''}>
                         <summary class="grupos-others-summary">No pertenecen al grupo (${others.length})</summary>
-                        <div class="grupos-member-list grupos-member-list--out">
-                            ${others.length
-                                ? others.map(p => renderMemberCheck(p, g, false, null)).join('')
-                                : '<p class="grupos-empty-inline">Todos los publicadores están en este grupo.</p>'}
-                        </div>
+                        <div class="grupos-member-list grupos-member-list--out">${othersHtml}</div>
                     </details>
                 </div>
             </details>`;
-        }).join('')}</div>`;
+        }).join('');
+
+        return `<div class="grupos-group-list">${cards}</div>`;
     }
 
     function rolePersonName(key) {
@@ -469,23 +644,85 @@
         return matrixProfilesExpanded.has(origen);
     }
 
+    function captureGroupCardState() {
+        openGroupCards = new Set();
+        document.querySelectorAll('.grupos-group-card[data-group-num]').forEach(el => {
+            if (el.open) openGroupCards.add(Number(el.dataset.groupNum));
+        });
+        captureOthersAccordionState();
+    }
+
+    function captureNavigationState() {
+        if (assignView === 'group') captureGroupCardState();
+        else captureMatrixProfileState();
+        const section = document.getElementById('grupos-section');
+        return {
+            assignView,
+            matrixSearch,
+            groupSearchByNum: { ...groupSearchByNum },
+            othersAccordionOpenByNum: { ...othersAccordionOpenByNum },
+            openGroupCards: openGroupCards ? [...openGroupCards] : null,
+            matrixProfilesExpanded: matrixProfilesExpanded ? [...matrixProfilesExpanded] : null,
+            matrixScroll: assignView === 'profile' ? captureMatrixScrollState() : null,
+            scrollY: window.scrollY,
+            sectionTop: section
+                ? section.getBoundingClientRect().top + window.scrollY
+                : window.scrollY,
+        };
+    }
+
+    function restoreNavigationState(state) {
+        if (!state) return;
+        assignView = state.assignView === 'profile' ? 'profile' : 'group';
+        matrixSearch = state.matrixSearch || '';
+        groupSearchByNum = state.groupSearchByNum && typeof state.groupSearchByNum === 'object'
+            ? { ...state.groupSearchByNum }
+            : {};
+        othersAccordionOpenByNum = state.othersAccordionOpenByNum && typeof state.othersAccordionOpenByNum === 'object'
+            ? { ...state.othersAccordionOpenByNum }
+            : {};
+        openGroupCards = state.openGroupCards?.length ? new Set(state.openGroupCards) : new Set();
+        matrixProfilesExpanded = state.matrixProfilesExpanded?.length
+            ? new Set(state.matrixProfilesExpanded)
+            : null;
+        renderViewTabs();
+        render();
+        requestAnimationFrame(() => {
+            if (assignView === 'group') {
+                document.querySelectorAll('.grupos-group-card[data-group-num]').forEach(el => {
+                    el.open = openGroupCards.has(Number(el.dataset.groupNum));
+                });
+            }
+            if (state.matrixScroll) restoreMatrixScrollState(state.matrixScroll);
+            const matrixSearchInput = document.getElementById('grupos-matrix-search');
+            if (matrixSearchInput) matrixSearchInput.value = matrixSearch;
+            window.scrollTo({
+                top: state.sectionTop ?? state.scrollY ?? 0,
+                behavior: 'smooth',
+            });
+        });
+    }
+
     function renderMatrixColumnHead(g) {
         const role = config.roles[String(g)] || {};
         const supName = rolePersonName(role.superintendent);
         const auxName = rolePersonName(role.auxiliary);
+        const supShort = firstDisplayName(supName);
+        const auxShort = firstDisplayName(auxName);
         const hoverTip = `Sup: ${supName} · Aux: ${auxName}`;
         return `<th class="grupos-matrix-col grupos-matrix-col-head" scope="col" data-grupo-head="${g}"
             data-grupo-sup="${escapeAttr(supName)}" data-grupo-aux="${escapeAttr(auxName)}"
-            aria-label="Grupo ${g}. ${hoverTip}. Pulse para editar." role="button" tabindex="0">
+            aria-label="Grupo ${g}. ${hoverTip}. Pulse para editar." role="button" tabindex="0"
+            title="${escapeAttr(hoverTip)}">
             <span class="grupos-col-num">${g}</span>
             <span class="grupos-col-roles-expanded">
                 <span class="grupos-col-role-line">
                     <span class="grupos-chip grupos-chip--sup">Sup</span>
-                    <span class="grupos-col-person">${escapeHtml(supName)}</span>
+                    <span class="grupos-col-person">${escapeHtml(supShort)}</span>
                 </span>
                 <span class="grupos-col-role-line">
                     <span class="grupos-chip grupos-chip--aux">Aux</span>
-                    <span class="grupos-col-person">${escapeHtml(auxName)}</span>
+                    <span class="grupos-col-person">${escapeHtml(auxShort)}</span>
                 </span>
             </span>
         </th>`;
@@ -504,7 +741,9 @@
         }).join('');
         return `<tr class="grupos-matrix-person-row" data-person-key="${escapeAttr(k)}">
             <th class="grupos-matrix-name" scope="row">
-                <span class="grupos-matrix-name-text">${escapeHtml(p.nombre)}${roleBadgesHtml(k)}</span>
+                <span class="grupos-matrix-name-row">
+                    ${publisherNameBtnHtml(p, k, roleBadgesHtml(k))}
+                </span>
             </th>
             ${cells}
         </tr>`;
@@ -535,7 +774,7 @@
         return `
             <div class="grupos-matrix-toolbar">
                 <input type="search" id="grupos-matrix-search" class="grupos-matrix-search" placeholder="Filtrar por nombre o perfil…" value="${escapeAttr(matrixSearch)}" autocomplete="off">
-                <span class="grupos-matrix-hint">Pulse encabezado de grupo para ampliar · celda para asignar</span>
+                <span class="grupos-matrix-hint">Pulse encabezado de grupo para ampliar · celda para asignar · nombre para registro mensual</span>
             </div>
             <div class="grupos-matrix-profiles">${blocks || '<p class="grupos-empty">Sin coincidencias.</p>'}</div>`;
     }
@@ -550,16 +789,24 @@
         if (title) title.textContent = `Grupo ${groupNum}`;
         if (supEl) supEl.textContent = rolePersonName(role.superintendent);
         if (auxEl) auxEl.textContent = rolePersonName(role.auxiliary);
-        modal.classList.remove('hidden');
-        modal.hidden = false;
+        if (window.S21Motion?.setOpen) {
+            window.S21Motion.setOpen(modal, true, { from: 'scale' });
+        } else {
+            modal.classList.remove('hidden');
+            modal.hidden = false;
+        }
         modal.querySelector('.grupos-modal-close')?.focus();
     }
 
     function closeGroupModal() {
         const modal = document.getElementById('grupos-group-modal');
         if (!modal) return;
-        modal.classList.add('hidden');
-        modal.hidden = true;
+        if (window.S21Motion?.setOpen) {
+            window.S21Motion.setOpen(modal, false, { from: 'scale' });
+        } else {
+            modal.classList.add('hidden');
+            modal.hidden = true;
+        }
     }
 
     function renderAssignPanel() {
@@ -573,6 +820,7 @@
         }
 
         if (assignView === 'group') {
+            captureGroupCardState();
             panel.innerHTML = renderGroupListView();
             return;
         }
@@ -581,8 +829,7 @@
 
         const scrollState = assignView === 'profile' ? captureMatrixScrollState() : null;
 
-        const q = matrixSearch.trim().toLowerCase();
-        const filtered = filterPublishersByQuery(pubs, q);
+        const filtered = filterPublishersByQuery(pubs, matrixSearch.trim());
         const byOrigen = new Map();
         for (const p of filtered) {
             if (!byOrigen.has(p.origen)) byOrigen.set(p.origen, []);
@@ -604,12 +851,9 @@
     }
 
     function filterRoleOptions(publishers, query) {
-        const q = query.trim().toLowerCase();
-        if (!q) return publishers.slice(0, 80);
-        return publishers.filter(p =>
-            String(p.nombre).toLowerCase().includes(q) ||
-            displayPerfil(p.origen).toLowerCase().includes(q)
-        ).slice(0, 80);
+        const TM = window.S21TextMatch;
+        if (!TM) return publishers.slice(0, 80);
+        return TM.filterPublishers(publishers, query, displayPerfil).slice(0, 80);
     }
 
     function renderRoleDropdown(combo, query) {
@@ -624,7 +868,7 @@
         dropdown.innerHTML = pubs.map(p => {
             const k = personKey(p);
             return `<li class="grupos-role-option" role="option" data-person-key="${escapeAttr(k)}" tabindex="-1">
-                <span class="grupos-role-option-name">${escapeHtml(p.nombre)}</span>
+                <span class="grupos-role-option-name person-name">${personNameInner(p)}</span>
                 <span class="grupos-role-option-profile">${escapeHtml(displayPerfil(p.origen))}</span>
             </li>`;
         }).join('');
@@ -670,9 +914,10 @@
             return;
         }
 
-        const matches = sortedPublishers().filter(p =>
-            String(p.nombre).toLowerCase() === text.toLowerCase()
-        );
+        const TM = window.S21TextMatch;
+        const matches = TM
+            ? sortedPublishers().filter(p => TM.namesMatch(p.nombre, text))
+            : sortedPublishers().filter(p => String(p.nombre).toLowerCase() === text.toLowerCase());
         if (matches.length === 1) {
             selectRoleOption(combo, personKey(matches[0]));
             return;
@@ -691,6 +936,15 @@
     function onPanelClick(e) {
         if (e.target.closest('[data-grupos-modal-close]')) {
             closeGroupModal();
+            return;
+        }
+
+        const assignNameBtn = e.target.closest('[data-grupos-action="assign"]');
+        if (assignNameBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const g = Number(assignNameBtn.dataset.gruposAssign);
+            assignPerson(assignNameBtn.getAttribute('data-person-key') || assignNameBtn.dataset.personKey, g, { groupPatch: g });
             return;
         }
 
@@ -728,7 +982,7 @@
         if (!grupoCheck) return;
         const g = Number(grupoCheck.dataset.grupoCheck);
         const key = grupoCheck.dataset.personKey;
-        assignPerson(key, grupoCheck.checked ? g : 0);
+        assignPerson(key, grupoCheck.checked ? g : 0, { groupPatch: g });
     }
 
     function onPanelKeydown(e) {
@@ -805,6 +1059,10 @@
         const countInput = document.getElementById('grupos-count');
         countInput?.addEventListener('change', () => setGroupCount(countInput.value));
 
+        document.getElementById('grupos-persist-checkbox')?.addEventListener('change', e => {
+            setPersistGrupos(e.target.checked);
+        });
+
         root.querySelectorAll('[data-grupos-view]').forEach(btn => {
             btn.addEventListener('click', () => {
                 assignView = btn.dataset.gruposView === 'profile' ? 'profile' : 'group';
@@ -831,10 +1089,44 @@
             renderRoleDropdown(combo, input.value);
         });
 
+        root.addEventListener('toggle', e => {
+            const others = e.target.closest('.grupos-others-details[data-group-others]');
+            if (!others) return;
+            const g = others.dataset.groupOthers;
+            if (!g) return;
+            if (getGroupSearch(g).trim()) {
+                others.open = true;
+                othersAccordionOpenByNum[g] = true;
+                return;
+            }
+            othersAccordionOpenByNum[g] = others.open;
+        });
+
         root.addEventListener('input', e => {
             if (e.target.id === 'grupos-matrix-search') {
                 matrixSearch = e.target.value;
+                const selStart = e.target.selectionStart;
+                const selEnd = e.target.selectionEnd;
                 renderAssignPanel();
+                requestAnimationFrame(() => {
+                    const input = document.getElementById('grupos-matrix-search');
+                    if (!input) return;
+                    input.focus();
+                    input.setSelectionRange(selStart, selEnd);
+                });
+                return;
+            }
+            const groupSearchInput = e.target.closest('.grupos-group-search');
+            if (groupSearchInput) {
+                const g = Number(groupSearchInput.dataset.groupNum);
+                const query = groupSearchInput.value;
+                groupSearchByNum[String(g)] = query;
+                if (query.trim()) {
+                    othersAccordionOpenByNum[String(g)] = true;
+                } else {
+                    othersAccordionOpenByNum[String(g)] = false;
+                }
+                updateGroupCardLists(g);
                 return;
             }
             const input = e.target.closest('.grupos-role-input');
@@ -908,11 +1200,17 @@
         init,
         getConfig,
         loadConfig,
+        importConfig,
+        getConfigSnapshot,
+        setPersistGrupos,
+        captureNavigationState,
+        restoreNavigationState,
         applyToRows,
         grupoLabel,
         getAssignment,
         assignFiltered,
         render,
         personKey,
+        getPublisherByKey: publisherByKey,
     };
 })();

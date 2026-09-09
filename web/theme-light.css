@@ -48,6 +48,12 @@
     --chart-line-point-border-dim: rgba(5, 150, 105, 0.45);
     --chart-focus-tick: #0891b2;
     --chart-focus-tick-muted: #64748b;
+    --person-publicador: #64748b;
+    --person-siervo: #0891b2;
+    --person-anciano: #d97706;
+    --heading-section-color: #1e293b;
+    --heading-subsection-color: #1e293b;
+    --heading-panel-color: #475569;
 }
 
 [data-theme="light"] body {
@@ -107,6 +113,14 @@
 }
 
 /* KPI — stronger label weight for small caps */
+[data-theme="light"] .kpi-card-icon {
+    color: #0e7490;
+}
+
+[data-theme="light"] .kpi-card--inactivos .kpi-card-icon {
+    color: #64748b;
+}
+
 [data-theme="light"] .kpi-label {
     color: #334155;
     font-weight: 600;
@@ -133,6 +147,12 @@
     background: #ffffff;
 }
 
+[data-theme="light"] .dashboard-header-btn[aria-pressed="true"] {
+    color: #0891b2;
+    border-color: rgba(8, 145, 178, 0.45);
+    background: rgba(8, 145, 178, 0.1);
+}
+
 [data-theme="light"] .settings-tab.active {
     background: rgba(8, 145, 178, 0.1);
 }
@@ -147,14 +167,71 @@
     background: var(--surface-hover-strong);
 }
 
-[data-theme="light"] .grupos-tab-btn.active {
-    color: #059669;
-    border-color: rgba(5, 150, 105, 0.45);
-    background: rgba(5, 150, 105, 0.1);
+[data-theme="light"] .grupos-roles-accordion,
+[data-theme="light"] .grupos-role-card,
+[data-theme="light"] .grupos-group-card {
+    background: #ffffff;
+    border-color: rgba(100, 116, 139, 0.28);
 }
 
-[data-theme="light"] .grupos-role-card-title {
+[data-theme="light"] .grupos-role-input {
+    background: #ffffff;
+    color: #1e293b;
+    border-color: rgba(100, 116, 139, 0.35);
+}
+
+[data-theme="light"] .grupos-role-input::placeholder {
+    color: #94a3b8;
+}
+
+[data-theme="light"] .grupos-role-input:focus {
+    border-color: rgba(5, 150, 105, 0.5);
+    box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.12);
+}
+
+[data-theme="light"] .grupos-role-clear {
+    border-color: rgba(100, 116, 139, 0.35);
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+[data-theme="light"] .grupos-role-clear:hover {
+    color: #1e293b;
+    border-color: rgba(100, 116, 139, 0.5);
+    background: #e2e8f0;
+}
+
+[data-theme="light"] .grupos-role-dropdown {
+    background: #ffffff;
+    border-color: rgba(100, 116, 139, 0.35);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] .grupos-role-option:hover,
+[data-theme="light"] .grupos-role-option:focus {
+    background: rgba(5, 150, 105, 0.08);
+}
+
+[data-theme="light"] .grupos-publisher-name-btn {
+    color: #0891b2;
+}
+
+[data-theme="light"] .grupos-publisher-name-btn--assign {
     color: #059669;
+}
+
+[data-theme="light"] .grupos-publisher-name-btn:hover,
+[data-theme="light"] .grupos-publisher-name-btn:focus-visible {
+    color: #0f766e;
+}
+
+[data-theme="light"] .grupos-member-check:hover {
+    background: rgba(241, 245, 249, 0.95);
+}
+
+[data-theme="light"] .grupos-others-details {
+    background: rgba(241, 245, 249, 0.65);
+    border-color: rgba(100, 116, 139, 0.28);
 }
 
 [data-theme="light"] .grupos-chip--sup {

@@ -33,7 +33,7 @@
         cacheElements();
         bindEvents();
         fetchServerInfo();
-        showStep('choose');
+        showStep('choose', 'instant');
     }
 
     function cacheElements() {
@@ -109,7 +109,7 @@
         });
         els.fallbackInput?.addEventListener('change', onFallbackFolders);
 
-        $('btn-wizard-pdfs-back')?.addEventListener('click', () => showStep('choose'));
+        $('btn-wizard-pdfs-back')?.addEventListener('click', () => showStep('choose', 'back'));
         $('btn-wizard-pdfs-next')?.addEventListener('click', () => {
             if (!carpetas.length) {
                 alert('Agregue al menos una carpeta con PDFs S-21.');
@@ -122,7 +122,7 @@
             showStep('year');
         });
 
-        $('btn-wizard-year-back')?.addEventListener('click', () => showStep('pdfs'));
+        $('btn-wizard-year-back')?.addEventListener('click', () => showStep('pdfs', 'back'));
         $('btn-wizard-year-next')?.addEventListener('click', () => {
             const anio = Number(els.anioServicio?.value);
             if (!anio || anio < 2010 || anio > 2040) {
@@ -132,7 +132,7 @@
             showStep('grouping');
         });
 
-        $('btn-wizard-group-back')?.addEventListener('click', () => showStep('year'));
+        $('btn-wizard-group-back')?.addEventListener('click', () => showStep('year', 'back'));
         $('btn-wizard-group-next')?.addEventListener('click', () => {
             const formatos = getFormatos();
             if (!formatos.length) {
@@ -147,7 +147,7 @@
             showStep('output');
         });
 
-        $('btn-wizard-output-back')?.addEventListener('click', () => showStep('grouping'));
+        $('btn-wizard-output-back')?.addEventListener('click', () => showStep('grouping', 'back'));
         $('btn-wizard-execute')?.addEventListener('click', runAnalyzer);
 
         $('btn-wizard-browse-dest')?.addEventListener('click', onBrowseDest);
@@ -160,7 +160,7 @@
             el.addEventListener('change', updateOutputPreview);
         });
 
-        $('btn-wizard-json-back')?.addEventListener('click', () => showStep('choose'));
+        $('btn-wizard-json-back')?.addEventListener('click', () => showStep('choose', 'back'));
         $('btn-wizard-json-pick')?.addEventListener('click', () => $('wizard-file-input')?.click());
         $('btn-wizard-json-select-all')?.addEventListener('click', () => {
             jsonSources.forEach(s => selectedJsonRutas.add(s.ruta));
@@ -175,7 +175,7 @@
         $('btn-wizard-json-clipboard')?.addEventListener('click', onPasteFromClipboard);
         $('btn-wizard-json-next')?.addEventListener('click', onJsonSourcesNext);
 
-        $('btn-wizard-json-year-back')?.addEventListener('click', () => showStep('json-pick'));
+        $('btn-wizard-json-year-back')?.addEventListener('click', () => showStep('json-pick', 'back'));
         $('btn-wizard-json-year-confirm')?.addEventListener('click', confirmJsonYearLoad);
 
         $('btn-new-load')?.addEventListener('click', () => {
@@ -192,7 +192,7 @@
             els.runStatus?.classList.remove('warn');
             $('btn-wizard-run-retry')?.classList.add('hidden');
             els.runSpinner?.classList.remove('hidden');
-            showStep('output');
+            showStep('output', 'back');
         });
     }
 
@@ -217,27 +217,70 @@
         selectedJsonRutas = new Set();
         pendingPackages = [];
         resetAnalyzeState();
-        showStep('choose');
+        showStep('choose', 'instant');
     }
 
     function showWizard() {
-        els.wizard?.classList.remove('hidden');
-        els.loadedPanel?.classList.add('hidden');
+        setPaneOpen(els.loadedPanel, false, { from: 'fade' });
+        setPaneOpen(els.wizard, true, { from: 'fade' });
     }
 
     function showLoaded() {
-        els.wizard?.classList.add('hidden');
-        els.loadedPanel?.classList.remove('hidden');
+        setPaneOpen(els.wizard, false, { from: 'fade' });
+        setPaneOpen(els.loadedPanel, true, { from: 'fade' });
     }
 
-    function showStep(step) {
+    let wizardStepGen = 0;
+
+    function setPaneOpen(el, open, options) {
+        if (!el) return Promise.resolve();
+        el.classList.add('motion-root');
+        const motion = window.S21Motion;
+        if (motion?.setOpen) return motion.setOpen(el, open, options);
+        el.hidden = !open;
+        el.classList.toggle('hidden', !open);
+        el.classList.toggle('is-open', !!open);
+        return Promise.resolve();
+    }
+
+    function showStep(step, direction = 'next') {
+        const prev = currentStep;
+        const instant = direction === 'instant'
+            || prev === step
+            || !els.steps[step]
+            || window.S21Motion?.prefersReduced?.();
+
         currentStep = step;
-        Object.entries(els.steps).forEach(([name, el]) => {
-            el?.classList.toggle('hidden', name !== step);
-            el?.classList.toggle('active', name === step);
-        });
         if (step === 'output') updateOutputPreview();
         if (step === 'year') updateAnioHint();
+
+        if (instant) {
+            Object.entries(els.steps).forEach(([name, el]) => {
+                const active = name === step;
+                el?.classList.toggle('active', active);
+                setPaneOpen(el, active, { instant: true, from: 'fade' });
+            });
+            return;
+        }
+
+        const incomingFrom = direction === 'back' ? 'left' : 'right';
+        const outgoingFrom = direction === 'back' ? 'right' : 'left';
+        const outgoing = els.steps[prev];
+        const incoming = els.steps[step];
+        const gen = ++wizardStepGen;
+
+        Object.entries(els.steps).forEach(([name, el]) => {
+            if (name === step || name === prev) return;
+            el?.classList.remove('active');
+            setPaneOpen(el, false, { instant: true });
+        });
+
+        outgoing?.classList.remove('active');
+        incoming?.classList.add('active');
+        setPaneOpen(outgoing, false, { from: outgoingFrom });
+        setPaneOpen(incoming, true, { from: incomingFrom }).then(() => {
+            if (gen !== wizardStepGen) return;
+        });
     }
 
     function updateAnioHint() {
@@ -994,7 +1037,7 @@
                 els.runStatus.classList.add('warn');
             }
             els.runSpinner?.classList.add('hidden');
-            showStep(path === 'json' ? 'json-pick' : 'choose');
+            showStep(path === 'json' ? 'json-pick' : 'choose', 'back');
         }
     }
 
@@ -1005,12 +1048,6 @@
             els.runStatus.classList.remove('warn');
         }
 
-        let statusText = `${packages.length} JSON · ${label}`;
-        if (folderLabel) statusText += ` · ${folderLabel}`;
-        if (añoMeta?.valor) statusText += ` · Año ${añoMeta.valor}`;
-        if (añoMeta?.advertencia) statusText += ` · ${añoMeta.advertencia}`;
-
-        callbacks.setLoadStatus?.(statusText, false);
         callbacks.onPackagesLoaded?.(packages, { label, folderLabel, añoMeta });
         showLoaded();
     }

@@ -23,9 +23,20 @@
         return renderHost;
     }
 
+    function buildGroupHeaderRow(groups) {
+        if (!groups?.length) return '';
+        return `<tr class="export-sheet-group-row">${groups.map(g =>
+            `<th class="export-sheet-group" colspan="${g.span}">${escapeHtml(g.label)}</th>`
+        ).join('')}</tr>`;
+    }
+
     function buildTableHtml(spec) {
-        const { title, subtitle, headers, rows, footerRow } = spec;
-        const head = headers.map(h => `<th scope="col">${escapeHtml(h)}</th>`).join('');
+        const { title, subtitle, headers, rows, footerRow, headerGroups } = spec;
+        const groupRow = buildGroupHeaderRow(headerGroups);
+        const head = headers.map((h, i) => {
+            const align = spec.numericColumns?.has(i) ? ' class="num"' : '';
+            return `<th scope="col"${align}>${escapeHtml(h)}</th>`;
+        }).join('');
         const body = rows.map(row =>
             `<tr>${row.map((cell, i) => {
                 const align = spec.numericColumns?.has(i) ? ' class="num"' : '';
@@ -41,13 +52,15 @@
         const generated = new Date().toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
         return `
             <div class="export-sheet">
+                <div class="export-sheet-accent"></div>
                 <header class="export-sheet-head">
+                    <p class="export-sheet-brand">Análisis de Servicio</p>
                     <h1 class="export-sheet-title">${escapeHtml(title)}</h1>
                     ${subtitle ? `<p class="export-sheet-sub">${escapeHtml(subtitle)}</p>` : ''}
                 </header>
                 <div class="export-sheet-table-wrap">
                     <table class="export-sheet-table">
-                        <thead><tr>${head}</tr></thead>
+                        <thead>${groupRow}<tr>${head}</tr></thead>
                         <tbody>${body}</tbody>
                         ${foot}
                     </table>
@@ -91,19 +104,23 @@
             throw new Error(`Demasiadas filas para imagen (máx. ${MAX_IMAGE_ROWS}). Use PDF.`);
         }
         const sheet = renderSheet(spec);
-        const canvas = await html2canvas(sheet, {
-            scale: 2,
-            backgroundColor: '#ffffff',
-            useCORS: true,
-            logging: false,
-            windowWidth: sheet.scrollWidth + 48,
-            windowHeight: sheet.scrollHeight + 48,
-        });
-        const blob = await new Promise((resolve, reject) => {
-            canvas.toBlob(b => (b ? resolve(b) : reject(new Error('No se pudo crear la imagen'))), 'image/png', 0.92);
-        });
-        const filename = `${spec.filenameBase || 'reporte'}_${todayStamp()}.png`;
-        return shareOrDownload(blob, filename, spec.title);
+        try {
+            const canvas = await html2canvas(sheet, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                useCORS: true,
+                logging: false,
+                windowWidth: sheet.scrollWidth + 48,
+                windowHeight: sheet.scrollHeight + 48,
+            });
+            const blob = await new Promise((resolve, reject) => {
+                canvas.toBlob(b => (b ? resolve(b) : reject(new Error('No se pudo crear la imagen'))), 'image/png', 0.92);
+            });
+            const filename = `${spec.filenameBase || 'reporte'}_${todayStamp()}.png`;
+            return shareOrDownload(blob, filename, spec.title);
+        } finally {
+            if (renderHost) renderHost.innerHTML = '';
+        }
     }
 
     async function exportTablePdf(spec) {
@@ -116,7 +133,22 @@
         const margin = 12;
         let y = margin;
 
+        const pageW = doc.internal.pageSize.getWidth();
+        doc.setFillColor(0, 229, 255);
+        doc.rect(0, 0, pageW * 0.42, 3.2, 'F');
+        doc.setFillColor(8, 145, 178);
+        doc.rect(pageW * 0.42, 0, pageW * 0.32, 3.2, 'F');
+        doc.setFillColor(124, 58, 237);
+        doc.rect(pageW * 0.74, 0, pageW * 0.26, 3.2, 'F');
+        y += 4;
+
         doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(8, 145, 178);
+        doc.text('ANÁLISIS DE SERVICIO', margin, y);
+        y += 6;
+
+        doc.setTextColor(15, 23, 42);
         doc.setFontSize(14);
         doc.text(spec.title || 'Reporte', margin, y);
         y += 7;
@@ -124,13 +156,29 @@
         if (spec.subtitle) {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
+            doc.setTextColor(100, 116, 139);
             const subLines = doc.splitTextToSize(spec.subtitle, landscape ? 270 : 185);
             doc.text(subLines, margin, y);
             y += subLines.length * 4 + 2;
         }
 
+        const head = [];
+        if (spec.headerGroups?.length) {
+            head.push(spec.headerGroups.map(g => ({
+                content: g.label,
+                colSpan: g.span,
+                styles: { fillColor: [21, 94, 117], halign: 'center', fontStyle: 'bold', fontSize: 8 },
+            })));
+        }
+        head.push(spec.headers);
+
+        const numericAlign = {};
+        spec.numericColumns?.forEach(i => {
+            numericAlign[i] = { halign: 'right' };
+        });
+
         doc.autoTable({
-            head: [spec.headers],
+            head,
             body: spec.rows,
             foot: spec.footerRow?.length ? [spec.footerRow] : undefined,
             startY: y,
@@ -147,11 +195,12 @@
                 fontStyle: 'bold',
             },
             footStyles: {
-                fillColor: [241, 245, 249],
-                textColor: [30, 41, 59],
+                fillColor: [224, 242, 254],
+                textColor: [15, 23, 42],
                 fontStyle: 'bold',
             },
             alternateRowStyles: { fillColor: [248, 250, 252] },
+            columnStyles: numericAlign,
         });
 
         const filename = `${spec.filenameBase || 'reporte'}_${todayStamp()}.pdf`;

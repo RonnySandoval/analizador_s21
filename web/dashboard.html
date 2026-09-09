@@ -12,26 +12,36 @@
     <title>Análisis de Servicio</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icons/icon-192.png" type="image/png">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="theme-cyber.css">
-    <link rel="stylesheet" href="theme-light.css">
-    <link rel="stylesheet" href="dashboard.css?v=65">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="theme-cyber.css?v=3">
+    <link rel="stylesheet" href="theme-light.css?v=6">
+    <link rel="stylesheet" href="dashboard.css?v=93">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="dashboard-preferences.js?v=4"></script>
+    <script src="dashboard-preferences.js?v=7"></script>
 </head>
 <body class="dashboard-body">
     <header id="dashboard-app-header" class="dashboard-app-header" role="banner">
         <div class="dashboard-app-header-inner">
             <div class="dashboard-app-header-brand">
-                <span class="dashboard-app-header-logo" aria-hidden="true">📊</span>
-                <span class="dashboard-app-header-title">Análisis de Servicio</span>
+                <span class="dashboard-app-header-mark" aria-hidden="true">
+                    <img class="dashboard-app-header-logo dashboard-app-header-logo--dark" src="icons/logo-dark.png" width="36" height="36" alt="" decoding="async">
+                    <img class="dashboard-app-header-logo dashboard-app-header-logo--light" src="icons/logo-light.png" width="36" height="36" alt="" decoding="async">
+                </span>
+                <div class="dashboard-app-header-titles">
+                    <span class="dashboard-app-header-title">Análisis de Servicio</span>
+                    <span id="dashboard-header-section" class="dashboard-app-header-section" aria-live="polite">Indicadores</span>
+                </div>
             </div>
             <div class="dashboard-app-header-actions">
+                <button type="button" id="btn-toggle-layout-mode" class="dashboard-header-btn" aria-label="Vista por sección" aria-pressed="false" title="Vista por sección">
+                    <svg class="dashboard-layout-icon dashboard-layout-icon--to-single" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="5" width="12" height="14" rx="2"/></svg>
+                    <svg class="dashboard-layout-icon dashboard-layout-icon--to-continuous hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="5" rx="1"/><rect x="4" y="10" width="16" height="5" rx="1"/><rect x="4" y="16" width="16" height="4" rx="1"/></svg>
+                </button>
                 <button type="button" id="btn-open-apariencia-panel" class="dashboard-header-btn" aria-label="Apariencia" title="Apariencia">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
                 </button>
@@ -46,8 +56,9 @@
         <main class="main-card dashboard-main">
             <div id="load-status" class="load-status load-status--global hidden"></div>
 
-            <section id="dashboard-content" class="hidden dashboard-stack">
-                <section class="dashboard-section dashboard-section--kpi dashboard-accordion" data-accordion-id="kpi">
+            <div class="dashboard-stage">
+            <section id="dashboard-content" class="hidden dashboard-stack motion-root" hidden>
+                <section class="dashboard-section dashboard-section--kpi dashboard-accordion motion-root" data-accordion-id="kpi" data-section-label="Indicadores">
                     <button type="button" class="dashboard-accordion-trigger" aria-expanded="true" aria-controls="accordion-body-kpi">
                         <span class="dashboard-accordion-trigger-main">
                             <span class="dashboard-section-title">Indicadores</span>
@@ -70,7 +81,7 @@
                     </div>
                 </section>
 
-                <section class="dashboard-section dashboard-section--table dashboard-accordion" data-accordion-id="table">
+                <section class="dashboard-section dashboard-section--table dashboard-accordion motion-root" data-accordion-id="table" data-section-label="Totales">
                     <button type="button" class="dashboard-accordion-trigger" aria-expanded="true" aria-controls="accordion-body-table">
                         <span class="dashboard-accordion-trigger-main">
                             <span class="dashboard-section-title">Totales</span>
@@ -95,10 +106,26 @@
                                         <option value="">— Ninguno —</option>
                                     </select>
                                 </div>
-                                <div class="toolbar-actions export-actions">
-                                    <button type="button" id="btn-export-csv" class="btn-secondary btn-compact">CSV</button>
-                                    <button type="button" id="btn-export-png" class="btn-secondary btn-compact btn-export-share" title="Imagen PNG — ideal para WhatsApp">Imagen</button>
-                                    <button type="button" id="btn-export-pdf" class="btn-secondary btn-compact">PDF</button>
+                                <div class="export-menu" data-export-menu>
+                                    <button type="button" class="btn-secondary btn-compact export-menu-toggle" aria-expanded="false" aria-haspopup="menu" aria-controls="totals-export-menu">
+                                        <svg class="export-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        <span>Exportar</span>
+                                        <svg class="export-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                    <div id="totals-export-menu" class="export-menu-list" role="menu">
+                                        <button type="button" id="btn-export-csv" class="export-menu-item" role="menuitem">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2M14 13h2M8 17h2M14 17h2"/></svg>
+                                            <span>CSV</span>
+                                        </button>
+                                        <button type="button" id="btn-export-png" class="export-menu-item" role="menuitem" title="Imagen PNG — ideal para WhatsApp">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                                            <span>Imagen</span>
+                                        </button>
+                                        <button type="button" id="btn-export-pdf" class="export-menu-item" role="menuitem">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6M9 17h6"/></svg>
+                                            <span>PDF</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="table-wrap table-wrap--responsive">
@@ -148,7 +175,7 @@
                     </div>
                 </section>
 
-                <section id="grupos-section" class="dashboard-section dashboard-section--grupos dashboard-accordion" data-accordion-id="grupos">
+                <section id="grupos-section" class="dashboard-section dashboard-section--grupos dashboard-accordion motion-root" data-accordion-id="grupos" data-section-label="Grupos">
                     <button type="button" class="dashboard-accordion-trigger" aria-expanded="true" aria-controls="accordion-body-grupos">
                         <span class="dashboard-accordion-trigger-main">
                             <span class="dashboard-section-title">Grupos</span>
@@ -164,6 +191,11 @@
                                     <span>Cantidad de grupos</span>
                                     <input type="number" id="grupos-count" min="1" max="30" value="5" step="1">
                                 </label>
+                                <label class="grupos-persist-toggle inline-switch" for="grupos-persist-checkbox" title="Guardar asignación de grupos junto con la carga activa">
+                                    <input type="checkbox" id="grupos-persist-checkbox">
+                                    <span class="mini-slider" aria-hidden="true"></span>
+                                    <span class="switch-label">Guardar grupos con esta carga</span>
+                                </label>
                             </div>
                             <div id="grupos-roles-panel" class="grupos-roles-panel"></div>
                             <div class="grupos-tabs" role="tablist" aria-label="Vista de asignación">
@@ -171,9 +203,9 @@
                                 <button type="button" class="grupos-tab-btn" data-grupos-view="profile" role="tab" aria-selected="false">Por perfil</button>
                             </div>
                             <div id="grupos-panel-assign" class="grupos-panel"></div>
-                            <div id="grupos-group-modal" class="grupos-modal hidden" role="dialog" aria-modal="true" aria-labelledby="grupos-modal-title" hidden>
-                                <div class="grupos-modal-backdrop" data-grupos-modal-close tabindex="-1"></div>
-                                <div class="grupos-modal-card">
+                            <div id="grupos-group-modal" class="grupos-modal motion-root hidden" role="dialog" aria-modal="true" aria-labelledby="grupos-modal-title" hidden>
+                                <div class="grupos-modal-backdrop motion-backdrop" data-grupos-modal-close tabindex="-1"></div>
+                                <div class="grupos-modal-card motion-card">
                                     <h3 id="grupos-modal-title" class="grupos-modal-title">Grupo</h3>
                                     <dl class="grupos-modal-roles">
                                         <div class="grupos-modal-role-row">
@@ -192,37 +224,55 @@
                     </div>
                 </section>
 
-                <section id="publisher-section" class="dashboard-section dashboard-section--publishers publisher-section dashboard-accordion" data-accordion-id="publishers">
-                    <button type="button" class="dashboard-accordion-trigger" aria-expanded="true" aria-controls="accordion-body-publishers">
-                        <span class="dashboard-accordion-trigger-main">
-                            <span class="dashboard-section-title">Detalle por publicador</span>
-                        </span>
-                        <span id="publisher-count" class="dashboard-accordion-badge publisher-count"></span>
-                        <span class="dashboard-accordion-chevron" aria-hidden="true"></span>
-                    </button>
+                <section id="publisher-section" class="dashboard-section dashboard-section--publishers publisher-section dashboard-accordion motion-root" data-accordion-id="publishers" data-section-label="Publicadores">
+                    <div class="publisher-section-head">
+                        <button type="button" class="dashboard-accordion-trigger" aria-expanded="true" aria-controls="accordion-body-publishers">
+                            <span class="dashboard-accordion-trigger-main">
+                                <span class="dashboard-section-title">Detalle por publicador</span>
+                                <span class="dashboard-section-sub">Listado y tarjeta de cada publicador</span>
+                            </span>
+                            <span class="dashboard-accordion-chevron" aria-hidden="true"></span>
+                        </button>
+                        <div class="publisher-section-meta">
+                            <div class="export-menu" data-export-menu>
+                                <button type="button" class="btn-secondary btn-compact export-menu-toggle" aria-expanded="false" aria-haspopup="menu" aria-controls="publishers-export-menu">
+                                    <svg class="export-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    <span>Exportar</span>
+                                    <svg class="export-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                                <div id="publishers-export-menu" class="export-menu-list" role="menu">
+                                    <button type="button" id="btn-export-publishers-csv" class="export-menu-item" role="menuitem">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2M14 13h2M8 17h2M14 17h2"/></svg>
+                                        <span>CSV</span>
+                                    </button>
+                                    <button type="button" id="btn-export-publishers-png" class="export-menu-item" role="menuitem" title="Imagen PNG — ideal para WhatsApp">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                                        <span>Imagen</span>
+                                    </button>
+                                    <button type="button" id="btn-export-publishers-pdf" class="export-menu-item" role="menuitem">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6M9 17h6"/></svg>
+                                        <span>PDF</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <span id="publisher-count" class="dashboard-accordion-badge publisher-count"></span>
+                        </div>
+                    </div>
                     <div id="accordion-body-publishers" class="dashboard-accordion-body">
                         <div class="dashboard-accordion-inner">
                             <div class="publisher-toolbar">
                                 <input type="search" id="publisher-search" class="publisher-search" placeholder="Buscar por nombre o perfil…" autocomplete="off">
-                                <div class="publisher-bulk-grupo">
-                                    <label for="publisher-bulk-grupo" class="sr-only">Asignar visibles a grupo</label>
-                                    <select id="publisher-bulk-grupo" class="publisher-bulk-grupo-select" title="Grupo destino"></select>
-                                    <button type="button" id="btn-publisher-bulk-grupo" class="btn-secondary btn-compact">Asignar visibles</button>
-                                </div>
-                                <div class="export-actions">
-                                    <button type="button" id="btn-export-publishers-csv" class="btn-secondary btn-compact">CSV</button>
-                                    <button type="button" id="btn-export-publishers-png" class="btn-secondary btn-compact btn-export-share" title="Imagen PNG — ideal para WhatsApp">Imagen</button>
-                                    <button type="button" id="btn-export-publishers-pdf" class="btn-secondary btn-compact">PDF</button>
-                                </div>
+                                <label for="publisher-bulk-grupo" class="sr-only">Filtrar por grupo</label>
+                                <select id="publisher-bulk-grupo" class="publisher-bulk-grupo-select" title="Filtrar por grupo"></select>
                             </div>
-                            <div id="filters-panel" class="filters-panel filters-panel-detail">
+                            <div id="filters-panel" class="filters-panel filters-panel-detail collapsed">
                                 <div class="filters-bar">
-                                    <button type="button" id="btn-toggle-filters" class="filters-toggle" aria-expanded="true">
+                                    <button type="button" id="btn-toggle-filters" class="filters-toggle" aria-expanded="false">
                                         <span class="filters-toggle-main">
                                             <span class="filters-title">Filtros del listado</span>
                                             <span id="filters-summary" class="filters-summary"></span>
                                         </span>
-                                        <span id="filters-chevron" class="filters-chevron" aria-hidden="true">▾</span>
+                                        <span id="filters-chevron" class="filters-chevron" aria-hidden="true">▸</span>
                                     </button>
                                     <div class="filters-bar-actions">
                                         <div class="filter-mode-toggle" role="tablist" aria-label="Modo de filtro">
@@ -232,7 +282,9 @@
                                         <button type="button" id="btn-clear-filters" class="btn-ghost btn-compact">Limpiar</button>
                                     </div>
                                 </div>
+                                <div class="filters-body-fold">
                                 <div id="filters-body" class="filters-body"></div>
+                                </div>
                             </div>
                             <div id="detail-cross-filter" class="detail-monthly-filter hidden">
                                 <div class="detail-monthly-filter-head">
@@ -249,10 +301,18 @@
                                     </table>
                                 </div>
                                 <div id="publisher-detail" class="publisher-detail">
-                                    <div id="publisher-detail-empty" class="publisher-detail-empty">
+                                    <div id="publisher-detail-back-wrap" class="publisher-detail-back-wrap hidden">
+                                        <button type="button" id="btn-publisher-back" class="publisher-back-btn btn-ghost btn-compact" aria-label="Volver">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                                            <span id="publisher-back-label">Volver</span>
+                                        </button>
+                                    </div>
+                                    <div class="publisher-detail-stage">
+                                    <div id="publisher-detail-empty" class="publisher-detail-empty motion-root is-open">
                                         Seleccione un publicador de la lista para ver su ficha y el desglose mensual.
                                     </div>
-                                    <div id="publisher-detail-content" class="publisher-detail-content hidden"></div>
+                                    <div id="publisher-detail-content" class="publisher-detail-content motion-root hidden" hidden></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -260,15 +320,16 @@
                 </section>
             </section>
 
-            <div id="empty-state" class="empty-state">
+            <div id="empty-state" class="empty-state motion-root is-open">
                 Use el icono de <strong>engranaje</strong> en la barra superior para cargar JSON o ver cargas guardadas.
+            </div>
             </div>
         </main>
     </div>
 
-    <div id="datos-panel" class="datos-panel hidden" role="dialog" aria-modal="true" aria-labelledby="datos-panel-title" hidden>
-        <div id="datos-panel-backdrop" class="datos-panel-backdrop" tabindex="-1"></div>
-        <div class="datos-panel-sheet">
+    <div id="datos-panel" class="datos-panel motion-root hidden" role="dialog" aria-modal="true" aria-labelledby="datos-panel-title" hidden>
+        <div id="datos-panel-backdrop" class="datos-panel-backdrop motion-backdrop" tabindex="-1"></div>
+        <div class="datos-panel-sheet motion-sheet">
             <header class="datos-panel-header">
                 <h2 id="datos-panel-title">Datos</h2>
                 <button type="button" id="datos-panel-close" class="datos-panel-close" aria-label="Cerrar">×</button>
@@ -278,7 +339,8 @@
                 <button type="button" role="tab" id="settings-tab-apariencia" class="settings-tab" data-settings-tab="apariencia" aria-selected="false" aria-controls="settings-panel-apariencia">Apariencia</button>
             </nav>
             <div class="datos-panel-body">
-                <div id="settings-panel-datos" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-datos">
+                <div class="settings-tab-stage">
+                <div id="settings-panel-datos" class="settings-tab-panel motion-root is-open" role="tabpanel" aria-labelledby="settings-tab-datos">
                 <section class="datos-section">
                     <div class="datos-section-head">
                         <h3 class="datos-section-title">Cargas guardadas</h3>
@@ -289,15 +351,17 @@
                 </section>
 
                 <section id="datos-wizard-wrap" class="datos-section">
-                    <div id="load-wizard" class="load-wizard">
-                        <div class="wizard-step active" data-step="choose">
+                    <div class="wizard-shell">
+                    <div id="load-wizard" class="load-wizard motion-root is-open">
+                        <div class="wizard-viewport">
+                        <div class="wizard-step motion-root is-open active" data-step="choose">
                             <p class="wizard-lead">Elija cómo obtener JSON.</p>
                             <div class="wizard-actions">
                                 <button type="button" id="btn-wizard-analyze" class="btn-primary">Analizar PDF</button>
                                 <button type="button" id="btn-wizard-load" class="btn-secondary">Cargar JSON</button>
                             </div>
                         </div>
-                        <div class="wizard-step hidden" data-step="pdfs">
+                        <div class="wizard-step motion-root hidden" data-step="pdfs">
                             <p class="wizard-step-label">Paso 1 de 4</p>
                             <h3 class="wizard-step-title">Carpetas PDF</h3>
                             <div class="folder-panel wizard-folder-panel">
@@ -315,7 +379,7 @@
                                 <button type="button" id="btn-wizard-pdfs-next" class="btn-primary">Siguiente</button>
                             </div>
                         </div>
-                        <div class="wizard-step hidden" data-step="year">
+                        <div class="wizard-step motion-root hidden" data-step="year">
                             <p class="wizard-step-label">Paso 2 de 4</p>
                             <h3 class="wizard-step-title">Año de servicio</h3>
                             <div class="wizard-field">
@@ -328,7 +392,7 @@
                                 <button type="button" id="btn-wizard-year-next" class="btn-primary">Siguiente</button>
                             </div>
                         </div>
-                        <div class="wizard-step hidden" data-step="grouping">
+                        <div class="wizard-step motion-root hidden" data-step="grouping">
                             <p class="wizard-step-label">Paso 3 de 4</p>
                             <h3 class="wizard-step-title">Formatos</h3>
                             <div class="options-grid wizard-options">
@@ -359,7 +423,7 @@
                                 <button type="button" id="btn-wizard-group-next" class="btn-primary">Siguiente</button>
                             </div>
                         </div>
-                        <div class="wizard-step hidden" data-step="output">
+                        <div class="wizard-step motion-root hidden" data-step="output">
                             <p class="wizard-step-label">Paso 4 de 4</p>
                             <h3 class="wizard-step-title">Salida</h3>
                             <div class="compact-grid wizard-output-fields">
@@ -387,14 +451,14 @@
                                 <button type="button" id="btn-wizard-execute" class="btn-primary">Ejecutar</button>
                             </div>
                         </div>
-                        <div class="wizard-step hidden" data-step="run">
+                        <div class="wizard-step motion-root hidden" data-step="run">
                             <div class="wizard-run-box">
                                 <div id="wizard-run-spinner" class="spinner"></div>
                                 <p id="wizard-run-status">Procesando...</p>
                                 <button type="button" id="btn-wizard-run-retry" class="btn-secondary hidden">Volver</button>
                             </div>
                         </div>
-                        <div class="wizard-step hidden" data-step="json-pick">
+                        <div class="wizard-step motion-root hidden" data-step="json-pick">
                             <h3 class="wizard-step-title">Seleccionar JSON</h3>
                             <div id="wizard-json-source-list" class="wizard-json-sources"></div>
                             <div class="wizard-actions wizard-actions-wrap">
@@ -416,7 +480,7 @@
                                 <button type="button" id="btn-wizard-json-next" class="btn-primary">Siguiente</button>
                             </div>
                         </div>
-                        <div class="wizard-step hidden" data-step="json-year">
+                        <div class="wizard-step motion-root hidden" data-step="json-year">
                             <h3 class="wizard-step-title">Año de servicio</h3>
                             <div id="wizard-json-year-warn"></div>
                             <div class="wizard-field">
@@ -429,8 +493,9 @@
                                 <button type="button" id="btn-wizard-json-year-confirm" class="btn-primary">Cargar</button>
                             </div>
                         </div>
+                        </div>
                     </div>
-                    <div id="load-loaded" class="load-loaded hidden">
+                    <div id="load-loaded" class="load-loaded motion-root hidden" hidden>
                         <div id="drop-zone" class="load-panel has-sources">
                             <div id="data-sources-bar" class="data-sources-bar">
                                 <div class="data-sources-bar-main">
@@ -442,6 +507,7 @@
                             <ul id="file-list" class="file-list"></ul>
                             <button type="button" id="btn-new-load" class="btn-secondary btn-compact">Otra carga</button>
                         </div>
+                    </div>
                     </div>
                 </section>
 
@@ -459,7 +525,7 @@
                 </p>
                 </div>
 
-                <div id="settings-panel-apariencia" class="settings-tab-panel hidden" role="tabpanel" aria-labelledby="settings-tab-apariencia" hidden>
+                <div id="settings-panel-apariencia" class="settings-tab-panel motion-root hidden" role="tabpanel" aria-labelledby="settings-tab-apariencia" hidden>
                 <section id="datos-settings-block" class="datos-section">
                     <h3 class="datos-section-title">Apariencia</h3>
                     <p class="datos-section-lead">Tamaño del texto en todo el panel.</p>
@@ -475,17 +541,18 @@
                     </div>
                     <label class="pref-row" for="pref-font-scale">
                         <span>Tamaño texto <output id="pref-font-scale-value">Normal</output></span>
-                        <input type="range" id="pref-font-scale" class="pref-range" min="85" max="125" step="5" value="100">
+                        <input type="range" id="pref-font-scale" class="pref-range" min="85" max="135" step="5" value="100">
                     </label>
                 </section>
+                </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="datos-save-modal" class="datos-modal hidden" role="dialog" aria-modal="true" hidden>
-        <div class="datos-modal-backdrop"></div>
-        <div class="datos-modal-card">
+    <div id="datos-save-modal" class="datos-modal motion-root hidden" role="dialog" aria-modal="true" hidden>
+        <div class="datos-modal-backdrop motion-backdrop"></div>
+        <div class="datos-modal-card motion-card">
             <h3 class="datos-modal-title">Guardar carga</h3>
             <div id="datos-save-modal-body" class="datos-modal-body"></div>
             <div class="datos-modal-actions">
@@ -496,9 +563,9 @@
         </div>
     </div>
 
-    <div id="datos-clear-modal" class="datos-modal hidden" role="dialog" aria-modal="true" hidden>
-        <div class="datos-modal-backdrop"></div>
-        <div class="datos-modal-card">
+    <div id="datos-clear-modal" class="datos-modal motion-root hidden" role="dialog" aria-modal="true" hidden>
+        <div class="datos-modal-backdrop motion-backdrop"></div>
+        <div class="datos-modal-card motion-card">
             <h3 class="datos-modal-title">Borrar datos locales</h3>
             <div class="datos-modal-body">
                 <p>Se eliminarán <strong>todas las cargas guardadas</strong> en este dispositivo. El dashboard quedará vacío.</p>
@@ -535,7 +602,20 @@
         </div>
     </nav>
 
-    <div id="pwa-install-bar" class="pwa-install-bar" role="region" aria-label="Instalar aplicación">
+    <div id="export-options-modal" class="datos-modal motion-root hidden" role="dialog" aria-modal="true" aria-labelledby="export-options-title" hidden>
+        <div class="datos-modal-backdrop motion-backdrop" data-export-options-close tabindex="-1"></div>
+        <div class="datos-modal-card motion-card export-options-card">
+            <h3 id="export-options-title" class="datos-modal-title">Exportar</h3>
+            <p class="export-options-lead">Marque los grupos de información que desea incluir.</p>
+            <div id="export-options-groups" class="export-options-groups"></div>
+            <div class="datos-modal-actions">
+                <button type="button" class="btn-ghost" data-export-options-close>Cancelar</button>
+                <button type="button" id="export-options-confirm" class="btn-primary">Exportar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pwa-install-bar" class="pwa-install-bar motion-root hidden" role="region" aria-label="Instalar aplicación" hidden>
         <span><strong>Instalar app</strong> — acceso rápido desde móvil o escritorio</span>
         <div class="wizard-actions">
             <button type="button" id="btn-pwa-install" class="btn-primary btn-compact">Instalar</button>
@@ -546,14 +626,17 @@
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
-    <script src="dashboard-export.js?v=1"></script>
+    <script src="dashboard-export.js?v=3"></script>
     <script src="s21-base.js"></script>
-    <script src="pwa.js"></script>
+    <script src="dashboard-motion.js?v=1"></script>
+    <script src="pwa.js?v=2"></script>
+    <script src="dashboard-text-match.js?v=1"></script>
     <script src="dashboard-data.js?v=30"></script>
+    <script src="dashboard-icons.js?v=5"></script>
     <script src="dashboard-storage.js?v=2"></script>
-    <script src="dashboard-datos.js?v=4"></script>
-    <script src="dashboard-grupos.js?v=10"></script>
-    <script src="dashboard-wizard.js?v=4"></script>
-    <script src="dashboard.js?v=70"></script>
+    <script src="dashboard-datos.js?v=8"></script>
+    <script src="dashboard-grupos.js?v=22"></script>
+    <script src="dashboard-wizard.js?v=6"></script>
+    <script src="dashboard.js?v=96"></script>
 </body>
 </html>

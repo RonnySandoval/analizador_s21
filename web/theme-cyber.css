@@ -102,33 +102,9 @@ h1,
     box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
-.dashboard-section--load:not(.collapsed) {
-    border-color: rgba(0, 229, 255, 0.28);
+.dashboard-section:not(.collapsed) {
+    border-color: rgba(0, 229, 255, 0.18);
 }
-
-.dashboard-section--kpi:not(.collapsed) {
-    border-color: rgba(251, 191, 36, 0.28);
-}
-
-.dashboard-section--table:not(.collapsed) {
-    border-color: rgba(168, 85, 247, 0.28);
-}
-
-.dashboard-section--publishers:not(.collapsed) {
-    border-color: rgba(255, 45, 168, 0.28);
-}
-
-.dashboard-section-title {
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--primary);
-}
-
-.dashboard-section--kpi .dashboard-section-title { color: var(--accent-amber); }
-.dashboard-section--table .dashboard-section-title { color: var(--accent-purple); }
-.dashboard-section--publishers .dashboard-section-title { color: var(--accent-magenta); }
 
 .kpi-card {
     border: 1px solid rgba(0, 229, 255, 0.15);
@@ -162,7 +138,7 @@ h1,
 }
 
 .pwa-install-bar {
-    display: none;
+    display: flex;
     position: fixed;
     bottom: 0;
     left: 0;
@@ -176,10 +152,6 @@ h1,
     justify-content: space-between;
     gap: 0.75rem;
     flex-wrap: wrap;
-}
-
-.pwa-install-bar.visible {
-    display: flex;
 }
 
 .pwa-install-bar strong {

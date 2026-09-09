@@ -42,6 +42,39 @@
     --chart-line-point-border-dim: rgba(16, 185, 129, 0.45);
     --chart-focus-tick: #38bdf8;
     --chart-focus-tick-muted: #6b8299;
+    --person-publicador: #d5e4f7;
+    --person-siervo: #67f6ff;
+    --person-anciano: #ffd24a;
+    /* Motion: overlays & view changes (not data re-renders) */
+    --motion-fast: 150ms;
+    --motion-panel: 240ms;
+    --motion-view: 320ms;
+    --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --motion-duration: var(--motion-panel);
+    /* Dashboard heading hierarchy (sections → subsections → panels) */
+    --heading-section-color: var(--text-main);
+    --heading-section-size: 0.85rem;
+    --heading-section-weight: 700;
+    --heading-section-tracking: 0.06em;
+    --heading-section-transform: uppercase;
+    --heading-subsection-color: var(--text-main);
+    --heading-subsection-size: 0.82rem;
+    --heading-subsection-weight: 600;
+    --heading-subsection-tracking: 0.04em;
+    --heading-subsection-transform: uppercase;
+    --heading-panel-color: var(--text-muted);
+    --heading-panel-size: 0.72rem;
+    --heading-panel-weight: 600;
+    --heading-panel-tracking: 0.06em;
+    --heading-panel-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --motion-fast: 0.01ms;
+        --motion-panel: 0.01ms;
+        --motion-view: 0.01ms;
+    }
 }
 
 * {

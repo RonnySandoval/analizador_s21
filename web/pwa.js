@@ -8,8 +8,37 @@
 
     if (versionEl) versionEl.textContent = `v${VERSION}`;
 
-    function syncPwaBarLayout() {
-        document.body.classList.toggle('pwa-bar-visible', !!bar?.classList.contains('visible'));
+    function syncPwaBarLayout(visible) {
+        document.body.classList.toggle('pwa-bar-visible', visible);
+    }
+
+    function showInstallBar() {
+        if (!bar || localStorage.getItem('pwa_install_dismissed')) return;
+        syncPwaBarLayout(true);
+        if (window.S21Motion?.setOpen) {
+            window.S21Motion.setOpen(bar, true, { from: 'bottom' });
+            return;
+        }
+        bar.classList.remove('hidden');
+        bar.hidden = false;
+        bar.classList.add('is-open');
+    }
+
+    function hideInstallBar() {
+        if (!bar) return;
+        const motion = window.S21Motion;
+        const done = motion?.setOpen
+            ? motion.setOpen(bar, false, { from: 'bottom' })
+            : Promise.resolve();
+        if (!motion?.setOpen) {
+            bar.classList.add('hidden');
+            bar.hidden = true;
+            bar.classList.remove('is-open');
+        }
+        done.then(() => {
+            if (motion?.isOpen(bar)) return;
+            syncPwaBarLayout(false);
+        });
     }
 
     if ('serviceWorker' in navigator) {
@@ -21,10 +50,7 @@
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
-        if (bar && !localStorage.getItem('pwa_install_dismissed')) {
-            bar.classList.add('visible');
-            syncPwaBarLayout();
-        }
+        showInstallBar();
     });
 
     btnInstall?.addEventListener('click', async () => {
@@ -32,19 +58,16 @@
         deferredPrompt.prompt();
         await deferredPrompt.userChoice;
         deferredPrompt = null;
-        bar?.classList.remove('visible');
-        syncPwaBarLayout();
+        hideInstallBar();
     });
 
     btnDismiss?.addEventListener('click', () => {
         localStorage.setItem('pwa_install_dismissed', '1');
-        bar?.classList.remove('visible');
-        syncPwaBarLayout();
+        hideInstallBar();
     });
 
     window.addEventListener('appinstalled', () => {
-        bar?.classList.remove('visible');
-        syncPwaBarLayout();
+        hideInstallBar();
         deferredPrompt = null;
     });
 })();

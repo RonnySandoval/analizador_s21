@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ACCORDION_STATE_KEY = 'analisis_servicio_accordion_state';
     const PERFIL_ALIASES_KEY = 'analisis_servicio_perfil_aliases';
     const CHART_PROFILES_KEY = 'analisis_servicio_chart_profiles';
+    const EXPORT_GROUPS_KEY = 'analisis_servicio_export_groups';
     const Storage = window.S21DashboardStorage;
     const Datos = window.S21DashboardDatos;
 
@@ -72,8 +73,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnExportPublishersCsv = document.getElementById('btn-export-publishers-csv');
     const btnExportPublishersPng = document.getElementById('btn-export-publishers-png');
     const btnExportPublishersPdf = document.getElementById('btn-export-publishers-pdf');
+    const exportOptionsModal = document.getElementById('export-options-modal');
+    const exportOptionsGroups = document.getElementById('export-options-groups');
+    const exportOptionsConfirm = document.getElementById('export-options-confirm');
+    const exportOptionsTitle = document.getElementById('export-options-title');
     const publisherBulkGrupo = document.getElementById('publisher-bulk-grupo');
-    const btnPublisherBulkGrupo = document.getElementById('btn-publisher-bulk-grupo');
     const detailCrossFilter = document.getElementById('detail-cross-filter');
     const detailCrossFilterChips = document.getElementById('detail-cross-filter-chips');
     const btnClearCrossFilter = document.getElementById('btn-clear-cross-filter');
@@ -104,6 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let totalsScope = 'year';
     let chartProfileInclude = {};
     let publisherSearchQuery = '';
+    let publisherGroupFilter = '';
+    let pendingExport = null;
     let detailMonthlyFilter = null;
     let tableRowsCache = [];
     let chartBarRowsCache = [];
@@ -111,6 +117,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let expandedPublisherListKey = '';
     let perfilAliases = {};
     let congregacionDetectada = null;
+    let publisherDetailReturn = null;
+    let publisherDetailPaintGen = 0;
+    let publisherDetailMotionMode = 'instant';
+    let layoutMode = 'continuous';
+    let singleActiveSection = 'kpi';
+    let navSwapGen = 0;
+    const NAV_SECTION_ORDER = ['kpi', 'table', 'grupos', 'publishers'];
+
+    const dashboardHeaderSection = document.getElementById('dashboard-header-section');
+    const publisherDetailBackWrap = document.getElementById('publisher-detail-back-wrap');
+    const btnToggleLayoutMode = document.getElementById('btn-toggle-layout-mode');
+    const btnPublisherBack = document.getElementById('btn-publisher-back');
+    const publisherBackLabel = document.getElementById('publisher-back-label');
+
+    const Icons = window.S21DashboardIcons;
 
     const KPI_ITEMS = [
         { key: 'publicadores', label: 'Publicadores' },
@@ -130,16 +151,17 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const PUBLISHER_DETAIL_METRICS = [
-        { id: 'horas', label: 'Horas' },
-        { id: 'cursos', label: 'Cursos' },
-        { id: 'participacion', label: 'Part.' },
-        { id: 'precursor_auxiliar', label: 'P. aux.' },
+        { id: 'horas', label: 'Horas', title: 'Horas' },
+        { id: 'cursos', label: 'Cursos', title: 'Cursos' },
+        { id: 'participacion', label: 'Part.', title: 'Participación' },
+        { id: 'precursor_auxiliar', label: 'P. aux.', title: 'Precursor auxiliar' },
     ];
 
     initControls();
     bindEvents();
     initSectionAccordions();
     initDashboardNav();
+    initLayoutMode();
     initFiltersCollapsed();
     initDatosModule();
     initWizard();
@@ -151,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Datos.init({
             onDatasetActivated: async (loadedPackages, meta) => {
                 await applyPackages(loadedPackages, meta);
+                await loadGruposForActiveDataset();
                 window.S21DashboardWizard?.showLoaded();
             },
             onPanelOpen: async () => {
@@ -162,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         label: active.name || active.meta?.label,
                         ...active.meta,
                     });
-                    setLoadStatus(`${active.packages.length} JSON · ${active.name || 'Carga activa'}`, false);
                     window.S21DashboardWizard?.showLoaded();
                 } catch (error) {
                     console.warn('No se pudo restaurar la carga activa al abrir Datos', error);
@@ -177,8 +199,23 @@ document.addEventListener('DOMContentLoaded', () => {
         packages = loadedPackages;
         currentFuente = meta?.label || meta?.name || 'Carga';
         rebuild();
-        if (!options.skipStatus) {
-            setLoadStatus(`${loadedPackages.length} JSON · ${currentFuente}`, false);
+        if (!options.skipGrupos) {
+            await loadGruposForActiveDataset();
+        }
+    }
+
+    async function loadGruposForActiveDataset() {
+        if (!G || !Datos?.getActiveGruposMeta) return;
+        try {
+            const meta = await Datos.getActiveGruposMeta();
+            if (meta.persistGrupos && meta.gruposConfig) {
+                G.importConfig(meta.gruposConfig);
+            } else {
+                G.importConfig(null);
+            }
+            G.setPersistGrupos(meta.persistGrupos, { silent: true });
+        } catch (err) {
+            console.warn('No se pudo restaurar grupos de la carga activa', err);
         }
     }
 
@@ -210,10 +247,16 @@ document.addEventListener('DOMContentLoaded', () => {
             displayPerfil,
             escapeHtml,
             escapeAttr,
+            onPersistConfig: gruposConfig => {
+                Datos?.syncActiveDatasetGrupos?.({ persistGrupos: true, gruposConfig });
+            },
+            onPersistDisabled: () => {
+                Datos?.syncActiveDatasetGrupos?.({ persistGrupos: false, gruposConfig: null });
+            },
             onChange: (options = {}) => {
                 applyGruposToFlat();
                 renderPublisherBulkGrupoSelect();
-                if (options.matrixPatch) {
+                if (options.matrixPatch || options.rolesPatch != null || options.groupPatch != null) {
                     refreshPublishersSection();
                     return;
                 }
@@ -234,11 +277,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderPublisherBulkGrupoSelect() {
         if (!publisherBulkGrupo || !G) return;
         const count = G.getConfig().groupCount;
-        publisherBulkGrupo.innerHTML = '<option value="">— Grupo —</option>' +
+        const selected = publisherGroupFilter;
+        publisherBulkGrupo.innerHTML = '<option value="">Todos los grupos</option>' +
+            '<option value="0">Sin grupo</option>' +
             Array.from({ length: count }, (_, i) => {
                 const n = i + 1;
                 return `<option value="${n}">Grupo ${n}</option>`;
             }).join('');
+        const valid = selected === '' || selected === '0'
+            || (Number(selected) >= 1 && Number(selected) <= count);
+        publisherGroupFilter = valid ? selected : '';
+        publisherBulkGrupo.value = publisherGroupFilter;
     }
 
     function initControls() {
@@ -271,6 +320,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function setExportMenuOpen(menu, open) {
+        menu.classList.toggle('is-open', open);
+        menu.querySelector('.export-menu-toggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function closeExportMenus(exceptMenu) {
+        document.querySelectorAll('.export-menu.is-open').forEach(menu => {
+            if (menu !== exceptMenu) setExportMenuOpen(menu, false);
+        });
+    }
+
+    function bindExportMenus() {
+        document.querySelectorAll('[data-export-menu]').forEach(menu => {
+            const toggle = menu.querySelector('.export-menu-toggle');
+            toggle?.addEventListener('click', e => {
+                e.stopPropagation();
+                const willOpen = !menu.classList.contains('is-open');
+                closeExportMenus();
+                setExportMenuOpen(menu, willOpen);
+            });
+            menu.querySelectorAll('.export-menu-item').forEach(item => {
+                item.addEventListener('click', () => setExportMenuOpen(menu, false));
+            });
+        });
+        document.addEventListener('click', () => closeExportMenus());
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeExportMenus();
+        });
+    }
+
     function bindEvents() {
         btnClearData?.addEventListener('click', () => clearAll(false));
         btnToggleFilters.addEventListener('click', toggleFilters);
@@ -298,62 +377,57 @@ document.addEventListener('DOMContentLoaded', () => {
         kpiModeBtns.forEach(btn => {
             btn.addEventListener('click', () => setKpiMode(btn.dataset.kpiMode));
         });
-        btnExportCsv.addEventListener('click', exportCsv);
-        btnExportPng?.addEventListener('click', () => runTableExport('totals', 'image'));
-        btnExportPdf?.addEventListener('click', () => runTableExport('totals', 'pdf'));
-        btnExportPublishersCsv?.addEventListener('click', exportPublishersCsv);
-        btnExportPublishersPng?.addEventListener('click', () => runTableExport('publishers', 'image'));
-        btnExportPublishersPdf?.addEventListener('click', () => runTableExport('publishers', 'pdf'));
-        if (btnPublisherBulkGrupo) {
-            btnPublisherBulkGrupo.addEventListener('click', () => {
-                const groupNum = Number(publisherBulkGrupo?.value);
-                if (!groupNum) {
-                    setLoadStatus('Seleccione un grupo para asignar.', false);
-                    return;
-                }
-                const pubs = sortPublisherList(filterPublishersForList(filteredPubCache));
-                if (!pubs.length) {
-                    setLoadStatus('No hay publicadores visibles para asignar.', false);
-                    return;
-                }
-                G.assignFiltered(pubs.map(p => D.personKey(p)), groupNum);
-                setLoadStatus(`${pubs.length} publicador${pubs.length === 1 ? '' : 'es'} asignado${pubs.length === 1 ? '' : 's'} al grupo ${groupNum}.`, false);
-            });
-        }
+        btnExportCsv.addEventListener('click', () => requestExport('totals', 'csv'));
+        btnExportPng?.addEventListener('click', () => requestExport('totals', 'image'));
+        btnExportPdf?.addEventListener('click', () => requestExport('totals', 'pdf'));
+        btnExportPublishersCsv?.addEventListener('click', () => requestExport('publishers', 'csv'));
+        btnExportPublishersPng?.addEventListener('click', () => requestExport('publishers', 'image'));
+        btnExportPublishersPdf?.addEventListener('click', () => requestExport('publishers', 'pdf'));
+        bindExportOptionsModal();
+        bindExportMenus();
+        btnPublisherBack?.addEventListener('click', returnFromPublisherDetail);
+        document.addEventListener('click', onGruposOpenPublisherClick);
         if (publisherSearch) {
             publisherSearch.addEventListener('input', () => {
-                publisherSearchQuery = publisherSearch.value.trim().toLowerCase();
+                publisherSearchQuery = publisherSearch.value.trim();
+                renderPublisherList();
+            });
+        }
+        if (publisherBulkGrupo) {
+            publisherBulkGrupo.addEventListener('change', () => {
+                publisherGroupFilter = publisherBulkGrupo.value;
                 renderPublisherList();
             });
         }
 
+        window.matchMedia('(min-width: 769px)').addEventListener('change', syncPublisherMetricLayout);
+
         let lastBarHorizontal = prefersHorizontalBarChart();
+        let resizeFrame = 0;
+        let resizeSettle = 0;
         window.addEventListener('resize', () => {
             const horizontal = prefersHorizontalBarChart();
             if (horizontal !== lastBarHorizontal) {
                 lastBarHorizontal = horizontal;
                 if (aggregated.length) refresh();
-            } else {
-                scheduleChartResize();
             }
+            if (!resizeFrame) {
+                resizeFrame = requestAnimationFrame(() => {
+                    resizeFrame = 0;
+                    resizeDashboardCharts();
+                });
+            }
+            window.clearTimeout(resizeSettle);
+            resizeSettle = window.setTimeout(resizeDashboardCharts, 80);
         });
 
         window.addEventListener('s21-prefs-changed', () => {
-            scheduleChartResize();
+            requestAnimationFrame(resizeDashboardCharts);
             if (packages.length) {
                 refreshCharts();
                 if (selectedPublisherKey) renderPublisherDetail();
             }
         });
-    }
-
-    function formatSavedAt(ts) {
-        if (!ts) return '';
-        try {
-            return new Date(ts).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
-        } catch {
-            return '';
-        }
     }
 
     async function restoreDashboardCache() {
@@ -364,9 +438,8 @@ document.addEventListener('DOMContentLoaded', () => {
             await applyPackages(active.packages, {
                 label: active.name || active.meta?.label,
                 ...active.meta,
-            }, { skipStatus: false });
-            const when = formatSavedAt(active.savedAt);
-            setLoadStatus(`${active.packages.length} JSON restaurado${when ? ` · ${when}` : ''}`, false);
+            }, { skipStatus: false, skipGrupos: true });
+            await loadGruposForActiveDataset();
             window.S21DashboardWizard.showLoaded();
             Datos?.renderHistory();
         } catch (error) {
@@ -374,17 +447,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function setLoadStatus(text, isWarn) {
+    let loadStatusHideTimer = null;
+
+    function hideLoadStatus() {
+        if (loadStatusHideTimer) {
+            clearTimeout(loadStatusHideTimer);
+            loadStatusHideTimer = null;
+        }
+        loadStatus?.classList.add('hidden');
+    }
+
+    function setLoadStatus(text, isWarn, options = {}) {
         if (!loadStatus) return;
+        const duration = options.duration ?? 4500;
         loadStatus.textContent = text;
         loadStatus.classList.toggle('warn', !!isWarn);
+        loadStatus.classList.add('load-status--toast');
         loadStatus.classList.remove('hidden');
+        if (loadStatusHideTimer) clearTimeout(loadStatusHideTimer);
+        loadStatusHideTimer = setTimeout(hideLoadStatus, duration);
     }
 
     function clearAll(alsoGrupos = false) {
         packages = [];
         currentFuente = '';
-        if (loadStatus) loadStatus.classList.add('hidden');
+        hideLoadStatus();
         Storage?.clearDashboardCache?.().catch(() => {});
         if (alsoGrupos && G) {
             localStorage.removeItem(G.GRUPOS_KEY);
@@ -396,20 +483,35 @@ document.addEventListener('DOMContentLoaded', () => {
         Datos?.renderHistory();
     }
 
+    function setStageOpen(el, open) {
+        setMotionOpen(el, open, { from: 'fade' });
+    }
+
+    function setMotionOpen(el, open, options) {
+        if (!el) return Promise.resolve();
+        el.classList.add('motion-root');
+        const motion = window.S21Motion;
+        if (motion?.setOpen) return motion.setOpen(el, open, options);
+        el.hidden = !open;
+        el.classList.toggle('hidden', !open);
+        el.classList.toggle('is-open', !!open);
+        return Promise.resolve();
+    }
+
     function rebuild() {
         if (!packages.length) {
             flat = { mensual: [], publicadores: [] };
-            dashboardContent.classList.add('hidden');
-            emptyState.classList.remove('hidden');
+            setStageOpen(dashboardContent, false);
+            setStageOpen(emptyState, true);
             destroyCharts();
             destroyPublisherDetailChart();
             selectedPublisherKey = '';
             if (publisherListBody) publisherListBody.innerHTML = '';
             if (publisherDetailContent) {
                 publisherDetailContent.innerHTML = '';
-                publisherDetailContent.classList.add('hidden');
             }
-            if (publisherDetailEmpty) publisherDetailEmpty.classList.remove('hidden');
+            publisherDetailMotionMode = 'instant';
+            setPublisherDetailVisible(false, 'instant');
             renderFileList();
             if (chartProfileTogglesWrap) chartProfileTogglesWrap.classList.add('hidden');
             return;
@@ -417,6 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         flat = D.flattenPackages(packages);
         applyGruposToFlat();
+        publisherGroupFilter = '';
         renderPublisherBulkGrupoSelect();
         if (G) G.render();
         initPerfilAliases();
@@ -428,9 +531,13 @@ document.addEventListener('DOMContentLoaded', () => {
         syncFilterModeUI();
         renderFilters();
         renderFileList();
-        emptyState.classList.add('hidden');
-        dashboardContent.classList.remove('hidden');
+        setStageOpen(emptyState, false);
+        setStageOpen(dashboardContent, true);
+        hideLoadStatus();
         refresh();
+        if (layoutMode === 'single') {
+            applySingleSectionView(singleActiveSection);
+        }
     }
 
     function loadPerfilAliasesSaved() {
@@ -630,7 +737,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderFilterCell(field) {
         const label = filterFieldLabel(field);
         const shortLabel = filterFieldLabel(field, true);
-        const values = D.uniqueValues(flat.mensual, field);
+        const values = field === 'grupo'
+            ? D.uniqueValues(flat.publicadores, field)
+            : D.uniqueValues(flat.mensual, field);
         if (!filters[field]) filters[field] = [];
         const activeCount = filters[field].length;
         const chips = values.map(v => {
@@ -818,9 +927,149 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem(FILTERS_COLLAPSED_KEY, '0');
     }
 
+    function motionScrollBehavior() {
+        return window.S21Motion?.scrollBehavior?.() || 'smooth';
+    }
+
     function scrollToPublisherSection() {
         expandAccordion('publishers');
-        publisherSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        publisherSection?.scrollIntoView({ behavior: motionScrollBehavior(), block: 'start' });
+    }
+
+    function getDashboardSectionElement(targetId) {
+        if (targetId === 'publishers') return document.getElementById('publisher-section');
+        if (targetId === 'grupos') return document.getElementById('grupos-section');
+        return document.querySelector(`.dashboard-accordion[data-accordion-id="${targetId}"]`);
+    }
+
+    function getCurrentNavTarget() {
+        return document.querySelector('.dashboard-nav-btn.active')?.dataset.navTarget || null;
+    }
+
+    function initLayoutMode() {
+        const prefs = window.S21DashboardPreferences?.loadPrefs?.() || {};
+        layoutMode = prefs.layoutMode === 'single' ? 'single' : 'continuous';
+        singleActiveSection = getCurrentNavTarget() || 'kpi';
+        applyLayoutMode();
+        btnToggleLayoutMode?.addEventListener('click', () => {
+            if (layoutMode === 'continuous') {
+                singleActiveSection = getCurrentNavTarget() || singleActiveSection;
+            }
+            window.S21DashboardPreferences?.toggleLayoutMode?.();
+        });
+        window.addEventListener('s21-prefs-changed', e => {
+            const next = e.detail?.layoutMode === 'single' ? 'single' : 'continuous';
+            if (next === layoutMode) return;
+            layoutMode = next;
+            applyLayoutMode();
+        });
+    }
+
+    function syncLayoutModeButton() {
+        if (!btnToggleLayoutMode) return;
+        const single = layoutMode === 'single';
+        btnToggleLayoutMode.setAttribute('aria-pressed', single ? 'true' : 'false');
+        btnToggleLayoutMode.setAttribute('aria-label', single ? 'Vista continua' : 'Vista por sección');
+        btnToggleLayoutMode.title = single ? 'Vista continua' : 'Vista por sección';
+        btnToggleLayoutMode.querySelector('.dashboard-layout-icon--to-single')
+            ?.classList.toggle('hidden', single);
+        btnToggleLayoutMode.querySelector('.dashboard-layout-icon--to-continuous')
+            ?.classList.toggle('hidden', !single);
+    }
+
+    function applyLayoutMode() {
+        document.body.classList.toggle('dashboard-layout-single', layoutMode === 'single');
+        syncLayoutModeButton();
+        if (layoutMode === 'single') {
+            applySingleSectionView(singleActiveSection);
+        } else {
+            clearSingleSectionView();
+        }
+    }
+
+    function navSectionIndex(id) {
+        const i = NAV_SECTION_ORDER.indexOf(id);
+        return i < 0 ? 0 : i;
+    }
+
+    function setSectionMotionOpen(section, open, options) {
+        if (!section) return Promise.resolve();
+        section.classList.add('motion-root');
+        const motion = window.S21Motion;
+        if (motion?.setOpen) return motion.setOpen(section, open, options);
+        section.hidden = !open;
+        section.classList.toggle('hidden', !open);
+        section.classList.toggle('is-open', !!open);
+        section.classList.remove('is-closing');
+        return Promise.resolve();
+    }
+
+    function prepareSoloSection(section) {
+        if (!section) return;
+        section.classList.add('dashboard-section--solo');
+        const trigger = section.querySelector('.dashboard-accordion-trigger');
+        if (trigger && section.classList.contains('collapsed')) {
+            setAccordionCollapsed(section, trigger, false, false);
+        }
+    }
+
+    function applySingleSectionView(sectionId, options = {}) {
+        if (!sectionId) return Promise.resolve();
+        const prevId = singleActiveSection;
+        const animate = options.animate === true
+            && Boolean(prevId)
+            && prevId !== sectionId
+            && !window.S21Motion?.prefersReduced?.();
+
+        singleActiveSection = sectionId;
+        setDashboardNavActive(sectionId);
+
+        const sections = [...document.querySelectorAll('.dashboard-accordion[data-accordion-id]')];
+        const incoming = getDashboardSectionElement(sectionId);
+
+        if (!animate) {
+            sections.forEach(section => {
+                const active = section.dataset.accordionId === sectionId;
+                section.classList.toggle('dashboard-section--solo', active);
+                setSectionMotionOpen(section, active, { instant: true, from: 'fade' });
+            });
+            prepareSoloSection(incoming);
+            if (sectionId === 'table') scheduleChartResize();
+            return Promise.resolve();
+        }
+
+        const dir = navSectionIndex(sectionId) - navSectionIndex(prevId);
+        const incomingFrom = dir > 0 ? 'right' : 'left';
+        const outgoingFrom = dir > 0 ? 'left' : 'right';
+        const outgoing = getDashboardSectionElement(prevId);
+        const gen = ++navSwapGen;
+
+        sections.forEach(section => {
+            const id = section.dataset.accordionId;
+            if (id === sectionId || id === prevId) return;
+            section.classList.remove('dashboard-section--solo');
+            setSectionMotionOpen(section, false, { instant: true });
+        });
+
+        outgoing?.classList.remove('dashboard-section--solo');
+        prepareSoloSection(incoming);
+
+        setSectionMotionOpen(outgoing, false, { from: outgoingFrom });
+        return setSectionMotionOpen(incoming, true, { from: incomingFrom }).then(() => {
+            if (gen !== navSwapGen) return;
+            if (sectionId === 'table') scheduleChartResize();
+        }).finally(() => {
+            if (sectionId === 'table') requestAnimationFrame(() => scheduleChartResize());
+        });
+    }
+
+    function clearSingleSectionView() {
+        navSwapGen += 1;
+        document.querySelectorAll('.dashboard-accordion[data-accordion-id]').forEach(section => {
+            section.classList.remove('dashboard-section--solo', 'is-open', 'is-closing', 'hidden');
+            section.hidden = false;
+            delete section.dataset.motionFrom;
+        });
     }
 
     function initDashboardNav() {
@@ -840,6 +1089,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if ('IntersectionObserver' in window) {
             const observer = new IntersectionObserver(entries => {
+                if (layoutMode !== 'continuous') return;
                 const visible = entries
                     .filter(e => e.isIntersecting)
                     .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
@@ -853,26 +1103,81 @@ document.addEventListener('DOMContentLoaded', () => {
                 observer.observe(el);
             });
         }
+
+        syncHeaderSectionTitle(singleActiveSection || 'kpi');
+    }
+
+    function getSectionLabel(sectionId) {
+        if (!sectionId) return '';
+        const section = getDashboardSectionElement(sectionId);
+        if (section?.dataset.sectionLabel) return section.dataset.sectionLabel;
+        const navBtn = document.querySelector(`.dashboard-nav-btn[data-nav-target="${sectionId}"]`);
+        return navBtn?.getAttribute('title') || navBtn?.querySelector('.dashboard-nav-text')?.textContent?.trim() || '';
+    }
+
+    function syncHeaderSectionTitle(sectionId) {
+        if (!dashboardHeaderSection || !sectionId) return;
+        const label = getSectionLabel(sectionId);
+        if (label) dashboardHeaderSection.textContent = label;
     }
 
     function setDashboardNavActive(targetId) {
         document.querySelectorAll('.dashboard-nav-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.navTarget === targetId);
         });
+        syncHeaderSectionTitle(targetId);
     }
 
-    function navigateToDashboardSection(targetId) {
-        if (!targetId) return;
+    function navigateToDashboardSection(targetId, options = {}) {
+        if (!targetId) return Promise.resolve();
+        const behavior = motionScrollBehavior();
+        if (layoutMode === 'single') {
+            const crossSection = options.crossSection === true;
+            const promise = applySingleSectionView(targetId, { animate: !crossSection });
+            document.getElementById('dashboard-content')?.scrollIntoView({ behavior, block: 'start' });
+            return promise;
+        }
         setDashboardNavActive(targetId);
-
         expandAccordion(targetId);
-        const el = targetId === 'publishers'
-            ? document.getElementById('publisher-section')
-            : targetId === 'grupos'
-                ? document.getElementById('grupos-section')
-                : document.querySelector(`.dashboard-accordion[data-accordion-id="${targetId}"]`);
-        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        getDashboardSectionElement(targetId)?.scrollIntoView({ behavior, block: 'start' });
         if (targetId === 'table') scheduleChartResize();
+        return Promise.resolve();
+    }
+
+    function scrollPublisherListRowIntoView(key) {
+        if (!key || !publisherListBody) return;
+        let row = null;
+        publisherListBody.querySelectorAll('tr.publisher-row[data-publisher-key]').forEach(tr => {
+            if (tr.dataset.publisherKey === key) row = tr;
+        });
+        if (!row) return;
+        const wrap = row.closest('.publisher-list-wrap');
+        if (wrap) {
+            const targetTop = row.offsetTop - Math.max(0, (wrap.clientHeight - row.offsetHeight) / 2);
+            wrap.scrollTo({ top: targetTop, behavior: motionScrollBehavior() });
+        } else {
+            row.scrollIntoView({ behavior: motionScrollBehavior(), block: 'nearest' });
+        }
+        row.querySelector('.pub-cell-tap')?.focus({ preventScroll: true });
+    }
+
+    function scrollPublisherDetailIntoView() {
+        const detail = document.getElementById('publisher-detail');
+        if (!detail) return;
+        expandAccordion('publishers');
+        prepareSoloSection(getDashboardSectionElement('publishers'));
+        detail.scrollIntoView({ behavior: motionScrollBehavior(), block: 'start' });
+    }
+
+    function onGruposOpenPublisherClick(e) {
+        const btn = e.target.closest('[data-grupos-action="detail"]');
+        if (!btn) return;
+        const gruposRoot = document.getElementById('grupos-section');
+        if (!gruposRoot?.contains(btn)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const key = btn.getAttribute('data-person-key') || btn.dataset.personKey || '';
+        openPublisherFromList(key, { fromGrupos: true });
     }
 
     function initSectionAccordions() {
@@ -901,6 +1206,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setAccordionCollapsed(section, trigger, collapsed, false);
 
             trigger.addEventListener('click', () => {
+                if (layoutMode === 'single') return;
                 const willCollapse = !section.classList.contains('collapsed');
                 setAccordionCollapsed(section, trigger, willCollapse, true);
                 if (id === 'table' && !willCollapse) {
@@ -910,11 +1216,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function runFoldMotion(elements, apply) {
+        const nodes = (Array.isArray(elements) ? elements : [elements]).filter(Boolean);
+        if (!nodes.length || window.S21Motion?.prefersReduced?.()) {
+            apply();
+            return;
+        }
+        nodes.forEach(el => el.classList.add('is-folding'));
+        void nodes[0].offsetWidth;
+        apply();
+        const ms = Math.max(
+            160,
+            ...nodes.map(el => window.S21Motion?.measureTransitionMs?.(el) || 0)
+        );
+        window.setTimeout(() => {
+            nodes.forEach(el => el.classList.remove('is-folding'));
+        }, ms + 50);
+    }
+
     function setAccordionCollapsed(section, trigger, collapsed, persist) {
-        section.classList.toggle('collapsed', collapsed);
-        trigger.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
         const body = section.querySelector('.dashboard-accordion-body');
-        if (body) body.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+        const apply = () => {
+            section.classList.toggle('collapsed', collapsed);
+            trigger.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            if (body) body.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+        };
+        if (persist) runFoldMotion(body, apply);
+        else apply();
         if (!persist) return;
         const id = section.dataset.accordionId;
         let saved = {};
@@ -963,9 +1291,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const viewport = scrollEl.clientWidth || scrollEl.parentElement?.clientWidth || 0;
-        const needed = Math.max(viewport, itemCount * pxPerItem);
-        innerEl.style.width = `${needed}px`;
-        innerEl.style.minWidth = `${needed}px`;
+        const contentWidth = itemCount * pxPerItem;
+        if (!viewport || contentWidth <= viewport) {
+            innerEl.style.width = '100%';
+            innerEl.style.minWidth = '100%';
+            return;
+        }
+        innerEl.style.width = `${contentWidth}px`;
+        innerEl.style.minWidth = `${contentWidth}px`;
     }
 
     function syncBarChartDimensions(scrollEl, innerEl, itemCount) {
@@ -1056,7 +1389,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function initFiltersCollapsed() {
         if (!filtersPanel) return;
         const stored = localStorage.getItem(FILTERS_COLLAPSED_KEY);
-        const collapsed = stored === '1' || (stored !== '0' && prefersMobileLayout());
+        const collapsed = stored !== '0';
         filtersPanel.classList.toggle('collapsed', collapsed);
         btnToggleFilters.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
         filtersChevron.textContent = collapsed ? '▸' : '▾';
@@ -1148,12 +1481,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!publisherListBody) return;
 
         const pubs = D.sortPublishers(filteredPubCache);
-        if (selectedPublisherKey && !pubs.some(p => D.personKey(p) === selectedPublisherKey)) {
+        if (selectedPublisherKey
+            && !pubs.some(p => D.personKey(p) === selectedPublisherKey)
+            && !flat.publicadores.some(p => D.personKey(p) === selectedPublisherKey)) {
             selectedPublisherKey = '';
-        }
-
-        if (publisherCount) {
-            publisherCount.textContent = `${pubs.length} publicador${pubs.length === 1 ? '' : 'es'}`;
         }
 
         renderPublisherList();
@@ -1161,11 +1492,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function filterPublishersForList(pubs) {
-        if (!publisherSearchQuery) return pubs;
-        return pubs.filter(p => {
-            const haystack = `${p.nombre} ${p.origen} ${displayPerfil(p.origen)}`.toLowerCase();
-            return haystack.includes(publisherSearchQuery);
-        });
+        let rows = pubs;
+        if (publisherGroupFilter !== '') {
+            const groupNum = Number(publisherGroupFilter);
+            rows = rows.filter(p => Number(p.grupo_num || 0) === groupNum);
+        }
+        const TM = window.S21TextMatch;
+        if (!TM || !publisherSearchQuery) return rows;
+        return TM.filterPublishers(rows, publisherSearchQuery, displayPerfil);
+    }
+
+    function publishersForListDisplay() {
+        let rows = filterPublishersForList(filteredPubCache);
+        if (selectedPublisherKey && !rows.some(p => D.personKey(p) === selectedPublisherKey)) {
+            const pub = flat.publicadores.find(p => D.personKey(p) === selectedPublisherKey);
+            if (pub) rows = [...rows, pub];
+        }
+        return sortPublisherRows(rows);
+    }
+
+    function updatePublisherVisibleCount(pubs) {
+        if (!publisherCount) return;
+        publisherCount.textContent = `${pubs.length} publicador${pubs.length === 1 ? '' : 'es'}`;
     }
 
     function sortPublisherRows(rows) {
@@ -1209,7 +1557,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        const pubs = sortPublisherRows(filterPublishersForList(filteredPubCache));
+        const pubs = publishersForListDisplay();
+        updatePublisherVisibleCount(pubs);
         if (!pubs.length) {
             publisherListBody.innerHTML = `<tr><td colspan="6" class="publisher-list-empty">Sin publicadores con los filtros actuales.</td></tr>`;
             return;
@@ -1222,7 +1571,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const nac = showField(pub.fecha_nacimiento);
             const baut = showField(pub.fecha_bautismo);
             const mainRow = `<tr data-publisher-key="${escapeAttr(key)}" class="publisher-row${selected}${expanded ? ' is-expanded' : ''}">
-                <td class="pub-cell-name pub-cell-tap" title="${escapeAttr(pub.nombre)}" role="button" tabindex="0">${escapeHtml(pub.nombre)}</td>
+                <td class="pub-cell-name pub-cell-tap" title="${escapeAttr(pub.nombre)}" role="button" tabindex="0"><span class="person-name">${Icons?.personNameInnerHtml(pub, escapeHtml(pub.nombre)) || escapeHtml(pub.nombre)}</span></td>
                 <td class="pub-cell-profile pub-cell-tap" title="${escapeAttr(displayPerfil(pub.origen))}" role="button" tabindex="0">${escapeHtml(displayPerfil(pub.origen))}</td>
                 <td class="pub-cell-grupo">${escapeHtml(pub.grupo || '—')}</td>
                 <td class="pub-cell-nac pub-date-col" aria-hidden="true">${escapeHtml(nac)}</td>
@@ -1233,12 +1582,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     </button>
                 </td>
             </tr>`;
-            const datesRow = `<tr class="publisher-row-dates${expanded ? '' : ' hidden'}" data-publisher-key="${escapeAttr(key)}">
+            const datesRow = `<tr class="publisher-row-dates${expanded ? '' : ' is-collapsed'}" data-publisher-key="${escapeAttr(key)}">
                 <td colspan="6">
+                    <div class="pub-dates-fold">
                     <dl class="pub-dates-kv">
                         <div class="pub-kv"><dt>Nacimiento</dt><dd>${escapeHtml(nac)}</dd></div>
                         <div class="pub-kv"><dt>Bautismo</dt><dd>${escapeHtml(baut)}</dd></div>
                     </dl>
+                    </div>
                 </td>
             </tr>`;
             return [mainRow, datesRow];
@@ -1249,16 +1600,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.stopPropagation();
                 const row = btn.closest('tr[data-publisher-key]');
                 if (!row) return;
-                const key = row.dataset.publisherKey;
-                expandedPublisherListKey = expandedPublisherListKey === key ? '' : key;
-                renderPublisherList();
+                togglePublisherDatesRow(row.dataset.publisherKey);
             });
         });
 
         publisherListBody.querySelectorAll('.pub-cell-tap').forEach(cell => {
             const open = () => {
                 const tr = cell.closest('tr.publisher-row');
-                if (tr) openPublisherFromList(tr.dataset.publisherKey);
+                if (tr) openPublisherFromList(tr.dataset.publisherKey, { fromList: true });
             };
             cell.addEventListener('click', e => {
                 e.stopPropagation();
@@ -1273,19 +1622,158 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function openPublisherFromList(key) {
-        if (!key) return;
-        selectedPublisherKey = key;
-        renderPublisherList();
-        renderPublisherDetail();
-        expandAccordion('publishers');
-        requestAnimationFrame(() => {
-            document.getElementById('publisher-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    function togglePublisherDatesRow(key) {
+        if (!publisherListBody || !key) return;
+        expandedPublisherListKey = expandedPublisherListKey === key ? '' : key;
+        const folds = [];
+        publisherListBody.querySelectorAll('tr.publisher-row-dates[data-publisher-key]').forEach(row => {
+            const willCollapse = row.dataset.publisherKey !== expandedPublisherListKey;
+            if (row.classList.contains('is-collapsed') !== willCollapse) {
+                const fold = row.querySelector('.pub-dates-fold');
+                if (fold) folds.push(fold);
+            }
+        });
+        runFoldMotion(folds, () => {
+            publisherListBody.querySelectorAll('tr.publisher-row[data-publisher-key]').forEach(row => {
+                const on = row.dataset.publisherKey === expandedPublisherListKey;
+                row.classList.toggle('is-expanded', on);
+                const btn = row.querySelector('.pub-expand-btn');
+                if (btn) btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+            });
+            publisherListBody.querySelectorAll('tr.publisher-row-dates[data-publisher-key]').forEach(row => {
+                row.classList.toggle('is-collapsed', row.dataset.publisherKey !== expandedPublisherListKey);
+            });
         });
     }
 
+    function capturePublisherListNavigationState() {
+        const listWrap = document.querySelector('.publisher-list-wrap');
+        const section = document.getElementById('publisher-section');
+        return {
+            scrollTop: listWrap?.scrollTop ?? 0,
+            expandedPublisherListKey,
+            publisherSearchQuery,
+            publisherGroupFilter,
+            scrollY: window.scrollY,
+            sectionTop: section
+                ? section.getBoundingClientRect().top + window.scrollY
+                : window.scrollY,
+        };
+    }
+
+    function restorePublisherListNavigationState(state) {
+        if (!state) return;
+        expandedPublisherListKey = state.expandedPublisherListKey || '';
+        publisherSearchQuery = state.publisherSearchQuery || '';
+        publisherGroupFilter = state.publisherGroupFilter || '';
+        if (publisherSearch) publisherSearch.value = publisherSearchQuery;
+        if (publisherBulkGrupo) publisherBulkGrupo.value = publisherGroupFilter;
+        renderPublisherList();
+        requestAnimationFrame(() => {
+            const listWrap = document.querySelector('.publisher-list-wrap');
+            if (listWrap) listWrap.scrollTop = state.scrollTop ?? 0;
+            window.scrollTo({
+                top: state.sectionTop ?? state.scrollY ?? 0,
+                behavior: 'smooth',
+            });
+        });
+    }
+
+    function syncPublisherDetailBackButton() {
+        if (!publisherDetailBackWrap) return;
+        if (!publisherDetailReturn || !selectedPublisherKey) {
+            publisherDetailBackWrap.classList.add('hidden');
+            return;
+        }
+        const label = publisherDetailReturn.origin === 'grupos'
+            ? 'Volver a Grupos'
+            : 'Volver al listado';
+        publisherDetailBackWrap.classList.remove('hidden');
+        if (publisherBackLabel) publisherBackLabel.textContent = label;
+        btnPublisherBack?.setAttribute('aria-label', label);
+    }
+
+    function findPublisherByKey(key) {
+        if (!key) return null;
+        return flat.publicadores.find(p => D.personKey(p) === key)
+            || G?.getPublisherByKey?.(key)
+            || null;
+    }
+
+    function openPublisherFromList(key, options = {}) {
+        const normalizedKey = String(key || '').trim();
+        if (!normalizedKey) return;
+        const pub = findPublisherByKey(normalizedKey);
+        if (!pub) return;
+        const resolvedKey = D.personKey(pub);
+
+        if (options.fromGrupos) {
+            publisherDetailReturn = {
+                origin: 'grupos',
+                state: G?.captureNavigationState?.() || null,
+            };
+            publisherSearchQuery = '';
+            publisherGroupFilter = '';
+            if (publisherSearch) publisherSearch.value = '';
+            if (publisherBulkGrupo) publisherBulkGrupo.value = '';
+            detailMonthlyFilter = null;
+            updateDetailFilterBanner();
+        } else if (options.fromList) {
+            publisherDetailReturn = {
+                origin: 'publishers',
+                state: capturePublisherListNavigationState(),
+            };
+        } else {
+            publisherDetailReturn = null;
+        }
+
+        if (options.fromGrupos) {
+            publisherDetailMotionMode = 'instant';
+        } else {
+        const switching = Boolean(
+            !options.fromGrupos
+            && selectedPublisherKey
+            && selectedPublisherKey !== resolvedKey
+        );
+        publisherDetailMotionMode = switching ? 'instant' : 'open';
+        }
+        selectedPublisherKey = resolvedKey;
+
+        const showDetail = () => {
+            expandAccordion('publishers');
+            prepareSoloSection(getDashboardSectionElement('publishers'));
+            renderPublisherList();
+            Promise.resolve(renderPublisherDetail()).then(() => {
+                scrollPublisherListRowIntoView(selectedPublisherKey);
+                scrollPublisherDetailIntoView();
+                publisherDetailChart?.resize?.();
+            });
+        };
+
+        navigateToDashboardSection('publishers', { crossSection: !!options.fromGrupos }).then(() => {
+            requestAnimationFrame(() => showDetail());
+        });
+    }
+
+    function returnFromPublisherDetail() {
+        if (!publisherDetailReturn) return;
+        const { origin, state } = publisherDetailReturn;
+        publisherDetailReturn = null;
+        publisherDetailMotionMode = origin === 'grupos' ? 'instant' : 'back';
+        selectedPublisherKey = '';
+        renderPublisherList();
+        renderPublisherDetail();
+        if (origin === 'grupos') {
+            navigateToDashboardSection('grupos');
+            G?.restoreNavigationState?.(state);
+            return;
+        }
+        navigateToDashboardSection('publishers');
+        restorePublisherListNavigationState(state);
+    }
+
     function selectPublisher(key) {
-        openPublisherFromList(key);
+        openPublisherFromList(key, { fromList: true });
     }
 
     function showComentario(text) {
@@ -1293,28 +1781,63 @@ document.addEventListener('DOMContentLoaded', () => {
         return t || '—';
     }
 
+    function takePublisherDetailMotionMode() {
+        const mode = publisherDetailMotionMode;
+        publisherDetailMotionMode = 'instant';
+        return mode;
+    }
+
+    function publisherDetailMotionOpts(mode, role) {
+        const instant = mode === 'instant' || window.S21Motion?.prefersReduced?.();
+        if (mode === 'open') {
+            return { from: role === 'incoming' ? 'right' : 'left', instant };
+        }
+        if (mode === 'back') {
+            return { from: role === 'incoming' ? 'left' : 'right', instant };
+        }
+        return { from: 'fade', instant };
+    }
+
+    function setPublisherDetailVisible(hasDetail, mode) {
+        const gen = ++publisherDetailPaintGen;
+        if (hasDetail) {
+            setMotionOpen(publisherDetailEmpty, false, publisherDetailMotionOpts(mode, 'outgoing'));
+            return setMotionOpen(publisherDetailContent, true, publisherDetailMotionOpts(mode, 'incoming')).then(() => {
+                if (gen !== publisherDetailPaintGen) return;
+                publisherDetailChart?.resize?.();
+            });
+        }
+        destroyPublisherDetailChart();
+        publisherDetailBackWrap?.classList.add('hidden');
+        setMotionOpen(publisherDetailEmpty, true, publisherDetailMotionOpts(mode, 'incoming'));
+        return setMotionOpen(publisherDetailContent, false, publisherDetailMotionOpts(mode, 'outgoing')).then(() => {
+            if (gen !== publisherDetailPaintGen) return;
+            if (selectedPublisherKey) return;
+            publisherDetailContent.innerHTML = '';
+        });
+    }
+
     function renderPublisherDetail() {
-        if (!publisherDetailEmpty || !publisherDetailContent) return;
+        if (!publisherDetailEmpty || !publisherDetailContent) return Promise.resolve();
 
         if (!selectedPublisherKey) {
-            destroyPublisherDetailChart();
-            publisherDetailEmpty.classList.remove('hidden');
-            publisherDetailContent.classList.add('hidden');
-            publisherDetailContent.innerHTML = '';
-            return;
+            return setPublisherDetailVisible(false, takePublisherDetailMotionMode());
         }
 
-        const pub = filteredPubCache.find(p => D.personKey(p) === selectedPublisherKey);
+        syncPublisherDetailBackButton();
+
+        const pub = filteredPubCache.find(p => D.personKey(p) === selectedPublisherKey)
+            || flat.publicadores.find(p => D.personKey(p) === selectedPublisherKey);
         if (!pub) {
             selectedPublisherKey = '';
-            destroyPublisherDetailChart();
-            publisherDetailEmpty.classList.remove('hidden');
-            publisherDetailContent.classList.add('hidden');
-            publisherDetailContent.innerHTML = '';
-            return;
+            publisherDetailMotionMode = 'instant';
+            return setPublisherDetailVisible(false, 'instant');
         }
 
-        const monthly = D.getPublisherMonthlyRows(filteredMensualCache, selectedPublisherKey);
+        const mensualSource = filteredPubCache.some(p => D.personKey(p) === selectedPublisherKey)
+            ? filteredMensualCache
+            : flat.mensual;
+        const monthly = D.getPublisherMonthlyRows(mensualSource, selectedPublisherKey);
         const monthlyTotals = D.sumPublisherMonthly(monthly);
         const focusMes = detailFocusMes();
         if (detailMonthlyFilter?.detailMetric) {
@@ -1333,12 +1856,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .map(([label]) => `<span class="publisher-badge">${escapeHtml(label)}</span>`)
             .join('');
 
-        publisherDetailEmpty.classList.add('hidden');
-        publisherDetailContent.classList.remove('hidden');
+        destroyPublisherDetailChart();
         publisherDetailMonthlyCache = monthly;
         publisherDetailContent.innerHTML = `
             <div class="publisher-profile">
-                <h4 class="publisher-name">${escapeHtml(pub.nombre)}</h4>
+                <h3 class="publisher-detail-card-title">Tarjeta de publicador</h3>
+                <h4 class="publisher-name person-name">${Icons?.personNameInnerHtml(pub, escapeHtml(pub.nombre)) || escapeHtml(pub.nombre)}</h4>
                 <div class="publisher-meta">
                     ${escapeHtml(displayPerfil(pub.origen))} · ${escapeHtml(pub.sexo)} · ${escapeHtml(pub.esperanza)}<br>
                     Nacimiento: ${escapeHtml(showField(pub.fecha_nacimiento))} · Bautismo: ${escapeHtml(showField(pub.fecha_bautismo))}
@@ -1350,10 +1873,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="publisher-monthly-grid">
                         <div class="publisher-monthly-head">
                             <span>Mes</span>
-                            <span class="num">Horas</span>
-                            <span class="num">Cursos</span>
-                            <span class="num">Part.</span>
-                            <span class="num">P. aux.</span>
+                            ${PUBLISHER_DETAIL_METRICS.map(m => {
+                                const active = m.id === publisherDetailMetric;
+                                return `<button type="button" class="num metric-head publisher-metric-head-btn${active ? ' active' : ''}"
+                                    data-metric="${m.id}" aria-pressed="${active ? 'true' : 'false'}"
+                                    aria-label="Gráfico de ${escapeAttr(m.label)}">${Icons?.metricIcon(m.id) || ''}<span>${escapeHtml(m.label)}</span></button>`;
+                            }).join('')}
                             <span class="comment-head">Comentarios</span>
                         </div>
                         ${monthly.map(row => {
@@ -1385,18 +1910,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="publisher-metric-toggle" role="tablist" aria-label="Métrica del gráfico">
                         ${PUBLISHER_DETAIL_METRICS.map(m =>
                             `<button type="button" class="publisher-metric-btn${m.id === publisherDetailMetric ? ' active' : ''}"
-                                data-metric="${m.id}" role="tab" aria-selected="${m.id === publisherDetailMetric}">${m.label}</button>`
+                                data-metric="${m.id}" role="tab" aria-selected="${m.id === publisherDetailMetric}">${Icons?.metricIcon(m.id) || ''}<span>${m.label}</span></button>`
                         ).join('')}
                     </div>
+                    <h3 class="publisher-chart-title" id="publisher-detail-chart-title">${escapeHtml(publisherMetricChartTitle(publisherDetailMetric))}</h3>
                     <div class="publisher-chart-wrap">
                         <canvas id="publisher-detail-chart"></canvas>
                     </div>
                 </div>
             </div>`;
 
-        publisherDetailContent.querySelectorAll('.publisher-metric-btn').forEach(btn => {
-            btn.addEventListener('click', () => setPublisherDetailMetric(btn.dataset.metric));
+        publisherDetailContent.querySelectorAll('[data-metric]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.classList.contains('publisher-metric-head-btn') && !publisherMetricHeadersInteractive()) return;
+                setPublisherDetailMetric(btn.dataset.metric);
+            });
         });
+        syncPublisherMetricLayout();
+        const mode = takePublisherDetailMotionMode();
+        const opening = setPublisherDetailVisible(true, mode);
         renderPublisherDetailChart(monthly, publisherDetailMetric);
         if (focusMes) {
             requestAnimationFrame(() => {
@@ -1404,17 +1936,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 row?.querySelector('span')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             });
         }
+        return opening;
+    }
+
+    function publisherMetricHeadersInteractive() {
+        return window.matchMedia('(min-width: 769px)').matches;
+    }
+
+    function syncPublisherMetricLayout() {
+        const wide = publisherMetricHeadersInteractive();
+        publisherDetailContent?.querySelectorAll('.publisher-metric-head-btn').forEach(btn => {
+            btn.tabIndex = wide ? 0 : -1;
+        });
+        const toggle = publisherDetailContent?.querySelector('.publisher-metric-toggle');
+        if (toggle) toggle.hidden = wide;
     }
 
     function setPublisherDetailMetric(metricId) {
         if (!PUBLISHER_DETAIL_METRICS.some(m => m.id === metricId) || metricId === publisherDetailMetric) return;
         publisherDetailMetric = metricId;
-        publisherDetailContent?.querySelectorAll('.publisher-metric-btn').forEach(btn => {
+        publisherDetailContent?.querySelectorAll('[data-metric]').forEach(btn => {
             const active = btn.dataset.metric === metricId;
             btn.classList.toggle('active', active);
-            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            if (btn.classList.contains('publisher-metric-head-btn')) {
+                btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+            } else {
+                btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            }
         });
+        syncPublisherChartTitle(metricId);
         renderPublisherDetailChart(publisherDetailMonthlyCache, metricId);
+    }
+
+    function publisherMetricSpec(metricId) {
+        return PUBLISHER_DETAIL_METRICS.find(m => m.id === metricId) || PUBLISHER_DETAIL_METRICS[0];
+    }
+
+    function publisherMetricChartTitle(metricId) {
+        const spec = publisherMetricSpec(metricId);
+        return spec.title || spec.label;
+    }
+
+    function syncPublisherChartTitle(metricId) {
+        const el = publisherDetailContent?.querySelector('#publisher-detail-chart-title');
+        if (el) el.textContent = publisherMetricChartTitle(metricId);
     }
 
     function publisherMetricValue(row, metricId) {
@@ -1431,7 +1996,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = publisherDetailContent?.querySelector('#publisher-detail-chart');
         if (!canvas || !monthly.length) return;
 
-        const spec = PUBLISHER_DETAIL_METRICS.find(m => m.id === metricId) || PUBLISHER_DETAIL_METRICS[0];
+        const spec = publisherMetricSpec(metricId);
+        syncPublisherChartTitle(metricId);
         const focusMes = detailFocusMes();
         const labels = monthly.map(r => r.mes_corto || D.mesLabel(r.mes, 'corto'));
         const data = monthly.map(r => publisherMetricValue(r, metricId));
@@ -1443,7 +2009,7 @@ document.addEventListener('DOMContentLoaded', () => {
             data: {
                 labels,
                 datasets: [{
-                    label: spec.label,
+                    label: spec.title || spec.label,
                     data,
                     borderColor: c.barBorder,
                     backgroundColor: c.barFill,
@@ -1462,14 +2028,18 @@ document.addEventListener('DOMContentLoaded', () => {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                resizeDelay: 0,
+                animation: { duration: 400 },
+                transitions: { resize: { animation: { duration: 0 } } },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
                             label(ctx) {
                                 const v = ctx.parsed.y;
-                                if (isBinary) return `${spec.label}: ${v ? 'Sí' : 'No'}`;
-                                return `${spec.label}: ${Math.round(v).toLocaleString('es')}`;
+                                const name = spec.title || spec.label;
+                                if (isBinary) return `${name}: ${v ? 'Sí' : 'No'}`;
+                                return `${name}: ${Math.round(v).toLocaleString('es')}`;
                             },
                         },
                     },
@@ -1505,12 +2075,242 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function exportPublishersCsv() {
-        const pubs = sortPublisherRows(filterPublishersForList(filteredPubCache));
-        if (!pubs.length) return;
-        const csv = D.publishersToCsv(pubs, displayPerfil);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-        window.S21DashboardExport?.downloadBlob(blob, `publicadores_${new Date().toISOString().slice(0, 10)}.csv`);
+    function publisherExportGroups() {
+        return [
+            {
+                id: 'identity',
+                label: 'Identidad',
+                hint: 'Nombre, perfil y grupo',
+                required: true,
+                columns: [
+                    { id: 'nombre', label: 'Nombre', getValue: row => row.nombre || '' },
+                    { id: 'origen', label: 'Perfil', getValue: row => displayPerfil(row.origen) },
+                    { id: 'grupo', label: 'Grupo', getValue: row => row.grupo || '—' },
+                ],
+            },
+            {
+                id: 'personal',
+                label: 'Datos personales',
+                hint: 'Nacimiento, bautismo, sexo y esperanza',
+                columns: [
+                    { id: 'fecha_nacimiento', label: 'Nacimiento', getValue: row => row.fecha_nacimiento || '' },
+                    { id: 'fecha_bautismo', label: 'Bautismo', getValue: row => row.fecha_bautismo || '' },
+                    { id: 'sexo', label: 'Sexo', getValue: row => row.sexo || '' },
+                    { id: 'esperanza', label: 'Esperanza', getValue: row => row.esperanza || '' },
+                ],
+            },
+            {
+                id: 'privileges',
+                label: 'Privilegios',
+                hint: 'Anciano, siervo ministerial y precursores',
+                columns: [
+                    { id: 'anciano', label: 'Anciano', getValue: row => row.anciano || '' },
+                    { id: 'siervo_ministerial', label: 'S. min.', getValue: row => row.siervo_ministerial || '' },
+                    { id: 'precursor_regular', label: 'P. reg.', getValue: row => row.precursor_regular || '' },
+                    { id: 'precursor_especial', label: 'P. esp.', getValue: row => row.precursor_especial || '' },
+                    { id: 'misionero', label: 'Mis.', getValue: row => row.misionero || '' },
+                ],
+            },
+            {
+                id: 'service',
+                label: 'Informe de servicio',
+                hint: 'Horas, cursos, participación y prec. aux.',
+                columns: [
+                    { id: 'horas', label: 'Horas', numeric: true, getValue: row => formatNum(row.total_horas) },
+                    { id: 'cursos', label: 'Cursos', numeric: true, getValue: row => formatNum(row.total_cursos) },
+                    { id: 'participacion', label: 'Part.', numeric: true, getValue: row => formatNum(row.meses_participacion) },
+                    { id: 'precursor_auxiliar', label: 'Prec. aux.', numeric: true, getValue: row => formatNum(row.meses_precursor_aux) },
+                ],
+            },
+        ];
+    }
+
+    function totalsExportGroups() {
+        const groupCols = tableColumns.filter(c => String(c.id).startsWith('group_')).map(col => ({
+            id: col.id,
+            label: col.label,
+            getValue: row => {
+                const val = col.getValue(row);
+                return col.type === 'number' ? formatNum(val) : String(val ?? '');
+            },
+        }));
+        const peopleCols = tableColumns.filter(c => c.id === 'publicadores' || c.id === 'inactivos').map(col => ({
+            id: col.id,
+            label: col.label,
+            numeric: true,
+            getValue: row => formatNum(col.getValue(row)),
+        }));
+        const serviceCols = tableColumns
+            .filter(c => ['horas', 'cursos', 'participacion', 'precursor_auxiliar'].includes(c.id))
+            .map(col => ({
+                id: col.id,
+                label: col.label,
+                numeric: true,
+                getValue: row => formatNum(col.getValue(row)),
+            }));
+        const groups = [];
+        if (groupCols.length) {
+            groups.push({
+                id: 'grouping',
+                label: 'Agrupación',
+                hint: groupCols.map(c => c.label).join(', '),
+                required: true,
+                columns: groupCols,
+            });
+        }
+        if (peopleCols.length) {
+            groups.push({
+                id: 'people',
+                label: 'Publicadores',
+                hint: 'Totales e inactivos',
+                columns: peopleCols,
+            });
+        }
+        if (serviceCols.length) {
+            groups.push({
+                id: 'service',
+                label: 'Informe de servicio',
+                hint: serviceCols.map(c => c.label).join(', '),
+                columns: serviceCols,
+            });
+        }
+        return groups;
+    }
+
+    function exportGroupDefs(kind) {
+        return kind === 'publishers' ? publisherExportGroups() : totalsExportGroups();
+    }
+
+    function readExportGroupPrefs(kind) {
+        try {
+            const raw = JSON.parse(localStorage.getItem(EXPORT_GROUPS_KEY) || '{}');
+            return Array.isArray(raw[kind]) ? raw[kind] : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function saveExportGroupPrefs(kind, ids) {
+        let raw = {};
+        try { raw = JSON.parse(localStorage.getItem(EXPORT_GROUPS_KEY) || '{}'); } catch { raw = {}; }
+        raw[kind] = ids;
+        localStorage.setItem(EXPORT_GROUPS_KEY, JSON.stringify(raw));
+    }
+
+    function bindExportOptionsModal() {
+        if (!exportOptionsModal) return;
+        exportOptionsModal.querySelectorAll('[data-export-options-close]').forEach(el => {
+            el.addEventListener('click', closeExportOptions);
+        });
+        exportOptionsConfirm?.addEventListener('click', confirmExportOptions);
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && exportOptionsModal.classList.contains('is-open')) {
+                closeExportOptions();
+            }
+        });
+    }
+
+    function requestExport(kind, format) {
+        if (kind === 'publishers' && !filterPublishersForList(filteredPubCache).length) {
+            setLoadStatus('No hay publicadores para exportar.', true);
+            return;
+        }
+        if (kind === 'totals' && !aggregated.length) {
+            setLoadStatus('No hay datos para exportar.', true);
+            return;
+        }
+        const groups = exportGroupDefs(kind);
+        if (!groups.length) {
+            setLoadStatus('No hay columnas para exportar.', true);
+            return;
+        }
+        pendingExport = { kind, format };
+        renderExportOptions(kind, groups, format);
+        window.S21Motion?.setOpen(exportOptionsModal, true, { from: 'scale' });
+    }
+
+    function renderExportOptions(kind, groups, format) {
+        const saved = readExportGroupPrefs(kind);
+        const formatLabel = format === 'csv' ? 'CSV' : (format === 'image' ? 'imagen' : 'PDF');
+        if (exportOptionsTitle) exportOptionsTitle.textContent = `Exportar ${formatLabel}`;
+        if (exportOptionsConfirm) {
+            exportOptionsConfirm.textContent = format === 'csv'
+                ? 'Descargar CSV'
+                : (format === 'image' ? 'Generar imagen' : 'Generar PDF');
+        }
+        if (!exportOptionsGroups) return;
+        exportOptionsGroups.innerHTML = groups.map(g => {
+            const checked = g.required || !saved || saved.includes(g.id);
+            const disabled = g.required ? ' disabled' : '';
+            return `<label class="export-option">
+                <input type="checkbox" data-export-group="${escapeAttr(g.id)}"${checked ? ' checked' : ''}${disabled}>
+                <span class="export-option-text">
+                    <span class="export-option-label">${escapeHtml(g.label)}</span>
+                    <span class="export-option-hint">${escapeHtml(g.hint || '')}${g.required ? ' · Siempre incluido' : ''}</span>
+                </span>
+            </label>`;
+        }).join('');
+    }
+
+    function closeExportOptions() {
+        pendingExport = null;
+        window.S21Motion?.setOpen(exportOptionsModal, false, { from: 'scale' });
+    }
+
+    function selectedExportGroups(kind) {
+        const defs = exportGroupDefs(kind);
+        const boxes = exportOptionsGroups?.querySelectorAll('[data-export-group]') || [];
+        const checked = new Set([...boxes].filter(el => el.checked).map(el => el.dataset.exportGroup));
+        return defs.filter(g => g.required || checked.has(g.id));
+    }
+
+    async function confirmExportOptions() {
+        if (!pendingExport) return;
+        const { kind, format } = pendingExport;
+        const groups = selectedExportGroups(kind);
+        if (!groups.length) {
+            setLoadStatus('Seleccione al menos un grupo de columnas.', true);
+            return;
+        }
+        saveExportGroupPrefs(kind, groups.map(g => g.id));
+        pendingExport = null;
+        if (exportOptionsConfirm) exportOptionsConfirm.disabled = true;
+        try {
+            await window.S21Motion?.setOpen(exportOptionsModal, false, { from: 'scale' });
+            await performExport(kind, format, groups);
+        } finally {
+            if (exportOptionsConfirm) exportOptionsConfirm.disabled = false;
+        }
+    }
+
+    function csvEscapeCell(val) {
+        const s = String(val ?? '');
+        if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+    }
+
+    function specToCsv(spec) {
+        const colCount = spec.headers?.length || 1;
+        const titleRow = (text) => {
+            const cells = Array(colCount).fill('');
+            cells[0] = text;
+            return cells.map(csvEscapeCell).join(',');
+        };
+        const lines = [titleRow('Análisis de Servicio')];
+        if (spec.title) lines.push(titleRow(spec.title));
+        if (spec.subtitle) lines.push(titleRow(spec.subtitle));
+        lines.push('');
+        if (spec.headerGroups?.length) {
+            const groupCells = [];
+            spec.headerGroups.forEach(g => {
+                for (let i = 0; i < g.span; i += 1) groupCells.push(i === 0 ? g.label : '');
+            });
+            lines.push(groupCells.map(csvEscapeCell).join(','));
+        }
+        lines.push(spec.headers.map(csvEscapeCell).join(','));
+        spec.rows.forEach(row => lines.push(row.map(csvEscapeCell).join(',')));
+        if (spec.footerRow?.length) lines.push(spec.footerRow.map(csvEscapeCell).join(','));
+        return `\ufeff${lines.join('\n')}`;
     }
 
     function totalsScopeLabel() {
@@ -1518,17 +2318,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return D.mesLabel(totalsScope, 'completo');
     }
 
-    function buildTotalsExportSpec() {
+    function buildTotalsExportSpec(selectedGroups) {
         if (!aggregated.length) return null;
+        const groups = selectedGroups?.length ? selectedGroups : totalsExportGroups();
+        const headerGroups = groups.map(g => ({ label: g.label, span: g.columns.length }));
+        const columns = groups.flatMap(g => g.columns);
         const sorted = sortRows(aggregated, tableColumns);
-        const headers = tableColumns.map(c => c.label);
-        const numericColumns = new Set(
-            tableColumns.map((c, i) => (c.type === 'number' ? i : -1)).filter(i => i >= 0)
-        );
-        const rows = sorted.map(row => tableColumns.map(col => {
-            const val = col.getValue(row);
-            return col.type === 'number' ? formatNum(val) : String(val ?? '');
-        }));
+        const numericColumns = new Set(columns.map((c, i) => (c.numeric ? i : -1)).filter(i => i >= 0));
+        const rows = sorted.map(row => columns.map(col => col.getValue(row)));
 
         const totals = sorted.reduce((acc, r) => {
             acc.horas += r.horas;
@@ -1539,10 +2336,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return acc;
         }, { horas: 0, cursos: 0, participacion: 0, precursor_auxiliar: 0, inactivos: 0 });
 
-        const footerRow = tableColumns.map(col => {
-            if (col.type !== 'number') {
-                return col.id === 'group_0' ? 'Total' : '';
-            }
+        const footerRow = columns.map((col, i) => {
+            if (i === 0) return 'Total';
+            if (!col.numeric) return '';
             if (col.id === 'publicadores') {
                 let n = kpisCache.publicadores_total ?? 0;
                 if (totalsScope !== 'year') {
@@ -1564,11 +2360,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const g2 = group2.value;
         const groupFields = [g1, g2].filter((v, i, arr) => v && arr.indexOf(v) === i);
         const groupLabels = groupFields.map(f => D.S21_GROUP_FIELDS.find(g => g.id === f)?.label || f);
+        const included = groups.map(g => g.label).join(' · ');
 
         return {
-            title: 'Análisis de Servicio — Totales',
-            subtitle: `Alcance: ${totalsScopeLabel()} · Agrupado: ${groupLabels.join(' / ') || '—'}`,
-            headers,
+            title: 'Totales',
+            subtitle: `Alcance: ${totalsScopeLabel()} · Agrupado: ${groupLabels.join(' / ') || '—'} · ${included}`,
+            headers: columns.map(c => c.label),
+            headerGroups,
             rows,
             footerRow,
             numericColumns,
@@ -1576,53 +2374,60 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function buildPublishersExportSpec() {
+    function buildPublishersExportSpec(selectedGroups) {
         const pubs = sortPublisherRows(filterPublishersForList(filteredPubCache));
         if (!pubs.length) return null;
-        const headers = [
-            'Nombre', 'Perfil', 'Grupo', 'Nacimiento', 'Bautismo', 'Sexo', 'Esperanza',
-            'Anciano', 'S. min.', 'P. reg.', 'P. esp.', 'Mis.',
-            'Horas', 'Cursos', 'Part.', 'Prec. aux.',
-        ];
-        const numericColumns = new Set([12, 13, 14, 15]);
-        const rows = pubs.map(row => [
-            row.nombre,
-            displayPerfil(row.origen),
-            row.grupo || '—',
-            row.fecha_nacimiento || '',
-            row.fecha_bautismo || '',
-            row.sexo,
-            row.esperanza,
-            row.anciano,
-            row.siervo_ministerial,
-            row.precursor_regular,
-            row.precursor_especial,
-            row.misionero,
-            formatNum(row.total_horas),
-            formatNum(row.total_cursos),
-            formatNum(row.meses_participacion),
-            formatNum(row.meses_precursor_aux),
-        ]);
-        const filterNote = publisherSearchQuery ? ` · Búsqueda: «${publisherSearchQuery}»` : '';
+        const groups = selectedGroups?.length ? selectedGroups : publisherExportGroups();
+        const headerGroups = groups.map(g => ({ label: g.label, span: g.columns.length }));
+        const columns = groups.flatMap(g => g.columns);
+        const numericColumns = new Set(columns.map((c, i) => (c.numeric ? i : -1)).filter(i => i >= 0));
+        const rows = pubs.map(row => columns.map(col => col.getValue(row)));
+        const footerRow = columns.map((col, i) => {
+            if (i === 0) return `Total (${pubs.length})`;
+            if (!col.numeric) return '';
+            const sum = pubs.reduce((acc, row) => {
+                switch (col.id) {
+                    case 'horas': return acc + (row.total_horas || 0);
+                    case 'cursos': return acc + (row.total_cursos || 0);
+                    case 'participacion': return acc + (row.meses_participacion || 0);
+                    case 'precursor_auxiliar': return acc + (row.meses_precursor_aux || 0);
+                    default: return acc;
+                }
+            }, 0);
+            return formatNum(sum);
+        });
+        const filterNote = [
+            publisherSearchQuery ? `Búsqueda: «${publisherSearchQuery}»` : '',
+            publisherGroupFilter === '0' ? 'Sin grupo' : (publisherGroupFilter ? `Grupo ${publisherGroupFilter}` : ''),
+            groups.map(g => g.label).join(' · '),
+        ].filter(Boolean).join(' · ');
         return {
             title: 'Publicadores',
-            subtitle: `${pubs.length} registro${pubs.length === 1 ? '' : 's'}${filterNote}`,
-            headers,
+            subtitle: `${pubs.length} registro${pubs.length === 1 ? '' : 's'}${filterNote ? ` · ${filterNote}` : ''}`,
+            headers: columns.map(c => c.label),
+            headerGroups,
             rows,
+            footerRow,
             numericColumns,
             filenameBase: 'publicadores',
         };
     }
 
-    async function runTableExport(kind, format) {
-        const Export = window.S21DashboardExport;
-        if (!Export) {
-            setLoadStatus('Exportación no disponible.', true);
-            return;
-        }
-        const spec = kind === 'publishers' ? buildPublishersExportSpec() : buildTotalsExportSpec();
+    async function performExport(kind, format, groups) {
+        const spec = kind === 'publishers' ? buildPublishersExportSpec(groups) : buildTotalsExportSpec(groups);
         if (!spec) {
             setLoadStatus('No hay datos para exportar.', true);
+            return;
+        }
+        const Export = window.S21DashboardExport;
+        if (format === 'csv') {
+            const blob = new Blob([specToCsv(spec)], { type: 'text/csv;charset=utf-8' });
+            Export?.downloadBlob(blob, `${spec.filenameBase}_${new Date().toISOString().slice(0, 10)}.csv`);
+            setLoadStatus('CSV descargado.', false);
+            return;
+        }
+        if (!Export) {
+            setLoadStatus('Exportación no disponible.', true);
             return;
         }
         try {
@@ -1707,8 +2512,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const sortClass = sortState.column === col.id
                 ? (sortState.direction === 'asc' ? 'sort-asc' : 'sort-desc')
                 : '';
+            const metricMark = D.TOTALS_METRIC_COLUMNS[col.id]
+                ? (Icons?.metricIcon(col.id) || '')
+                : '';
             return `<th class="sortable ${sortClass}" data-col="${col.id}" scope="col">
-                ${escapeHtml(col.label)}<span class="sort-icon" aria-hidden="true"></span>
+                <span class="th-label">${metricMark}<span>${escapeHtml(col.label)}</span></span><span class="sort-icon" aria-hidden="true"></span>
             </th>`;
         }).join('')}</tr>`;
 
@@ -1796,7 +2604,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 valueHtml = formatNum(m.total);
             }
-            return `<div class="kpi-card">
+            return `<div class="kpi-card kpi-card--${key}">
+                <span class="kpi-card-icon" aria-hidden="true">${Icons?.metricIcon(key) || ''}</span>
                 <span class="kpi-value">${valueHtml}</span>
                 <span class="kpi-label">${label}</span>
                 ${hint ? `<span class="kpi-hint">${escapeHtml(hint)}</span>` : ''}
@@ -2048,6 +2857,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             responsive: true,
             maintainAspectRatio: false,
+            resizeDelay: 0,
+            animation: { duration: 400 },
+            transitions: { resize: { animation: { duration: 0 } } },
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -2081,28 +2893,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (lineChart) { lineChart.destroy(); lineChart = null; }
     }
 
-    function exportCsv() {
-        if (!aggregated.length) return;
-        const g1 = group1.value;
-        const g2 = group2.value;
-        const groupFields = [g1, g2].filter((v, i, arr) => v && arr.indexOf(v) === i);
-        const csv = D.aggregatedToCsv(
-            sortRows(aggregated, tableColumns),
-            groupFields,
-            displayGroupValue,
-            totalsScope
-        );
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-        window.S21DashboardExport?.downloadBlob(blob, `analisis_servicio_${new Date().toISOString().slice(0, 10)}.csv`);
-    }
-
     function toggleFilters() {
         if (!filtersPanel) return;
-        const collapsed = filtersPanel.classList.toggle('collapsed');
-        btnToggleFilters.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-        filtersChevron.textContent = collapsed ? '▸' : '▾';
-        localStorage.setItem(FILTERS_COLLAPSED_KEY, collapsed ? '1' : '0');
-        updateFiltersSummary();
+        const fold = filtersPanel.querySelector('.filters-body-fold');
+        runFoldMotion(fold, () => {
+            const collapsed = filtersPanel.classList.toggle('collapsed');
+            btnToggleFilters.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            filtersChevron.textContent = collapsed ? '▸' : '▾';
+            localStorage.setItem(FILTERS_COLLAPSED_KEY, collapsed ? '1' : '0');
+            updateFiltersSummary();
+        });
     }
 
     function formatNum(n, decimals) {

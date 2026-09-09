@@ -1,6 +1,6 @@
 (function () {
     const PREFS_KEY = 'analisis_servicio_prefs';
-    const DEFAULTS = { theme: 'dark', fontScale: 1 };
+    const DEFAULTS = { theme: 'dark', fontScale: 1, layoutMode: 'continuous' };
 
     let prefs = loadPrefs();
 
@@ -11,6 +11,7 @@
             return {
                 theme: raw.theme === 'light' ? 'light' : 'dark',
                 fontScale: clampFontScale(raw.fontScale),
+                layoutMode: raw.layoutMode === 'single' ? 'single' : 'continuous',
             };
         } catch {
             return { ...DEFAULTS };
@@ -20,7 +21,7 @@
     function clampFontScale(value) {
         const n = Number(value);
         if (Number.isNaN(n)) return 1;
-        return Math.min(1.25, Math.max(0.85, Math.round(n * 100) / 100));
+        return Math.min(1.35, Math.max(0.85, Math.round(n * 100) / 100));
     }
 
     function savePrefs(next) {
@@ -32,6 +33,7 @@
         prefs = next;
         const root = document.documentElement;
         root.dataset.theme = prefs.theme;
+        root.dataset.dashboardLayout = prefs.layoutMode === 'single' ? 'single' : 'continuous';
         root.style.setProperty('--app-font-scale', String(prefs.fontScale));
         const meta = document.querySelector('meta[name="theme-color"]');
         if (meta) {
@@ -42,9 +44,25 @@
     }
 
     function setTheme(theme) {
-        const next = { ...prefs, theme: theme === 'light' ? 'light' : 'dark' };
+        const nextTheme = theme === 'light' ? 'light' : 'dark';
+        if (prefs.theme !== nextTheme && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            const root = document.documentElement;
+            root.classList.add('s21-theme-fade');
+            window.setTimeout(() => root.classList.remove('s21-theme-fade'), 280);
+        }
+        const next = { ...prefs, theme: nextTheme };
         savePrefs(next);
         applyPrefs(next);
+    }
+
+    function setLayoutMode(mode) {
+        const next = { ...prefs, layoutMode: mode === 'single' ? 'single' : 'continuous' };
+        savePrefs(next);
+        applyPrefs(next);
+    }
+
+    function toggleLayoutMode() {
+        setLayoutMode(prefs.layoutMode === 'single' ? 'continuous' : 'single');
     }
 
     function syncThemeChoiceButtons(theme) {
@@ -73,7 +91,7 @@
 
         if (fontSlider) {
             fontSlider.min = '85';
-            fontSlider.max = '125';
+            fontSlider.max = '135';
             fontSlider.step = '5';
             fontSlider.value = String(Math.round(prefs.fontScale * 100));
             updateFontLabel(fontValue, prefs.fontScale);
@@ -109,6 +127,8 @@
         savePrefs,
         applyPrefs,
         setTheme,
+        setLayoutMode,
+        toggleLayoutMode,
         initPreferencesUI,
         clampFontScale,
     };

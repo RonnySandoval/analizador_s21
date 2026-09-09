@@ -10,6 +10,42 @@
         return document.getElementById(id);
     }
 
+    function Motion() {
+        return window.S21Motion;
+    }
+
+    function sheetFrom() {
+        return window.matchMedia('(max-width: 640px)').matches ? 'bottom' : 'right';
+    }
+
+    function overlayOpen(el, from) {
+        if (!el) return Promise.resolve();
+        const motion = Motion();
+        if (!motion?.setOpen) {
+            el.classList.remove('hidden');
+            el.hidden = false;
+            return Promise.resolve();
+        }
+        return motion.setOpen(el, true, { from });
+    }
+
+    function overlayClose(el, from) {
+        if (!el) return Promise.resolve();
+        const motion = Motion();
+        if (!motion?.setOpen) {
+            el.classList.add('hidden');
+            el.hidden = true;
+            return Promise.resolve();
+        }
+        return motion.setOpen(el, false, { from });
+    }
+
+    function overlayVisible(el) {
+        if (!el) return false;
+        if (Motion()?.isOpen(el) || el.classList.contains('is-closing')) return true;
+        return !el.hidden && !el.classList.contains('hidden');
+    }
+
     function escapeHtml(s) {
         return String(s ?? '')
             .replace(/&/g, '&amp;')
@@ -65,6 +101,8 @@
             publisherCount: flat.publicadores.length,
             profileSummary,
             isBundle: packages.length > 1,
+            persistGrupos: false,
+            gruposConfig: null,
         };
     }
 
@@ -85,23 +123,28 @@
 
     async function openPanel() {
         const panel = $('datos-panel');
-        panel?.classList.remove('hidden');
-        if (panel) panel.hidden = false;
+        if (!panel) return;
         document.body.classList.add('datos-panel-open');
+        overlayOpen(panel, sheetFrom());
         await callbacks.onPanelOpen?.();
         await renderHistory();
     }
 
     function closePanel() {
         const panel = $('datos-panel');
-        panel?.classList.add('hidden');
-        if (panel) panel.hidden = true;
-        document.body.classList.remove('datos-panel-open');
+        if (!panel) return;
+        overlayClose(panel, sheetFrom()).then(() => {
+            if (Motion()?.isOpen(panel)) return;
+            document.body.classList.remove('datos-panel-open');
+        });
     }
 
     const PANEL_TITLES = { datos: 'Datos', apariencia: 'Apariencia' };
 
     function setSettingsTab(tabId) {
+        if (!PANEL_TITLES[tabId]) return;
+        const sheet = $('datos-panel');
+        const instant = !overlayVisible(sheet);
         const tabs = document.querySelectorAll('.settings-tab');
         const panels = document.querySelectorAll('.settings-tab-panel');
         tabs.forEach(tab => {
@@ -111,8 +154,15 @@
         });
         panels.forEach(panel => {
             const show = panel.id === `settings-panel-${tabId}`;
-            panel.classList.toggle('hidden', !show);
-            panel.hidden = !show;
+            panel.classList.add('motion-root');
+            const motion = Motion();
+            if (motion?.setOpen) {
+                motion.setOpen(panel, show, { from: 'fade', instant });
+            } else {
+                panel.classList.toggle('hidden', !show);
+                panel.hidden = !show;
+                panel.classList.toggle('is-open', show);
+            }
         });
         const titleEl = $('datos-panel-title');
         if (titleEl && PANEL_TITLES[tabId]) titleEl.textContent = PANEL_TITLES[tabId];
@@ -146,9 +196,9 @@
 
         document.addEventListener('keydown', e => {
             if (e.key !== 'Escape') return;
-            if (!$('datos-save-modal')?.classList.contains('hidden')) closeSaveModal(null);
-            else if (!$('datos-clear-modal')?.classList.contains('hidden')) closeClearModal(false);
-            else if (!$('datos-panel')?.classList.contains('hidden')) closePanel();
+            if (overlayVisible($('datos-save-modal'))) closeSaveModal(null);
+            else if (overlayVisible($('datos-clear-modal'))) closeClearModal(false);
+            else if (overlayVisible($('datos-panel'))) closePanel();
         });
     }
 
@@ -292,15 +342,12 @@
         }
 
         if (body) body.innerHTML = html;
-        modal?.classList.remove('hidden');
-        modal.hidden = false;
+        overlayOpen(modal, 'scale');
         replaceBtn?.focus();
     }
 
     function closeSaveModal(action) {
-        $('datos-save-modal')?.classList.add('hidden');
-        const modal = $('datos-save-modal');
-        if (modal) modal.hidden = true;
+        overlayClose($('datos-save-modal'), 'scale');
         pendingSave = null;
         const resolve = pendingSaveResolve;
         pendingSaveResolve = null;
@@ -330,6 +377,8 @@
             const existing = await Storage.getDataset(activeId);
             dataset = buildDatasetFromPackages(packages, meta, activeId);
             dataset.name = meta.name || existing?.name || dataset.name;
+            dataset.persistGrupos = existing?.persistGrupos ?? false;
+            dataset.gruposConfig = existing?.persistGrupos ? (existing.gruposConfig || null) : null;
         } else {
             dataset = buildDatasetFromPackages(packages, meta);
         }
@@ -346,13 +395,11 @@
         const input = $('datos-clear-confirm-input');
         if (input) input.value = '';
         $('datos-clear-grupos') && ($('datos-clear-grupos').checked = false);
-        modal?.classList.remove('hidden');
-        modal.hidden = false;
+        overlayOpen(modal, 'scale');
     }
 
     function closeClearModal() {
-        $('datos-clear-modal')?.classList.add('hidden');
-        $('datos-clear-modal').hidden = true;
+        overlayClose($('datos-clear-modal'), 'scale');
     }
 
     function confirmClearModal() {
@@ -364,6 +411,26 @@
         const alsoGrupos = $('datos-clear-grupos')?.checked;
         closeClearModal();
         callbacks.onClearAll?.(alsoGrupos);
+    }
+
+    async function getActiveGruposMeta() {
+        const ds = await Storage?.getActiveDataset?.();
+        if (!ds) return { persistGrupos: false, gruposConfig: null };
+        return {
+            persistGrupos: !!ds.persistGrupos,
+            gruposConfig: ds.gruposConfig || null,
+        };
+    }
+
+    async function syncActiveDatasetGrupos({ persistGrupos, gruposConfig }) {
+        if (!Storage?.isAvailable()) return;
+        const id = await Storage.getActiveDatasetId();
+        if (!id) return;
+        const ds = await Storage.getDataset(id);
+        if (!ds) return;
+        ds.persistGrupos = !!persistGrupos;
+        ds.gruposConfig = persistGrupos ? (gruposConfig || null) : null;
+        await Storage.putDataset(ds);
     }
 
     async function init(options) {
@@ -390,5 +457,7 @@
         findDuplicateConflicts,
         formatSavedAt,
         setSettingsTab,
+        getActiveGruposMeta,
+        syncActiveDatasetGrupos,
     };
 })();

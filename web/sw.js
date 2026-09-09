@@ -1,4 +1,4 @@
-const CACHE_NAME = 's21-analizador-v1.3.0';
+const CACHE_NAME = 's21-analizador-v1.4.19';
 const STATIC_ASSETS = [
     'dashboard.html',
     'index.html',
@@ -7,18 +7,26 @@ const STATIC_ASSETS = [
     'theme-light.css',
     'dashboard.css',
     's21-base.js',
+    'dashboard-motion.js',
     'dashboard-preferences.js',
     'dashboard-data.js',
+    'dashboard-icons.js',
     'dashboard-storage.js',
     'dashboard-datos.js',
     'dashboard-grupos.js',
     'dashboard-wizard.js',
+    'dashboard-export.js',
+    'dashboard-text-match.js',
     'dashboard.js',
     'app.js',
     'pwa.js',
     'manifest.webmanifest',
     'icons/icon-192.png',
     'icons/icon-512.png',
+    'icons/icon-maskable-512.png',
+    'icons/apple-touch-icon.png',
+    'icons/logo-dark.png',
+    'icons/logo-light.png',
 ];
 
 function assetUrl(name) {
