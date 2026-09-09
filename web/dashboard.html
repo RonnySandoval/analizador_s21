@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="style.css?v=5">
     <link rel="stylesheet" href="theme-cyber.css?v=3">
     <link rel="stylesheet" href="theme-light.css?v=6">
-    <link rel="stylesheet" href="dashboard.css?v=93">
+    <link rel="stylesheet" href="dashboard.css?v=98">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -106,6 +106,13 @@
                                         <option value="">— Ninguno —</option>
                                     </select>
                                 </div>
+                                <div class="toolbar-field totals-view-field" id="totals-view-field">
+                                    <span class="toolbar-field-label">Vista tabla</span>
+                                    <div class="totals-view-toggle" role="tablist" aria-label="Vista de tabla">
+                                        <button type="button" id="btn-totals-view-list" class="totals-view-btn active" data-totals-view="list" role="tab" aria-selected="true">Lista</button>
+                                        <button type="button" id="btn-totals-view-matrix" class="totals-view-btn" data-totals-view="matrix" role="tab" aria-selected="false" disabled>Matriz</button>
+                                    </div>
+                                </div>
                                 <div class="export-menu" data-export-menu>
                                     <button type="button" class="btn-secondary btn-compact export-menu-toggle" aria-expanded="false" aria-haspopup="menu" aria-controls="totals-export-menu">
                                         <svg class="export-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -128,48 +135,56 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="table-wrap table-wrap--responsive">
-                                <table class="data-table data-table--cards-mobile" id="pivot-table">
-                                    <thead id="pivot-head"></thead>
-                                    <tbody id="pivot-body"></tbody>
-                                    <tfoot id="pivot-foot"></tfoot>
-                                </table>
-                            </div>
-                            <div class="summary-charts-block">
-                                <h3 class="summary-subsection-title">Gráficos</h3>
-                                <div class="charts-toolbar">
-                                    <div class="charts-toolbar-row charts-toolbar-row--metric">
-                                        <label for="metric">Métrica en gráficos</label>
-                                        <select id="metric"></select>
-                                    </div>
-                                    <div class="charts-toolbar-row charts-toolbar-row--exclude">
-                                        <span class="charts-exclude-label">Omitir últimos</span>
-                                        <div id="chart-exclude-toggle" class="chart-exclude-toggle" role="tablist" aria-label="Meses omitidos al final del año"></div>
-                                        <span class="charts-exclude-label">meses</span>
-                                    </div>
-                                    <div id="chart-profile-toggles-wrap" class="charts-toolbar-row charts-toolbar-row--profiles hidden">
-                                        <span class="chart-profile-toggles-label">Perfiles en gráfico</span>
-                                        <div id="chart-profile-toggles" class="chart-profile-toggles"></div>
-                                    </div>
-                                </div>
-                                <div class="chart-grid" id="chart-grid">
-                                    <div class="chart-card" id="chart-bar-card">
-                                        <h3 id="chart-bar-title">Horas por Perfil</h3>
-                                        <div class="chart-scroll-wrap" id="chart-bar-scroll">
-                                            <div class="chart-wrap" id="chart-bar-wrap">
-                                                <canvas id="chart-bar"></canvas>
-                                            </div>
+                            <div id="totals-body" class="totals-body">
+                                <div class="summary-charts-block totals-charts-block">
+                                    <div class="charts-toolbar">
+                                        <div class="charts-toolbar-row charts-toolbar-row--metric">
+                                            <label for="metric">Métrica</label>
+                                            <select id="metric"></select>
+                                        </div>
+                                        <div class="charts-toolbar-row charts-toolbar-row--exclude">
+                                            <span class="charts-exclude-label">Omitir últimos</span>
+                                            <div id="chart-exclude-toggle" class="chart-exclude-toggle" role="tablist" aria-label="Meses omitidos al final del año"></div>
+                                            <span class="charts-exclude-label">meses</span>
+                                        </div>
+                                        <div id="chart-profile-toggles-wrap" class="charts-toolbar-row charts-toolbar-row--profiles hidden">
+                                            <span class="chart-profile-toggles-label">Perfiles en gráfico</span>
+                                            <div id="chart-profile-toggles" class="chart-profile-toggles"></div>
                                         </div>
                                     </div>
-                                    <div class="chart-card" id="chart-line-card">
-                                        <h3>Tendencia mensual</h3>
-                                        <div class="chart-scroll-wrap" id="chart-line-scroll">
-                                            <div class="chart-wrap" id="chart-line-wrap">
-                                                <canvas id="chart-line"></canvas>
+                                    <div class="chart-grid" id="chart-grid">
+                                        <div class="chart-card" id="chart-bar-card">
+                                            <h3 id="chart-bar-title">Horas por Perfil</h3>
+                                            <div class="chart-scroll-wrap" id="chart-bar-scroll">
+                                                <div class="chart-wrap" id="chart-bar-wrap">
+                                                    <canvas id="chart-bar"></canvas>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="chart-card" id="chart-line-card">
+                                            <h3>Tendencia mensual</h3>
+                                            <div class="chart-scroll-wrap" id="chart-line-scroll">
+                                                <div class="chart-wrap" id="chart-line-wrap">
+                                                    <canvas id="chart-line"></canvas>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+                                <div id="totals-dimension-toggle-wrap" class="totals-dimension-toggle-wrap hidden">
+                                    <div class="totals-dimension-toggle" role="tablist" aria-label="Orientación de matriz">
+                                        <button type="button" id="btn-dim-primary" class="totals-dimension-btn active" role="tab" aria-selected="true">Por <span id="dim-primary-label">—</span></button>
+                                        <button type="button" id="btn-dim-secondary" class="totals-dimension-btn" role="tab" aria-selected="false">Por <span id="dim-secondary-label">—</span></button>
+                                    </div>
+                                </div>
+                                <div class="table-wrap table-wrap--responsive totals-table-wrap">
+                                    <table class="data-table data-table--cards-mobile" id="pivot-table">
+                                        <thead id="pivot-head"></thead>
+                                        <tbody id="pivot-body"></tbody>
+                                        <tfoot id="pivot-foot"></tfoot>
+                                    </table>
+                                </div>
+                                <div id="totals-matrix-summary" class="totals-matrix-summary hidden" aria-live="polite"></div>
                             </div>
                         </div>
                     </div>
@@ -602,6 +617,19 @@
         </div>
     </nav>
 
+    <div id="kpi-detail-modal" class="datos-modal motion-root hidden" role="dialog" aria-modal="true" aria-labelledby="kpi-detail-title" hidden>
+        <div class="datos-modal-backdrop motion-backdrop" data-kpi-detail-close tabindex="-1"></div>
+        <div class="datos-modal-card motion-card kpi-detail-card">
+            <h3 id="kpi-detail-title" class="datos-modal-title">Indicador</h3>
+            <p id="kpi-detail-lead" class="kpi-detail-lead"></p>
+            <div id="kpi-detail-filters" class="kpi-detail-filters" hidden></div>
+            <div id="kpi-detail-body" class="kpi-detail-body"></div>
+            <div class="datos-modal-actions">
+                <button type="button" class="btn-primary" data-kpi-detail-close>Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="export-options-modal" class="datos-modal motion-root hidden" role="dialog" aria-modal="true" aria-labelledby="export-options-title" hidden>
         <div class="datos-modal-backdrop motion-backdrop" data-export-options-close tabindex="-1"></div>
         <div class="datos-modal-card motion-card export-options-card">
@@ -631,12 +659,12 @@
     <script src="dashboard-motion.js?v=1"></script>
     <script src="pwa.js?v=2"></script>
     <script src="dashboard-text-match.js?v=1"></script>
-    <script src="dashboard-data.js?v=30"></script>
+    <script src="dashboard-data.js?v=32"></script>
     <script src="dashboard-icons.js?v=5"></script>
     <script src="dashboard-storage.js?v=2"></script>
     <script src="dashboard-datos.js?v=8"></script>
     <script src="dashboard-grupos.js?v=22"></script>
     <script src="dashboard-wizard.js?v=6"></script>
-    <script src="dashboard.js?v=96"></script>
+    <script src="dashboard.js?v=102"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const D = window.S21DashboardData;
     const G = window.S21DashboardGrupos;
     const FILTERS_COLLAPSED_KEY = 'analisis_servicio_filters_collapsed';
+    const TOTALS_VIEW_KEY = 'analisis_servicio_totals_view';
     const ACCORDION_STATE_KEY = 'analisis_servicio_accordion_state';
     const PERFIL_ALIASES_KEY = 'analisis_servicio_perfil_aliases';
     const CHART_PROFILES_KEY = 'analisis_servicio_chart_profiles';
@@ -41,6 +42,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const emptyState = document.getElementById('empty-state');
     const kpiGrid = document.getElementById('kpi-grid');
     const kpiModeBtns = document.querySelectorAll('.kpi-mode-btn');
+    const kpiDetailModal = document.getElementById('kpi-detail-modal');
+    const kpiDetailTitle = document.getElementById('kpi-detail-title');
+    const kpiDetailLead = document.getElementById('kpi-detail-lead');
+    const kpiDetailFilters = document.getElementById('kpi-detail-filters');
+    const kpiDetailBody = document.getElementById('kpi-detail-body');
     const filtersBody = document.getElementById('filters-body');
     const filtersPanel = document.getElementById('filters-panel');
     const btnToggleFilters = document.getElementById('btn-toggle-filters');
@@ -53,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalsScopeSelect = document.getElementById('totals-scope');
     const metricSelect = document.getElementById('metric');
     const chartExcludeToggle = document.getElementById('chart-exclude-toggle');
+    const pivotTable = document.getElementById('pivot-table');
     const pivotHead = document.getElementById('pivot-head');
     const pivotBody = document.getElementById('pivot-body');
     const pivotFoot = document.getElementById('pivot-foot');
@@ -61,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnExportPdf = document.getElementById('btn-export-pdf');
     const chartGrid = document.getElementById('chart-grid');
     const chartBarCard = document.getElementById('chart-bar-card');
+    const chartLineCard = document.getElementById('chart-line-card');
     const chartBarTitle = document.getElementById('chart-bar-title');
     const chartProfileTogglesWrap = document.getElementById('chart-profile-toggles-wrap');
     const chartProfileToggles = document.getElementById('chart-profile-toggles');
@@ -103,6 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let filteredPubCache = [];
     let kpisCache = {};
     let kpiMode = 'last';
+    let kpiDetailKey = '';
+    let kpiDetailPrivilegeFilters = ['', ''];
     let selectedPublisherKey = '';
     let chartExcludeMonths = 0;
     let totalsScope = 'year';
@@ -113,7 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let detailMonthlyFilter = null;
     let tableRowsCache = [];
     let chartBarRowsCache = [];
+    let chartBarClickContext = null;
     let chartLineTrendCache = [];
+    let totalsViewMode = 'list';
+    let totalsDimensionSwapped = false;
+    let matrixCellCache = new Map();
     let expandedPublisherListKey = '';
     let perfilAliases = {};
     let congregacionDetectada = null;
@@ -125,6 +139,27 @@ document.addEventListener('DOMContentLoaded', () => {
     let navSwapGen = 0;
     const NAV_SECTION_ORDER = ['kpi', 'table', 'grupos', 'publishers'];
 
+    const CHART_SUBGROUP_COLORS = [
+        { bg: 'rgba(56, 189, 248, 0.78)', border: 'rgba(56, 189, 248, 1)' },
+        { bg: 'rgba(16, 185, 129, 0.78)', border: 'rgba(16, 185, 129, 1)' },
+        { bg: 'rgba(251, 191, 36, 0.78)', border: 'rgba(251, 191, 36, 1)' },
+        { bg: 'rgba(167, 139, 250, 0.78)', border: 'rgba(167, 139, 250, 1)' },
+        { bg: 'rgba(244, 114, 182, 0.78)', border: 'rgba(244, 114, 182, 1)' },
+        { bg: 'rgba(45, 212, 191, 0.78)', border: 'rgba(45, 212, 191, 1)' },
+        { bg: 'rgba(248, 113, 113, 0.78)', border: 'rgba(248, 113, 113, 1)' },
+        { bg: 'rgba(129, 140, 248, 0.78)', border: 'rgba(129, 140, 248, 1)' },
+    ];
+
+    const btnTotalsViewList = document.getElementById('btn-totals-view-list');
+    const btnTotalsViewMatrix = document.getElementById('btn-totals-view-matrix');
+    const totalsViewField = document.getElementById('totals-view-field');
+    const totalsBody = document.getElementById('totals-body');
+    const totalsDimensionToggleWrap = document.getElementById('totals-dimension-toggle-wrap');
+    const btnDimPrimary = document.getElementById('btn-dim-primary');
+    const btnDimSecondary = document.getElementById('btn-dim-secondary');
+    const dimPrimaryLabel = document.getElementById('dim-primary-label');
+    const dimSecondaryLabel = document.getElementById('dim-secondary-label');
+    const totalsMatrixSummary = document.getElementById('totals-matrix-summary');
     const dashboardHeaderSection = document.getElementById('dashboard-header-section');
     const publisherDetailBackWrap = document.getElementById('publisher-detail-back-wrap');
     const btnToggleLayoutMode = document.getElementById('btn-toggle-layout-mode');
@@ -140,6 +175,20 @@ document.addEventListener('DOMContentLoaded', () => {
         { key: 'participacion', label: 'Participación' },
         { key: 'precursor_aux', label: 'Prec. aux.' },
         { key: 'inactivos', label: 'Inactivos' },
+    ];
+
+    const KPI_PRIVILEGE_OPTIONS = [
+        { id: 'anciano', label: 'Anciano' },
+        { id: 'siervo_ministerial', label: 'Siervo ministerial' },
+        { id: 'precursor_regular', label: 'Precursor regular' },
+        { id: 'misionero', label: 'Misionero' },
+        { id: 'precursor_especial', label: 'Precursor especial' },
+        { id: 'precursor_auxiliar', label: 'Precursor auxiliar' },
+        { id: 'hombre', label: 'Hombre' },
+        { id: 'mujer', label: 'Mujer' },
+        { id: 'ungidos', label: 'Ungidos' },
+        { id: 'otras_ovejas', label: 'Otras ovejas' },
+        { id: 'no_bautizado', label: 'No bautizado' },
     ];
 
     const PUBLISHER_LIST_COLUMNS = [
@@ -291,14 +340,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initControls() {
-        group1.innerHTML = D.S21_GROUP_FIELDS.map(f =>
+        group1.innerHTML = D.S21_TOTALS_GROUP_FIELDS.map(f =>
             `<option value="${f.id}">${f.label}</option>`
         ).join('');
         group1.value = 'origen';
 
-        group2.innerHTML = '<option value="">— Ninguno —</option>' + D.S21_GROUP_FIELDS.map(f =>
+        group2.innerHTML = '<option value="">— Ninguno —</option>' + D.S21_TOTALS_GROUP_FIELDS.map(f =>
             `<option value="${f.id}">${f.label}</option>`
         ).join('');
+
+        const storedView = localStorage.getItem(TOTALS_VIEW_KEY);
+        if (storedView === 'matrix') totalsViewMode = 'matrix';
+        syncTotalsReportLayout();
+        syncTotalsViewToggle();
 
         if (totalsScopeSelect) {
             totalsScopeSelect.innerHTML =
@@ -360,13 +414,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnClearCrossFilter) btnClearCrossFilter.addEventListener('click', clearDetailLinkFilter);
         if (btnResetPerfilAliases) btnResetPerfilAliases.addEventListener('click', resetPerfilAliasesToSuggested);
         if (pivotBody) pivotBody.addEventListener('click', onPivotBodyClick);
-        group1.addEventListener('change', refresh);
-        group2.addEventListener('change', refresh);
+        group1.addEventListener('change', onTotalsGroupingChange);
+        group2.addEventListener('change', onTotalsGroupingChange);
+        btnTotalsViewList?.addEventListener('click', () => setTotalsViewMode('list'));
+        btnTotalsViewMatrix?.addEventListener('click', () => setTotalsViewMode('matrix'));
+        btnDimPrimary?.addEventListener('click', () => setTotalsDimensionSwapped(false));
+        btnDimSecondary?.addEventListener('click', () => setTotalsDimensionSwapped(true));
         totalsScopeSelect?.addEventListener('change', () => {
             totalsScope = totalsScopeSelect.value || 'year';
             refresh();
         });
-        metricSelect.addEventListener('change', () => refreshCharts());
+        metricSelect.addEventListener('change', () => {
+            refreshCharts();
+            if (totalsViewMode === 'matrix') {
+                renderTable(aggregated, getTotalsGroupFields());
+            }
+        });
         if (chartExcludeToggle) {
             chartExcludeToggle.addEventListener('click', (e) => {
                 const btn = e.target.closest('.chart-exclude-btn');
@@ -377,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         kpiModeBtns.forEach(btn => {
             btn.addEventListener('click', () => setKpiMode(btn.dataset.kpiMode));
         });
+        bindKpiDetailModal();
         btnExportCsv.addEventListener('click', () => requestExport('totals', 'csv'));
         btnExportPng?.addEventListener('click', () => requestExport('totals', 'image'));
         btnExportPdf?.addEventListener('click', () => requestExport('totals', 'pdf'));
@@ -402,11 +466,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.matchMedia('(min-width: 769px)').addEventListener('change', syncPublisherMetricLayout);
 
-        let lastBarHorizontal = prefersHorizontalBarChart();
+        let lastBarHorizontal = prefersHorizontalBarChart({ stacked: isBarChartStacked() });
         let resizeFrame = 0;
         let resizeSettle = 0;
         window.addEventListener('resize', () => {
-            const horizontal = prefersHorizontalBarChart();
+            const horizontal = prefersHorizontalBarChart({ stacked: isBarChartStacked() });
             if (horizontal !== lastBarHorizontal) {
                 lastBarHorizontal = horizontal;
                 if (aggregated.length) refresh();
@@ -849,7 +913,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedPublisherKey = '';
         expandFiltersPanel();
         refreshPublishersSection();
-        scrollToPublisherSection();
+        navigateToPublishersFromDrill();
     }
 
     function applyDetailFilterFromTable(row, colId) {
@@ -889,7 +953,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedPublisherKey = '';
         expandFiltersPanel();
         refreshPublishersSection();
-        scrollToPublisherSection();
+        navigateToPublishersFromDrill();
     }
 
     function clearDetailLinkFilter() {
@@ -931,9 +995,285 @@ document.addEventListener('DOMContentLoaded', () => {
         return window.S21Motion?.scrollBehavior?.() || 'smooth';
     }
 
+    function navigateToPublishersFromDrill() {
+        navigateToDashboardSection('publishers', { crossSection: true }).then(() => {
+            expandAccordion('publishers');
+            publisherSection?.scrollIntoView({ behavior: motionScrollBehavior(), block: 'start' });
+        });
+    }
+
     function scrollToPublisherSection() {
-        expandAccordion('publishers');
-        publisherSection?.scrollIntoView({ behavior: motionScrollBehavior(), block: 'start' });
+        navigateToPublishersFromDrill();
+    }
+
+    function getTotalsGroupFields() {
+        const g1 = group1.value;
+        const g2 = group2.value;
+        return [g1, g2].filter((v, i, arr) => v && arr.indexOf(v) === i);
+    }
+
+    function getTotalsDimensions() {
+        const [f1, f2] = getTotalsGroupFields();
+        if (!f2) {
+            return { primary: f1, secondary: null, fields: f1 ? [f1] : [] };
+        }
+        if (totalsDimensionSwapped) {
+            return { primary: f2, secondary: f1, fields: [f2, f1] };
+        }
+        return { primary: f1, secondary: f2, fields: [f1, f2] };
+    }
+
+    function canUseMatrixView(groupFields = getTotalsGroupFields()) {
+        return groupFields.length === 2;
+    }
+
+    function isTotalsReportMode() {
+        return getTotalsGroupFields().length === 2;
+    }
+
+    function syncTotalsReportLayout() {
+        const reportMode = isTotalsReportMode();
+        const dims = getTotalsDimensions();
+
+        if (reportMode) {
+            totalsViewMode = 'matrix';
+        } else {
+            totalsDimensionSwapped = false;
+        }
+
+        totalsBody?.classList.toggle('totals-body--report', reportMode);
+        totalsViewField?.classList.toggle('hidden', reportMode);
+        totalsDimensionToggleWrap?.classList.toggle('hidden', !reportMode);
+        chartLineCard?.classList.toggle('hidden', reportMode);
+        chartGrid?.classList.toggle('single-chart', reportMode || (getTotalsGroupFields().length === 1 && getTotalsGroupFields()[0] === 'mes'));
+
+        if (dimPrimaryLabel && dims.primary) {
+            dimPrimaryLabel.textContent = D.groupFieldLabel(dims.primary);
+        }
+        if (dimSecondaryLabel && dims.secondary) {
+            dimSecondaryLabel.textContent = D.groupFieldLabel(dims.secondary);
+        }
+        btnDimPrimary?.classList.toggle('active', !totalsDimensionSwapped);
+        btnDimSecondary?.classList.toggle('active', totalsDimensionSwapped);
+        btnDimPrimary?.setAttribute('aria-selected', totalsDimensionSwapped ? 'false' : 'true');
+        btnDimSecondary?.setAttribute('aria-selected', totalsDimensionSwapped ? 'true' : 'false');
+
+        pivotTable?.classList.toggle('totals-table--matrix', reportMode || (totalsViewMode === 'matrix' && canUseMatrixView()));
+
+        if (!reportMode) {
+            syncTotalsViewToggle();
+            totalsMatrixSummary?.classList.add('hidden');
+        }
+    }
+
+    function syncTotalsViewToggle(groupFields = getTotalsGroupFields()) {
+        if (isTotalsReportMode()) return;
+        const matrixOk = canUseMatrixView(groupFields);
+        if (!matrixOk && totalsViewMode === 'matrix') {
+            totalsViewMode = 'list';
+            localStorage.setItem(TOTALS_VIEW_KEY, 'list');
+        }
+        btnTotalsViewMatrix?.toggleAttribute('disabled', !matrixOk);
+        btnTotalsViewList?.classList.toggle('active', totalsViewMode === 'list');
+        btnTotalsViewMatrix?.classList.toggle('active', totalsViewMode === 'matrix');
+        btnTotalsViewList?.setAttribute('aria-selected', totalsViewMode === 'list' ? 'true' : 'false');
+        btnTotalsViewMatrix?.setAttribute('aria-selected', totalsViewMode === 'matrix' ? 'true' : 'false');
+        pivotTable?.classList.toggle('totals-table--matrix', totalsViewMode === 'matrix' && matrixOk);
+    }
+
+    function setTotalsDimensionSwapped(swapped) {
+        if (!isTotalsReportMode() || totalsDimensionSwapped === swapped) return;
+        totalsDimensionSwapped = swapped;
+        syncTotalsReportLayout();
+        refresh();
+    }
+
+    function setTotalsViewMode(mode) {
+        if (mode === 'matrix' && !canUseMatrixView()) return;
+        totalsViewMode = mode === 'matrix' ? 'matrix' : 'list';
+        localStorage.setItem(TOTALS_VIEW_KEY, totalsViewMode);
+        syncTotalsViewToggle();
+        const groupFields = getTotalsGroupFields();
+        renderTable(aggregated, groupFields);
+    }
+
+    function onTotalsGroupingChange() {
+        if (group2.value && group2.value === group1.value) group2.value = '';
+        totalsDimensionSwapped = false;
+        syncTotalsReportLayout();
+        syncTotalsViewToggle();
+        refresh();
+    }
+
+    function formatMatrixCellValue(val, metricId) {
+        const n = Number(val) || 0;
+        if (n === 0) return '—';
+        const spec = D.S21_CHART_METRICS.find(m => m.id === metricId);
+        if (spec?.aggregation === 'avg') {
+            return n.toLocaleString('es', { maximumFractionDigits: 1 });
+        }
+        return formatNum(n);
+    }
+
+    function formatStackTotalLabel(sum, metricId) {
+        const spec = D.S21_CHART_METRICS.find(m => m.id === metricId);
+        if (spec?.aggregation === 'avg') {
+            return sum.toLocaleString('es', { maximumFractionDigits: 1 });
+        }
+        return formatNum(sum);
+    }
+
+    function getMatrixMetricId() {
+        const ids = D.totalsMetricColumns(totalsScope);
+        const chartToTable = {
+            publicadores_con_cursos: 'publicadores',
+            publicadores_sin_cursos: 'publicadores',
+            inactivos: 'inactivos',
+            precursor_auxiliar: 'precursor_auxiliar',
+        };
+        const fromChart = chartToTable[metricSelect?.value] || metricSelect?.value;
+        if (ids.includes(fromChart)) return fromChart;
+        if (ids.includes(sortState.column)) return sortState.column;
+        return ids[0] || 'horas';
+    }
+
+    function findAggregatedRow(rows, groupFields, values) {
+        return rows.find(row =>
+            groupFields.every((field, i) => String(row.keys[i]?.value ?? '—') === String(values[i] ?? '—'))
+        ) || null;
+    }
+
+    function chartSubgroupPalette() {
+        return CHART_SUBGROUP_COLORS;
+    }
+
+    function totalsFieldKeyIndex(field, groupFields = getTotalsGroupFields()) {
+        const idx = groupFields.indexOf(field);
+        return idx >= 0 ? idx : 0;
+    }
+
+    function buildGroupedBarChartData(barRows, displayFields, metricId, groupFields = getTotalsGroupFields()) {
+        const primaryField = displayFields[0];
+        const secondaryField = displayFields.length > 1 ? displayFields[1] : null;
+        const primIdx = totalsFieldKeyIndex(primaryField, groupFields);
+        const secIdx = secondaryField ? totalsFieldKeyIndex(secondaryField, groupFields) : -1;
+        const chartLabel = D.chartMetricLabel(metricId);
+        const palette = chartPalette();
+
+        if (!secondaryField) {
+            const sorted = D.sortRowsForBarChart(barRows, displayFields, metricId);
+            const top = sorted.slice(0, 16);
+            return {
+                mode: 'simple',
+                labels: top.map(r => formatAggRowLabel(r)),
+                datasets: [{
+                    label: chartLabel,
+                    data: top.map(r => D.chartMetricValue(r, metricId)),
+                    backgroundColor: palette.barBg,
+                    borderColor: palette.barBorder,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }],
+                clickRows: top,
+            };
+        }
+
+        const rowLookup = new Map();
+        barRows.forEach(row => {
+            const primVal = row.keys[primIdx]?.value ?? '—';
+            const secVal = row.keys[secIdx]?.value ?? '—';
+            rowLookup.set(`${primVal}\0${secVal}`, row);
+        });
+
+        const primaryValuesAll = D.sortGroupValues(primaryField, barRows.map(r => r.keys[primIdx]?.value));
+        const secondaryValues = D.sortGroupValues(secondaryField, barRows.map(r => r.keys[secIdx]?.value));
+        const primaryTotals = new Map();
+        barRows.forEach(row => {
+            const key = row.keys[primIdx]?.value ?? '—';
+            primaryTotals.set(key, (primaryTotals.get(key) || 0) + D.chartMetricValue(row, metricId));
+        });
+        const topPrimary = primaryValuesAll
+            .slice()
+            .sort((a, b) => (primaryTotals.get(b) || 0) - (primaryTotals.get(a) || 0))
+            .slice(0, 12);
+
+        const colors = chartSubgroupPalette();
+        const datasets = secondaryValues.map((secVal, i) => {
+            const tone = colors[i % colors.length];
+            const isTop = i === secondaryValues.length - 1;
+            return {
+                label: displayGroupValue(secondaryField, secVal),
+                data: topPrimary.map(primVal => {
+                    const row = rowLookup.get(`${primVal}\0${secVal}`);
+                    return row ? D.chartMetricValue(row, metricId) : 0;
+                }),
+                backgroundColor: tone.bg,
+                borderColor: tone.border,
+                borderWidth: 1,
+                borderRadius: isTop ? { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 } : 0,
+                borderSkipped: false,
+                secondaryValue: secVal,
+            };
+        });
+
+        return {
+            mode: 'stacked',
+            labels: topPrimary.map(v => displayGroupValue(primaryField, v)),
+            datasets,
+            primaryValues: topPrimary,
+            rowLookup,
+        };
+    }
+
+    function createStackTotalsPlugin(metricId) {
+        return {
+            id: 'stackTotals',
+            afterDatasetsDraw(chart) {
+                const stacked = chart.options.scales?.x?.stacked || chart.options.scales?.y?.stacked;
+                if (!stacked || !chart.data.datasets.length) return;
+                const horizontal = chart.options.indexAxis === 'y';
+                const valueScale = horizontal ? chart.scales.x : chart.scales.y;
+                const c = chartPalette();
+                const { ctx, data, chartArea } = chart;
+                ctx.save();
+                ctx.font = '600 11px var(--font-mono, ui-monospace, monospace)';
+                ctx.fillStyle = c.tick;
+                ctx.textBaseline = horizontal ? 'middle' : 'bottom';
+                data.labels.forEach((_, i) => {
+                    let sum = 0;
+                    data.datasets.forEach(ds => { sum += Number(ds.data[i]) || 0; });
+                    if (sum <= 0) return;
+                    const label = formatStackTotalLabel(sum, metricId);
+                    const meta = chart.getDatasetMeta(0);
+                    const bar = meta?.data?.[i];
+                    if (!bar) return;
+                    if (horizontal) {
+                        ctx.textAlign = 'left';
+                        const x = valueScale.getPixelForValue(sum);
+                        ctx.fillText(label, Math.min(x + 6, chartArea.right - 2), bar.y);
+                    } else {
+                        ctx.textAlign = 'center';
+                        const y = valueScale.getPixelForValue(sum);
+                        ctx.fillText(label, bar.x, Math.max(y - 6, chartArea.top + 10));
+                    }
+                });
+                ctx.restore();
+            },
+        };
+    }
+
+    function handleBarChartClick(elements) {
+        if (!elements.length || !chartBarClickContext) return;
+        const { datasetIndex, index } = elements[0];
+        if (chartBarClickContext.mode === 'simple') {
+            const row = chartBarClickContext.clickRows[index];
+            if (row) applyDetailFilterFromBar(row);
+            return;
+        }
+        const primVal = chartBarClickContext.primaryValues[index];
+        const secVal = chartBarClickContext.datasets[datasetIndex]?.secondaryValue;
+        const row = chartBarClickContext.rowLookup.get(`${primVal}\0${secVal}`);
+        if (row) applyDetailFilterFromBar(row);
     }
 
     function getDashboardSectionElement(targetId) {
@@ -1262,8 +1602,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id === 'table') scheduleChartResize();
     }
 
-    function prefersHorizontalBarChart() {
+    function prefersHorizontalBarChart(options = {}) {
+        // Con subagrupación (apilada o agrupada), barras verticales.
+        if (options.stacked || options.grouped) return false;
         return window.matchMedia('(max-width: 640px)').matches;
+    }
+
+    function isBarChartStacked() {
+        return chartBarClickContext?.mode === 'stacked'
+            || chartBarClickContext?.mode === 'grouped';
     }
 
     function prefersMobileLayout() {
@@ -1301,35 +1648,42 @@ document.addEventListener('DOMContentLoaded', () => {
         innerEl.style.minWidth = `${contentWidth}px`;
     }
 
-    function syncBarChartDimensions(scrollEl, innerEl, itemCount) {
+    function syncBarChartDimensions(scrollEl, innerEl, itemCount, clusterSize = 1, stacked = false) {
         if (!innerEl) return;
-        const horizontal = prefersHorizontalBarChart();
+        const grouped = clusterSize > 1;
+        const horizontal = prefersHorizontalBarChart({ stacked, grouped });
         scrollEl?.classList.toggle('chart-scroll-wrap--vertical', horizontal);
         if (!itemCount) {
             innerEl.style.width = '100%';
             innerEl.style.minWidth = '100%';
-            innerEl.style.height = horizontal ? '160px' : '210px';
-            innerEl.style.minHeight = horizontal ? '160px' : '210px';
+            innerEl.style.height = horizontal ? '160px' : (stacked ? '260px' : '210px');
+            innerEl.style.minHeight = horizontal ? '160px' : (stacked ? '260px' : '210px');
             return;
         }
         if (horizontal) {
             innerEl.style.width = '100%';
             innerEl.style.minWidth = '100%';
-            const minHeight = Math.max(160, itemCount * 34 + 28);
+            const band = grouped ? 38 + clusterSize * 10 : 34;
+            const minHeight = Math.max(180, itemCount * band + 36);
             innerEl.style.height = `${minHeight}px`;
             innerEl.style.minHeight = `${minHeight}px`;
             return;
         }
-        innerEl.style.height = '210px';
-        innerEl.style.minHeight = '210px';
-        syncChartScrollWidth(scrollEl, innerEl, itemCount, 56);
+        innerEl.style.height = stacked ? '260px' : (grouped ? '240px' : '210px');
+        innerEl.style.minHeight = stacked ? '260px' : (grouped ? '240px' : '210px');
+        const pxPerCategory = stacked ? 64 : (grouped ? Math.max(72, 28 + clusterSize * 14) : 56);
+        syncChartScrollWidth(scrollEl, innerEl, itemCount, pxPerCategory);
     }
 
     function refreshChartScrollWidths() {
+        const stacked = isBarChartStacked();
+        const barDatasets = barChart?.data?.datasets?.length || 0;
         syncBarChartDimensions(
             document.getElementById('chart-bar-scroll'),
             document.getElementById('chart-bar-wrap'),
-            barChart?.data?.labels?.length || 0
+            barChart?.data?.labels?.length || 0,
+            stacked ? 1 : (barDatasets > 1 ? barDatasets : 1),
+            stacked
         );
         syncChartScrollWidth(
             document.getElementById('chart-line-scroll'),
@@ -1342,12 +1696,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function onPivotBodyClick(e) {
         const td = e.target.closest('td.num.drillable');
         if (!td) return;
+        const colId = td.dataset.colId;
+        if (!colId) return;
+        if (td.dataset.matrixKey) {
+            const cell = matrixCellCache.get(td.dataset.matrixKey);
+            if (cell?.row) applyDetailFilterFromTable(cell.row, colId);
+            return;
+        }
         const tr = td.closest('tr[data-row-index]');
         if (!tr) return;
         const rowIdx = Number(tr.dataset.rowIndex);
-        const colId = td.dataset.colId;
         const row = tableRowsCache[rowIdx];
-        if (!row || !colId) return;
+        if (!row) return;
         applyDetailFilterFromTable(row, colId);
     }
 
@@ -1413,6 +1773,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const scopedMensual = D.filterMensualByScope(flat.mensual, totalsScope);
 
         aggregated = D.aggregateRows(scopedMensual, groupFields, flat.publicadores);
+        syncTotalsReportLayout();
+        syncTotalsViewToggle(groupFields);
         renderTable(aggregated, groupFields);
         renderCharts(aggregated, scopedMensual, metricSelect.value, groupFields);
         refreshPublishersSection();
@@ -1448,9 +1810,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function chartBarTitleText(metricId, groupFields) {
         const metric = D.S21_CHART_METRICS.find(m => m.id === metricId);
         const metricLabel = metric?.label || metricId;
-        const labels = groupFields.filter(Boolean).map(f =>
-            D.S21_GROUP_FIELDS.find(g => g.id === f)?.label || f
-        );
+        const labels = groupFields.filter(Boolean).map(f => D.groupFieldLabel(f));
         const groupPart = labels.length ? labels.join(' · ') : 'Grupo';
         return `${metricLabel} por ${groupPart}`;
     }
@@ -2359,7 +2719,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const g1 = group1.value;
         const g2 = group2.value;
         const groupFields = [g1, g2].filter((v, i, arr) => v && arr.indexOf(v) === i);
-        const groupLabels = groupFields.map(f => D.S21_GROUP_FIELDS.find(g => g.id === f)?.label || f);
+        const groupLabels = groupFields.map(f => D.groupFieldLabel(f));
         const included = groups.map(g => g.label).join(' · ');
 
         return {
@@ -2455,7 +2815,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function buildTableColumns(groupFields) {
         const cols = groupFields.map((f, i) => ({
             id: `group_${i}`,
-            label: D.S21_GROUP_FIELDS.find(g => g.id === f)?.label || f,
+            label: D.groupFieldLabel(f),
             type: 'text',
             getValue: row => {
                 const val = row.keys[i]?.value ?? '—';
@@ -2503,7 +2863,91 @@ document.addEventListener('DOMContentLoaded', () => {
         renderTable(aggregated, groupFields);
     }
 
+    function matrixLookupValues(groupFields, rowField, rowVal, colField, colVal) {
+        return groupFields.map(field => {
+            if (field === rowField) return rowVal;
+            if (field === colField) return colVal;
+            return '—';
+        });
+    }
+
+    function renderMatrixTable(rows, groupFields) {
+        const dims = getTotalsDimensions();
+        const rowField = dims.primary;
+        const colField = dims.secondary;
+        const rowIdxKey = totalsFieldKeyIndex(rowField, groupFields);
+        const colIdxKey = totalsFieldKeyIndex(colField, groupFields);
+        const metricId = getMatrixMetricId();
+        const metricSpec = D.TOTALS_METRIC_COLUMNS[metricId];
+        const reportMode = isTotalsReportMode();
+        matrixCellCache = new Map();
+        tableColumns = [{ id: metricId, label: metricSpec?.label || metricId, type: 'number' }];
+
+        const rowValues = D.sortGroupValues(rowField, rows.map(r => r.keys[rowIdxKey]?.value));
+        const colValues = D.sortGroupValues(colField, rows.map(r => r.keys[colIdxKey]?.value));
+        const rowLabel = D.groupFieldLabel(rowField);
+        const colLabel = D.groupFieldLabel(colField);
+
+        pivotHead.innerHTML = `<tr>
+            <th scope="col" class="totals-matrix-corner">${escapeHtml(rowLabel)} \\ ${escapeHtml(colLabel)}</th>
+            ${colValues.map(colVal =>
+                `<th scope="col" class="totals-matrix-col-head">${escapeHtml(displayGroupValue(colField, colVal))}</th>`
+            ).join('')}
+        </tr>`;
+
+        tableRowsCache = [];
+        pivotBody.innerHTML = rowValues.map((rowVal, rowIdx) => {
+            const cells = colValues.map((colVal, colIdx) => {
+                const lookup = matrixLookupValues(groupFields, rowField, rowVal, colField, colVal);
+                const row = findAggregatedRow(rows, groupFields, lookup);
+                const key = `${rowIdx}:${colIdx}`;
+                matrixCellCache.set(key, { row, metricId });
+                const val = row ? metricSpec.getValue(row) : 0;
+                const text = formatMatrixCellValue(val, metricId);
+                const zeroClass = val === 0 ? ' totals-matrix-cell--empty' : '';
+                const label = `${displayGroupValue(colField, colVal)} · ${metricSpec.label}`;
+                return `<td class="num drillable${zeroClass}" data-col-id="${metricId}" data-matrix-key="${key}" data-label="${escapeAttr(label)}" title="Filtrar detalle">${text}</td>`;
+            }).join('');
+            return `<tr data-matrix-row="${rowIdx}">
+                <th scope="row" class="totals-matrix-row-head">${escapeHtml(displayGroupValue(rowField, rowVal))}</th>
+                ${cells}
+            </tr>`;
+        }).join('');
+
+        const grandTotal = rows.reduce((sum, r) => sum + metricSpec.getValue(r), 0);
+
+        if (reportMode) {
+            pivotFoot.innerHTML = '';
+            if (totalsMatrixSummary) {
+                totalsMatrixSummary.innerHTML = `
+                    <div class="totals-matrix-summary-row">
+                        <span class="totals-matrix-summary-label">Total ${escapeHtml(metricSpec.label.toLowerCase())}</span>
+                        <span class="totals-matrix-summary-value">${formatNum(grandTotal)}</span>
+                    </div>`;
+                totalsMatrixSummary.classList.remove('hidden');
+            }
+        } else {
+            totalsMatrixSummary?.classList.add('hidden');
+            const colTotals = colValues.map(colVal =>
+                rows.filter(r => String(r.keys[colIdxKey]?.value ?? '—') === String(colVal)).reduce(
+                    (sum, r) => sum + metricSpec.getValue(r), 0
+                )
+            );
+            pivotFoot.innerHTML = `<tr>
+                <th scope="row" class="totals-matrix-row-head">Total</th>
+                ${colTotals.map(n => `<td class="num" data-label="${escapeAttr(metricSpec.label)}">${formatNum(n)}</td>`).join('')}
+            </tr>`;
+            pivotFoot.dataset.grandTotal = String(grandTotal);
+        }
+    }
+
     function renderTable(rows, groupFields) {
+        if (isTotalsReportMode() || (totalsViewMode === 'matrix' && canUseMatrixView(groupFields))) {
+            renderMatrixTable(rows, groupFields);
+            return;
+        }
+        totalsMatrixSummary?.classList.add('hidden');
+        matrixCellCache = new Map();
         tableColumns = buildTableColumns(groupFields);
         tableRowsCache = sortRows(rows, tableColumns);
         const sorted = tableRowsCache;
@@ -2570,6 +3014,372 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('')}</tr>`;
     }
 
+    function kpiDetailScopeMonth(metricKey) {
+        if (kpiMode === 'last') return kpisCache.lastRegisteredMonth || null;
+        if (kpiMode === 'max' && D.monthlySeriesForKpi) {
+            const series = D.monthlySeriesForKpi(flat.mensual, metricKey);
+            let bestMes = null;
+            let bestVal = -1;
+            for (const slot of series) {
+                if (slot.value >= bestVal) {
+                    bestVal = slot.value;
+                    bestMes = slot.mes;
+                }
+            }
+            return bestMes;
+        }
+        return null;
+    }
+
+    function kpiDetailScopeLabel(metricKey) {
+        const mes = kpiDetailScopeMonth(metricKey);
+        if (kpiMode === 'last' && mes) {
+            return `Último mes con informes: ${D.mesLabel(mes, 'completo')}`;
+        }
+        if (kpiMode === 'max' && mes) {
+            return `Mes del máximo: ${D.mesLabel(mes, 'completo')}`;
+        }
+        if (kpiMode === 'avg') {
+            return 'Valores del año (el indicador muestra el promedio mensual)';
+        }
+        return 'Año de servicio';
+    }
+
+    function lastParticipationByPerson(mensual) {
+        const order = new Map(D.S21_MESES.map((mes, i) => [mes, i]));
+        const last = new Map();
+        for (const row of mensual) {
+            if (!row.participacion) continue;
+            const pk = D.personKey(row);
+            const idx = order.get(row.mes) ?? -1;
+            const prev = last.get(pk);
+            if (!prev || idx >= (order.get(prev) ?? -1)) last.set(pk, row.mes);
+        }
+        return last;
+    }
+
+    function publisherMonthTotals(pub, mes) {
+        const key = D.personKey(pub);
+        if (mes) {
+            const row = flat.mensual.find(r => D.personKey(r) === key && r.mes === mes);
+            return {
+                horas: row?.horas || 0,
+                cursos: row?.cursos || 0,
+                participacion: row?.participacion ? 1 : 0,
+                precursor_auxiliar: row?.precursor_auxiliar ? 1 : 0,
+            };
+        }
+        return {
+            horas: pub.total_horas || 0,
+            cursos: pub.total_cursos || 0,
+            participacion: pub.meses_participacion || 0,
+            precursor_auxiliar: pub.meses_precursor_aux || 0,
+        };
+    }
+
+    function kpiDetailNameHtml(pub) {
+        const name = escapeHtml(pub.nombre || '—');
+        return `<span class="person-name">${Icons?.personNameInnerHtml(pub, name) || name}</span>`;
+    }
+
+    function kpiDetailPrivilegeYes(val) {
+        if (Icons?.isYes) return Icons.isYes(val);
+        const s = String(val ?? '').trim().toLowerCase();
+        return val === true || s === 'sí' || s === 'si' || s === 'yes' || s === 'true' || s === '1';
+    }
+
+    function kpiDetailIsUngido(pub) {
+        return /ungid/i.test(String(pub?.esperanza || ''));
+    }
+
+    function kpiDetailIsOtrasOvejas(pub) {
+        const e = String(pub?.esperanza || '');
+        return /otras/i.test(e) || /ovejas?/i.test(e);
+    }
+
+    function kpiDetailIsNoBautizado(pub) {
+        const baut = String(pub?.fecha_bautismo || '').trim();
+        if (!baut || baut === '—' || baut === '-') return true;
+        const blob = `${pub?.origen || ''} ${pub?.esperanza || ''}`;
+        return /no\s*bautiz/i.test(blob);
+    }
+
+    function kpiDetailWasAuxLastMonth(pub, auxKeys) {
+        return auxKeys.has(D.personKey(pub));
+    }
+
+    function kpiDetailAuxKeysLastMonth() {
+        const keys = new Set();
+        const mes = kpisCache.lastRegisteredMonth;
+        if (!mes) return keys;
+        for (const row of flat.mensual) {
+            if (row.mes === mes && row.precursor_auxiliar) keys.add(D.personKey(row));
+        }
+        return keys;
+    }
+
+    function publisherMatchesPrivilegeId(pub, id, auxKeys) {
+        if (!id) return true;
+        switch (id) {
+            case 'anciano':
+            case 'siervo_ministerial':
+            case 'precursor_regular':
+            case 'misionero':
+            case 'precursor_especial':
+                return kpiDetailPrivilegeYes(pub[id]);
+            case 'precursor_auxiliar':
+                return kpiDetailWasAuxLastMonth(pub, auxKeys);
+            case 'hombre': {
+                const sexo = String(pub.sexo || '').trim().toLowerCase();
+                return sexo === 'hombre' || sexo === 'masculino';
+            }
+            case 'mujer': {
+                const sexo = String(pub.sexo || '').trim().toLowerCase();
+                return sexo === 'mujer' || sexo === 'femenino';
+            }
+            case 'ungidos':
+                return kpiDetailIsUngido(pub);
+            case 'otras_ovejas':
+                return kpiDetailIsOtrasOvejas(pub);
+            case 'no_bautizado':
+                return kpiDetailIsNoBautizado(pub);
+            default:
+                return true;
+        }
+    }
+
+    function publisherMatchesKpiPrivilegeFilters(pub, auxKeys) {
+        return kpiDetailPrivilegeFilters.every(id => publisherMatchesPrivilegeId(pub, id, auxKeys));
+    }
+
+    function kpiPrivilegeFilterActive() {
+        return kpiDetailPrivilegeFilters.some(Boolean);
+    }
+
+    function kpiPrivilegeOptionsHtml(selectedId) {
+        const all = `<option value="">Todos</option>`;
+        return all + KPI_PRIVILEGE_OPTIONS.map(item => {
+            const sel = item.id === selectedId ? ' selected' : '';
+            return `<option value="${escapeAttr(item.id)}"${sel}>${escapeHtml(item.label)}</option>`;
+        }).join('');
+    }
+
+    function renderKpiDetailFilters() {
+        if (!kpiDetailFilters) return;
+        kpiDetailFilters.hidden = false;
+        kpiDetailFilters.innerHTML = `<span class="kpi-detail-filters-label">Privilegios</span>
+            <div class="kpi-detail-filter-row">
+                <label class="kpi-detail-filter-field">
+                    <span class="kpi-detail-filter-field-label">Filtro 1</span>
+                    <select data-kpi-privilege-slot="0" aria-label="Privilegio, filtro 1">${kpiPrivilegeOptionsHtml(kpiDetailPrivilegeFilters[0])}</select>
+                </label>
+                <label class="kpi-detail-filter-field">
+                    <span class="kpi-detail-filter-field-label">Filtro 2</span>
+                    <select data-kpi-privilege-slot="1" aria-label="Privilegio, filtro 2">${kpiPrivilegeOptionsHtml(kpiDetailPrivilegeFilters[1])}</select>
+                </label>
+            </div>`;
+    }
+
+    function refreshKpiDetailTable() {
+        if (!kpiDetailKey) return;
+        const detail = buildKpiDetail(kpiDetailKey);
+        if (kpiDetailLead) {
+            const n = detail.count;
+            const countLabel = `${n} publicador${n === 1 ? '' : 'es'}`;
+            kpiDetailLead.textContent = `${kpiDetailScopeLabel(kpiDetailKey)} · ${countLabel}`;
+        }
+        if (kpiDetailBody) {
+            const empty = kpiPrivilegeFilterActive() && !detail.rowsHtml
+                ? 'Ningún publicador coincide con la intersección de los filtros.'
+                : detail.empty;
+            kpiDetailBody.innerHTML = renderKpiDetailTable(detail.headers, detail.rowsHtml, empty);
+        }
+    }
+
+    function renderKpiDetailTable(headers, rowsHtml, emptyText) {
+        if (!rowsHtml) {
+            return `<p class="kpi-detail-empty">${escapeHtml(emptyText)}</p>`;
+        }
+        return `<div class="kpi-detail-table-wrap"><table class="kpi-detail-table">
+            <thead><tr>${headers.map(h =>
+                `<th${h.numeric ? ' class="num"' : ''} scope="col">${escapeHtml(h.label)}</th>`
+            ).join('')}</tr></thead>
+            <tbody>${rowsHtml}</tbody>
+        </table></div>`;
+    }
+
+    function sortKpiDetailRows(rows, numericKey) {
+        return [...rows].sort((a, b) => {
+            if (numericKey) {
+                const diff = (Number(b[numericKey]) || 0) - (Number(a[numericKey]) || 0);
+                if (diff) return diff;
+            }
+            const byName = String(a.nombre).localeCompare(String(b.nombre), 'es');
+            if (byName) return byName;
+            return String(a.origen || '').localeCompare(String(b.origen || ''), 'es');
+        });
+    }
+
+    function buildKpiDetail(metricKey) {
+        const auxKeys = kpiDetailAuxKeysLastMonth();
+        const pubs = D.sortPublishers(flat.publicadores || [])
+            .filter(pub => publisherMatchesKpiPrivilegeFilters(pub, auxKeys));
+        const mes = kpiDetailScopeMonth(metricKey);
+        const lastPart = metricKey === 'inactivos' ? lastParticipationByPerson(flat.mensual) : null;
+        const withTotals = pubs.map(pub => ({ pub, ...publisherMonthTotals(pub, mes) }));
+
+        if (metricKey === 'publicadores') {
+            const rows = sortKpiDetailRows(pubs.map(pub => ({
+                nombre: pub.nombre,
+                origen: pub.origen,
+                html: `<tr>
+                    <td>${kpiDetailNameHtml(pub)}</td>
+                    <td>${escapeHtml(displayPerfil(pub.origen))}</td>
+                </tr>`,
+            })));
+            return {
+                headers: [{ label: 'Nombre' }, { label: 'Perfil' }],
+                rowsHtml: rows.map(r => r.html).join(''),
+                count: rows.length,
+                empty: 'No hay publicadores.',
+            };
+        }
+
+        if (metricKey === 'horas' || metricKey === 'cursos') {
+            const field = metricKey;
+            const label = metricKey === 'horas' ? 'Horas' : 'Cursos';
+            const rows = sortKpiDetailRows(withTotals.map(({ pub, ...vals }) => ({
+                nombre: pub.nombre,
+                origen: pub.origen,
+                value: vals[field],
+                html: `<tr>
+                    <td>${kpiDetailNameHtml(pub)}</td>
+                    <td class="num">${formatNum(vals[field])}</td>
+                </tr>`,
+            })), 'value');
+            return {
+                headers: [{ label: 'Nombre' }, { label, numeric: true }],
+                rowsHtml: rows.map(r => r.html).join(''),
+                count: rows.length,
+                empty: 'No hay publicadores.',
+            };
+        }
+
+        if (metricKey === 'participacion') {
+            const rows = sortKpiDetailRows(withTotals.map(({ pub, participacion }) => {
+                const yes = mes ? participacion > 0 : participacion > 0;
+                return {
+                    nombre: pub.nombre,
+                    origen: pub.origen,
+                    value: yes ? 1 : 0,
+                    html: `<tr>
+                        <td>${kpiDetailNameHtml(pub)}</td>
+                        <td>${escapeHtml(displayPerfil(pub.origen))}</td>
+                        <td class="${yes ? 'kpi-detail-yes' : 'kpi-detail-no'}">${yes ? 'Sí' : 'No'}</td>
+                    </tr>`,
+                };
+            }), 'value');
+            return {
+                headers: [{ label: 'Nombre' }, { label: 'Perfil' }, { label: 'Participó' }],
+                rowsHtml: rows.map(r => r.html).join(''),
+                count: rows.length,
+                empty: 'No hay publicadores.',
+            };
+        }
+
+        if (metricKey === 'precursor_aux') {
+            const rows = sortKpiDetailRows(withTotals
+                .filter(item => item.precursor_auxiliar > 0)
+                .map(({ pub, precursor_auxiliar }) => ({
+                    nombre: pub.nombre,
+                    origen: pub.origen,
+                    value: precursor_auxiliar,
+                    html: mes
+                        ? `<tr><td>${kpiDetailNameHtml(pub)}</td></tr>`
+                        : `<tr>
+                            <td>${kpiDetailNameHtml(pub)}</td>
+                            <td class="num">${formatNum(precursor_auxiliar)}</td>
+                        </tr>`,
+                })), 'value');
+            return {
+                headers: mes
+                    ? [{ label: 'Nombre' }]
+                    : [{ label: 'Nombre' }, { label: 'Meses', numeric: true }],
+                rowsHtml: rows.map(r => r.html).join(''),
+                count: rows.length,
+                empty: 'Ningún publicador sirvió de precursor auxiliar en este periodo.',
+            };
+        }
+
+        if (metricKey === 'inactivos') {
+            const rows = sortKpiDetailRows(pubs
+                .filter(pub => D.isPerfilInactivo(pub.origen))
+                .map(pub => {
+                    const lastMes = lastPart.get(D.personKey(pub));
+                    return {
+                        nombre: pub.nombre,
+                        origen: pub.origen,
+                        html: `<tr>
+                            <td>${kpiDetailNameHtml(pub)}</td>
+                            <td>${lastMes ? escapeHtml(D.mesLabel(lastMes, 'completo')) : 'Sin participación'}</td>
+                        </tr>`,
+                    };
+                }));
+            return {
+                headers: [{ label: 'Nombre' }, { label: 'Último mes' }],
+                rowsHtml: rows.map(r => r.html).join(''),
+                count: rows.length,
+                empty: 'No hay publicadores inactivos.',
+            };
+        }
+
+        return { headers: [], rowsHtml: '', count: 0, empty: 'Sin detalle.' };
+    }
+
+    function bindKpiDetailModal() {
+        kpiGrid?.addEventListener('click', e => {
+            const card = e.target.closest('[data-kpi-key]');
+            if (!card || !kpiGrid.contains(card)) return;
+            openKpiDetail(card.dataset.kpiKey);
+        });
+        kpiDetailModal?.querySelectorAll('[data-kpi-detail-close]').forEach(el => {
+            el.addEventListener('click', closeKpiDetail);
+        });
+        kpiDetailFilters?.addEventListener('change', e => {
+            const sel = e.target.closest('[data-kpi-privilege-slot]');
+            if (!sel || !kpiDetailFilters.contains(sel)) return;
+            const slot = Number(sel.dataset.kpiPrivilegeSlot);
+            if (slot !== 0 && slot !== 1) return;
+            kpiDetailPrivilegeFilters[slot] = sel.value || '';
+            refreshKpiDetailTable();
+        });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && kpiDetailModal?.classList.contains('is-open')) {
+                closeKpiDetail();
+            }
+        });
+    }
+
+    function closeKpiDetail() {
+        kpiDetailKey = '';
+        kpiDetailPrivilegeFilters = ['', ''];
+        if (kpiDetailFilters) {
+            kpiDetailFilters.innerHTML = '';
+            kpiDetailFilters.hidden = true;
+        }
+        window.S21Motion?.setOpen(kpiDetailModal, false, { from: 'scale' });
+    }
+
+    function openKpiDetail(metricKey) {
+        const item = KPI_ITEMS.find(k => k.key === metricKey);
+        if (!item || !flat.publicadores?.length) return;
+        kpiDetailKey = metricKey;
+        if (kpiDetailTitle) kpiDetailTitle.textContent = item.label;
+        renderKpiDetailFilters();
+        refreshKpiDetailTable();
+        window.S21Motion?.setOpen(kpiDetailModal, true, { from: 'scale' });
+    }
+
     function setKpiMode(mode) {
         if (!['total', 'max', 'avg', 'last'].includes(mode) || mode === kpiMode) return;
         kpiMode = mode;
@@ -2579,6 +3389,9 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.setAttribute('aria-selected', active ? 'true' : 'false');
         });
         renderKpis(kpisCache);
+        if (kpiDetailKey && kpiDetailModal?.classList.contains('is-open')) {
+            refreshKpiDetailTable();
+        }
     }
 
     function renderKpis(kpis) {
@@ -2604,22 +3417,25 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 valueHtml = formatNum(m.total);
             }
-            return `<div class="kpi-card kpi-card--${key}">
+            return `<button type="button" class="kpi-card kpi-card--${key}" data-kpi-key="${escapeAttr(key)}" aria-haspopup="dialog" aria-controls="kpi-detail-modal" title="Ver detalle">
                 <span class="kpi-card-icon" aria-hidden="true">${Icons?.metricIcon(key) || ''}</span>
                 <span class="kpi-value">${valueHtml}</span>
                 <span class="kpi-label">${label}</span>
                 ${hint ? `<span class="kpi-hint">${escapeHtml(hint)}</span>` : ''}
-            </div>`;
+            </button>`;
         }).join('');
     }
 
     function renderCharts(aggRows, filteredMensual, metricId, groupFields) {
-        const fields = groupFields || [];
+        const dims = getTotalsDimensions();
+        const fields = dims.fields.length ? dims.fields : (groupFields || []);
         const onlyMes = fields.length === 1 && fields[0] === 'mes';
         const hideBar = onlyMes;
+        const reportMode = isTotalsReportMode();
 
         if (chartBarCard) chartBarCard.classList.toggle('hidden', hideBar);
-        if (chartGrid) chartGrid.classList.toggle('single-chart', hideBar);
+        if (chartLineCard) chartLineCard.classList.toggle('hidden', reportMode);
+        if (chartGrid) chartGrid.classList.toggle('single-chart', hideBar || reportMode);
 
         const mensualByProfileScoped = filterMensualForCharts(filteredMensual);
         const mensualForBar = D.filterMensualByExcludedMonths(mensualByProfileScoped, chartExcludeMonths);
@@ -2646,42 +3462,36 @@ document.addEventListener('DOMContentLoaded', () => {
         destroyCharts();
 
         if (!hideBar) {
-            const sorted = D.sortRowsForBarChart(barRows, fields, metricId);
-            const top = sorted.slice(0, 16);
-            chartBarRowsCache = top;
-            const barLabels = top.map(r => formatAggRowLabel(r));
-            const barData = top.map(r => D.chartMetricValue(r, metricId));
+            const aggFields = groupFields || getTotalsGroupFields();
+            const barChartData = buildGroupedBarChartData(barRows, fields, metricId, aggFields);
+            chartBarClickContext = barChartData;
+            chartBarRowsCache = barChartData.mode === 'simple' ? barChartData.clickRows : [];
+            const stacked = barChartData.mode === 'stacked';
 
             if (chartBarTitle) {
+                const titleFields = stacked ? [fields[0]] : fields;
+                const subgroupHint = stacked
+                    ? chartTitleNoteHtml(D.groupFieldLabel(fields[1]))
+                    : '';
                 setChartTitle(
                     chartBarTitle,
-                    escapeHtml(chartBarTitleText(metricId, fields)),
+                    escapeHtml(chartBarTitleText(metricId, titleFields)),
                     chartScopeHintHtml(),
-                    excludeHint
+                    excludeHint + subgroupHint
                 );
             }
 
             barChart = new Chart(document.getElementById('chart-bar'), {
                 type: 'bar',
                 data: {
-                    labels: barLabels,
-                    datasets: [{
-                        label: chartLabel,
-                        data: barData,
-                        backgroundColor: chartPalette().barBg,
-                        borderColor: chartPalette().barBorder,
-                        borderWidth: 1,
-                        borderRadius: 4,
-                    }],
+                    labels: barChartData.labels,
+                    datasets: barChartData.datasets,
                 },
                 options: {
-                    ...chartBarOptions(metricId),
-                    onClick: (_evt, elements) => {
-                        if (!elements.length) return;
-                        const row = chartBarRowsCache[elements[0].index];
-                        if (row) applyDetailFilterFromBar(row);
-                    },
+                    ...chartBarOptions(metricId, stacked),
+                    onClick: (_evt, elements) => handleBarChartClick(elements),
                 },
+                plugins: stacked ? [createStackTotalsPlugin(metricId)] : [],
             });
             refreshChartScrollWidths();
             requestAnimationFrame(refreshChartScrollWidths);
@@ -2811,19 +3621,83 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${ctx.dataset.label}: ${Math.round(v).toLocaleString('es')}`;
     }
 
-    function chartBarOptions(metricId) {
-        const horizontal = prefersHorizontalBarChart();
+    function chartBarOptions(metricId, stacked = false) {
+        const horizontal = prefersHorizontalBarChart({ stacked });
         const base = chartOptions(metricId);
         const c = chartPalette();
-        if (!horizontal) return base;
+        const multi = stacked;
+        const interaction = {
+            mode: multi ? 'index' : 'nearest',
+            axis: horizontal ? 'y' : 'x',
+            intersect: false,
+        };
+        const legendPlugin = multi ? {
+            display: true,
+            position: 'bottom',
+            labels: {
+                boxWidth: 10,
+                boxHeight: 10,
+                color: c.tick,
+                font: { size: 10 },
+                padding: 12,
+            },
+        } : { display: false };
+        const barLayout = {
+            categoryPercentage: stacked ? 0.62 : 0.82,
+            barPercentage: stacked ? 0.88 : 0.88,
+        };
+        const stackPatch = stacked ? { stacked: true } : {};
+
+        if (!horizontal) {
+            return {
+                ...base,
+                interaction,
+                datasets: { bar: barLayout },
+                layout: stacked ? { padding: { top: 22 } } : undefined,
+                plugins: {
+                    ...base.plugins,
+                    legend: legendPlugin,
+                    tooltip: multi ? {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label(ctx) {
+                                return chartValueTooltipLabel(ctx, metricId);
+                            },
+                        },
+                    } : base.plugins.tooltip,
+                },
+                scales: {
+                    x: {
+                        ...base.scales.x,
+                        ...stackPatch,
+                        ticks: {
+                            ...base.scales.x.ticks,
+                            maxRotation: 0,
+                            autoSkip: false,
+                        },
+                    },
+                    y: {
+                        ...base.scales.y,
+                        ...stackPatch,
+                    },
+                },
+            };
+        }
+
         const spec = D.S21_CHART_METRICS.find(m => m.id === metricId);
         const isCount = spec?.aggregation === 'count';
         return {
             ...base,
             indexAxis: 'y',
+            interaction,
+            datasets: { bar: barLayout },
             plugins: {
                 ...base.plugins,
+                legend: legendPlugin,
                 tooltip: {
+                    mode: multi ? 'index' : 'nearest',
+                    intersect: false,
                     callbacks: {
                         label(ctx) {
                             return chartValueTooltipLabel(ctx, metricId);
@@ -2834,6 +3708,7 @@ document.addEventListener('DOMContentLoaded', () => {
             scales: {
                 x: {
                     beginAtZero: true,
+                    stacked,
                     ticks: {
                         color: c.tick,
                         font: { size: 10 },
@@ -2842,6 +3717,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     grid: { color: c.grid },
                 },
                 y: {
+                    stacked,
                     ticks: { color: c.tick, font: { size: 10 }, autoSkip: false },
                     grid: { display: false },
                 },
@@ -2852,6 +3728,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function chartOptions(metricId) {
         const spec = D.S21_CHART_METRICS.find(m => m.id === metricId);
         const isAvg = spec?.aggregation === 'avg';
+        const interaction = {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false,
+        };
         const isCount = spec?.aggregation === 'count';
         const c = chartPalette();
         return {
@@ -2860,6 +3741,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resizeDelay: 0,
             animation: { duration: 400 },
             transitions: { resize: { animation: { duration: 0 } } },
+            interaction,
             plugins: {
                 legend: { display: false },
                 tooltip: {

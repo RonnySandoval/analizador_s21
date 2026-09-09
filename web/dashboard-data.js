@@ -45,6 +45,44 @@ const S21_GROUP_FIELDS = [
     { id: 'mes', label: 'Mes' },
 ];
 
+/** Campos disponibles en TOTALES (agrupar / subagrupar). */
+const S21_TOTALS_GROUP_FIELDS = [
+    { id: 'origen', label: 'Perfil' },
+    { id: 'grupo', label: 'Grupos' },
+    { id: 'sexo', label: 'Sexo' },
+    { id: 'esperanza', label: 'Esperanza' },
+    { id: 'mes', label: 'Mes' },
+];
+
+function groupFieldLabel(fieldId) {
+    return S21_TOTALS_GROUP_FIELDS.find(g => g.id === fieldId)?.label
+        || S21_GROUP_FIELDS.find(g => g.id === fieldId)?.label
+        || fieldId;
+}
+
+function sortGroupValues(fieldId, values) {
+    const list = [...new Set(values.filter(v => v != null && v !== ''))];
+    if (fieldId === 'mes') {
+        return list.sort((a, b) => {
+            const ia = S21_MESES.indexOf(a);
+            const ib = S21_MESES.indexOf(b);
+            if (ia >= 0 && ib >= 0) return ia - ib;
+            return String(a).localeCompare(String(b), 'es');
+        });
+    }
+    if (fieldId === 'grupo') {
+        return list.sort((a, b) => {
+            const na = Number(a);
+            const nb = Number(b);
+            if (!Number.isNaN(na) && !Number.isNaN(nb) && String(a) === String(na) && String(b) === String(nb)) {
+                return na - nb;
+            }
+            return String(a).localeCompare(String(b), 'es', { numeric: true });
+        });
+    }
+    return list.sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true }));
+}
+
 const S21_CHART_METRICS = [
     { id: 'horas', label: 'Horas', aggregation: 'sum' },
     { id: 'cursos', label: 'Cursos bíblicos', aggregation: 'avg' },
@@ -957,6 +995,9 @@ window.S21DashboardData = {
     S21_MESES_LABEL,
     mesLabel,
     S21_GROUP_FIELDS,
+    S21_TOTALS_GROUP_FIELDS,
+    groupFieldLabel,
+    sortGroupValues,
     S21_CHART_METRICS,
     parseJsonPackage,
     isPerfilInactivo,
@@ -982,6 +1023,7 @@ window.S21DashboardData = {
     chartMetricLabel,
     sortRowsForBarChart,
     computeKpis,
+    monthlySeriesForKpi,
     findLastRegisteredMonth,
     aggregatedToCsv,
     personKey,
