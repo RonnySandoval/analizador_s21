@@ -179,7 +179,6 @@
         $('btn-wizard-json-year-confirm')?.addEventListener('click', confirmJsonYearLoad);
 
         $('btn-new-load')?.addEventListener('click', () => {
-            callbacks.onClear?.();
             resetAll();
             showWizard();
         });
@@ -915,6 +914,27 @@
         await ingestLocalPackages(packages);
     }
 
+    async function packagesFromFiles(fileList) {
+        const selected = Array.from(fileList || []);
+        const allEntries = [];
+        const errors = [];
+        for (const file of selected) {
+            try {
+                const entries = await extractJsonEntriesFromFile(file);
+                if (!entries.length) {
+                    errors.push(`${file.name}: no contenía JSON (.json o .txt)`);
+                    continue;
+                }
+                allEntries.push(...entries);
+            } catch (e) {
+                errors.push(`${file.name}: ${e.message}`);
+            }
+        }
+        const parsed = packagesFromEntries(allEntries);
+        errors.push(...parsed.errors);
+        return { packages: parsed.packages, errors };
+    }
+
     async function onJsonSourcesNext() {
         const rutas = [...selectedJsonRutas];
         if (!rutas.length) {
@@ -1048,8 +1068,8 @@
             els.runStatus.classList.remove('warn');
         }
 
-        callbacks.onPackagesLoaded?.(packages, { label, folderLabel, añoMeta });
-        showLoaded();
+        const keepLoaded = await callbacks.onPackagesLoaded?.(packages, { label, folderLabel, añoMeta });
+        if (keepLoaded !== false) showLoaded();
     }
 
     function escapeHtml(str) {
@@ -1065,5 +1085,6 @@
         showWizard,
         showLoaded,
         resetAll,
+        packagesFromFiles,
     };
 })();

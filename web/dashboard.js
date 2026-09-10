@@ -241,7 +241,27 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             onAllDatasetsCleared: () => clearAll(false),
             onClearAll: alsoGrupos => clearAll(alsoGrupos),
+            hasActiveLoad: () => packages.length > 0,
+            getActivePackages: () => packages,
+            onUpdateApplied: async (mergedPackages, meta) => {
+                await applyPackages(mergedPackages, meta);
+                if (Storage?.isAvailable()) {
+                    await Datos.persistSave('replace', mergedPackages, meta);
+                }
+                setLoadStatus('Carga actualizada. El detalle queda en el informe.', false);
+            },
         });
+    }
+
+    async function getPackagesForComparison() {
+        if (packages.length) return packages;
+        if (!Storage?.isAvailable()) return [];
+        try {
+            const active = await Storage.getActiveDataset();
+            return active?.packages?.length ? active.packages : [];
+        } catch {
+            return [];
+        }
     }
 
     async function applyPackages(loadedPackages, meta, options = {}) {
@@ -273,17 +293,20 @@ document.addEventListener('DOMContentLoaded', () => {
             onPackagesLoaded: async (loadedPackages, meta) => {
                 if (!Datos) {
                     await applyPackages(loadedPackages, meta);
-                    return;
+                    return true;
+                }
+                const current = await getPackagesForComparison();
+                if (current.length) {
+                    const review = await Datos.promptIncomingReview(loadedPackages, meta, current);
+                    if (review === 'update') return true;
+                    if (review !== 'new') return true;
                 }
                 const action = await Datos.promptSaveAction(loadedPackages, meta);
-                if (!action) return;
+                if (!action) return packages.length > 0;
                 await applyPackages(loadedPackages, meta);
-                await Datos.persistSave(action, loadedPackages, meta);
+                await Datos.persistSave(action, loadedPackages, { ...meta, lastUpdateReport: null });
                 Datos.closePanel();
-            },
-            onClear: () => {
-                packages = [];
-                currentFuente = '';
+                return true;
             },
             setLoadStatus,
         });
@@ -654,6 +677,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return D.filterRowsByOrigenes(flat.publicadores, getChartIncludedOrigenes());
     }
 
+    function syncPublisherOrigenFiltersFromChart(row) {
+        const allOrigenes = D.uniqueValues(flat.mensual, 'origen');
+        if (!allOrigenes.length) return;
+
+        const included = getChartIncludedOrigenes();
+        const includedList = allOrigenes.filter(o => included.has(o));
+        const clickHasOrigen = Boolean(row?.keys?.some(k => k.field === 'origen'));
+
+        if (!includedList.length) {
+            filters.origen = [];
+            return;
+        }
+
+        if (clickHasOrigen) {
+            if (!filters.origen) filters.origen = [];
+            filters.origen = filters.origen.filter(o => included.has(o));
+            return;
+        }
+
+        if (includedList.length < allOrigenes.length) {
+            filters.origen = includedList;
+        }
+    }
+
     function renderChartProfileToggles() {
         if (!chartProfileToggles || !chartProfileTogglesWrap) return;
         const origenes = D.uniqueValues(flat.mensual, 'origen');
@@ -907,6 +954,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         filterMode = 'include';
+        if (source === 'grafico') {
+            syncPublisherOrigenFiltersFromChart(row);
+        }
         syncFilterModeUI();
         renderFilters();
         updateDetailFilterBanner();
@@ -949,6 +999,10 @@ document.addEventListener('DOMContentLoaded', () => {
             sourceLabel: `Gráfico · ${D.mesLabel(point.mes, 'completo')} · ${D.chartMetricLabel(chartMetric)}`,
             detailMetric: D.detailMetricFromDrillSource(chartMetric),
         };
+        filterMode = 'include';
+        syncPublisherOrigenFiltersFromChart(null);
+        syncFilterModeUI();
+        renderFilters();
         updateDetailFilterBanner();
         selectedPublisherKey = '';
         expandFiltersPanel();

@@ -5110,11 +5110,101 @@ body.dashboard-layout-single .dashboard-accordion[data-accordion-id].motion-root
     min-width: 0;
 }
 
-.datos-section-lead {
-    margin: -0.15rem 0 0.65rem;
-    font-size: 0.78rem;
+#settings-panel-datos {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.datos-accordion {
+    border: 1px solid var(--surface-border-light);
+    border-radius: 10px;
+    background: var(--surface-elevated);
+}
+
+.datos-accordion > .datos-accordion-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0.3rem 0.75rem;
+    cursor: pointer;
+    list-style: none;
+    font-weight: 600;
+}
+
+.datos-accordion > .datos-accordion-summary::-webkit-details-marker,
+.datos-accordion > .datos-accordion-summary::marker {
+    display: none;
+    content: '';
+}
+
+.datos-accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--text-main);
+    min-width: 0;
+}
+
+.datos-accordion-title::before {
+    content: '';
+    width: 0.4rem;
+    height: 0.4rem;
+    border-right: 2px solid var(--text-muted);
+    border-bottom: 2px solid var(--text-muted);
+    transform: rotate(-45deg);
+    flex-shrink: 0;
+}
+
+.datos-accordion[open] > .datos-accordion-summary .datos-accordion-title::before {
+    transform: rotate(45deg);
+}
+
+.datos-accordion-badge {
+    flex-shrink: 0;
+    max-width: 58%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    font-size: 0.75rem;
     color: var(--text-muted);
-    line-height: 1.4;
+    background: var(--surface-pill);
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+}
+
+.datos-accordion.has-report > .datos-accordion-summary .datos-accordion-badge {
+    color: var(--text-main);
+}
+
+.datos-accordion-body {
+    padding: 0.15rem 0.75rem 0.75rem;
+    border-top: 1px solid var(--surface-border-subtle);
+}
+
+.datos-accordion-actions {
+    justify-content: flex-start;
+    margin: 0.45rem 0 0.35rem;
+}
+
+.datos-accordion-empty {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.datos-help-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-top: 0.55rem;
+}
+
+.datos-help-stack .datos-help {
+    margin: 0;
 }
 
 .load-status--global {
@@ -5214,6 +5304,124 @@ body.dashboard-layout-single .dashboard-accordion[data-accordion-id].motion-root
 
 .datos-section-head .datos-section-title {
     margin: 0;
+}
+
+.datos-section-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: flex-end;
+}
+
+.load-loaded-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.65rem;
+}
+
+.datos-modal-card.datos-update-card {
+    width: min(100%, 36rem);
+    max-height: min(92vh, 44rem);
+    display: flex;
+    flex-direction: column;
+}
+
+.datos-update-body {
+    min-height: 0;
+    overflow: auto;
+    max-height: min(65vh, 32rem);
+}
+
+.datos-update-report,
+.datos-update-report-saved {
+    font-size: 0.85rem;
+}
+
+.datos-update-report-saved {
+    max-height: min(40vh, 22rem);
+    overflow: auto;
+    padding: 0.2rem 0.05rem 0.15rem;
+}
+
+.datos-update-lead {
+    margin: 0 0 0.55rem;
+}
+
+.datos-update-section {
+    margin-top: 0.7rem;
+}
+
+.datos-update-section-title {
+    margin: 0.15rem 0 0.35rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-main);
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.datos-update-summary,
+.datos-update-list {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.datos-update-summary li,
+.datos-update-list li {
+    margin: 0.18rem 0;
+}
+
+.datos-update-person {
+    margin: 0.4rem 0 0.5rem;
+}
+
+.datos-update-person strong {
+    font-weight: 600;
+}
+
+.datos-update-person ul {
+    margin: 0.15rem 0 0;
+    padding-left: 1.1rem;
+}
+
+.datos-update-more {
+    color: var(--text-muted);
+}
+
+.datos-update-pre {
+    margin: 0;
+    white-space: pre-wrap;
+    font-family: inherit;
+    font-size: 0.78rem;
+}
+
+.datos-update-details {
+    margin: 0.45rem 0 0;
+    border: 1px solid var(--surface-border-subtle);
+    border-radius: 8px;
+    background: var(--surface-muted);
+    padding: 0.2rem 0.55rem 0.35rem;
+}
+
+.datos-update-details summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+.datos-update-details ul {
+    margin: 0 0 0.35rem;
+    padding-left: 1.1rem;
+    font-size: 0.78rem;
+    color: var(--text-main);
+}
+
+.datos-update-details li {
+    margin: 0.15rem 0;
 }
 
 .datos-muted {
@@ -5332,6 +5540,9 @@ body.dashboard-layout-single .dashboard-accordion[data-accordion-id].motion-root
 .datos-help summary {
     cursor: pointer;
     font-weight: 600;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
 }
 
 .datos-help p {

@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="style.css?v=5">
     <link rel="stylesheet" href="theme-cyber.css?v=3">
     <link rel="stylesheet" href="theme-light.css?v=6">
-    <link rel="stylesheet" href="dashboard.css?v=98">
+    <link rel="stylesheet" href="dashboard.css?v=101">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -356,16 +356,39 @@
             <div class="datos-panel-body">
                 <div class="settings-tab-stage">
                 <div id="settings-panel-datos" class="settings-tab-panel motion-root is-open" role="tabpanel" aria-labelledby="settings-tab-datos">
-                <section class="datos-section">
-                    <div class="datos-section-head">
-                        <h3 class="datos-section-title">Cargas guardadas</h3>
-                        <button type="button" id="btn-datos-new-load" class="btn-secondary btn-compact">+ Nueva carga</button>
+                <details id="datos-update-report-wrap" class="datos-accordion">
+                    <summary class="datos-accordion-summary">
+                        <span class="datos-accordion-title">Control de cambios</span>
+                        <span id="datos-update-report-badge" class="datos-accordion-badge">Sin informe</span>
+                    </summary>
+                    <div class="datos-accordion-body">
+                        <div class="datos-section-actions datos-accordion-actions">
+                            <button type="button" id="btn-datos-update" class="btn-secondary btn-compact">Actualizar</button>
+                            <button type="button" id="btn-datos-copy-report" class="btn-ghost btn-compact">Copiar</button>
+                        </div>
+                        <p id="datos-update-report-empty" class="datos-accordion-empty">Tras analizar o actualizar, el detalle numerado queda aquí.</p>
+                        <div id="datos-update-report" class="datos-update-report-saved"></div>
                     </div>
-                    <p id="dataset-duplicate-hint" class="dataset-duplicate-hint hidden"></p>
-                    <div id="dataset-history-list" class="dataset-history-list"></div>
-                </section>
+                </details>
 
-                <section id="datos-wizard-wrap" class="datos-section">
+                <details id="datos-history-wrap" class="datos-accordion" open>
+                    <summary class="datos-accordion-summary">
+                        <span class="datos-accordion-title">Cargas guardadas</span>
+                    </summary>
+                    <div class="datos-accordion-body">
+                        <div class="datos-section-actions datos-accordion-actions">
+                            <button type="button" id="btn-datos-new-load" class="btn-secondary btn-compact">+ Nueva carga</button>
+                        </div>
+                        <p id="dataset-duplicate-hint" class="dataset-duplicate-hint hidden"></p>
+                        <div id="dataset-history-list" class="dataset-history-list"></div>
+                    </div>
+                </details>
+
+                <details id="datos-wizard-wrap" class="datos-accordion" open>
+                    <summary class="datos-accordion-summary">
+                        <span class="datos-accordion-title">Cargar datos</span>
+                    </summary>
+                    <div class="datos-accordion-body">
                     <div class="wizard-shell">
                     <div id="load-wizard" class="load-wizard motion-root is-open">
                         <div class="wizard-viewport">
@@ -520,19 +543,34 @@
                                 <button type="button" id="btn-reset-perfil-aliases" class="btn-ghost btn-compact">Restaurar</button>
                             </div>
                             <ul id="file-list" class="file-list"></ul>
-                            <button type="button" id="btn-new-load" class="btn-secondary btn-compact">Otra carga</button>
+                            <div class="load-loaded-actions">
+                                <button type="button" id="btn-loaded-update" class="btn-primary btn-compact">Actualizar</button>
+                                <button type="button" id="btn-new-load" class="btn-secondary btn-compact">Otra carga</button>
+                            </div>
                         </div>
                     </div>
                     </div>
-                </section>
-
-                <details class="datos-help">
-                    <summary>Cargar JSON en móvil (WhatsApp)</summary>
-                    <p>No abra con Word. Envíe un <strong>.zip</strong> desde el PC o renombre a <strong>.txt</strong>. Guarde el adjunto sin abrir → Abrir archivos aquí.</p>
+                    </div>
                 </details>
-                <details class="datos-help">
-                    <summary>Servidor local vs móvil</summary>
-                    <p>Analizar PDF requiere el servidor en PC. En móvil/GitHub Pages solo cargue JSON ya exportados. Los datos quedan en este dispositivo.</p>
+
+                <details class="datos-accordion">
+                    <summary class="datos-accordion-summary">
+                        <span class="datos-accordion-title">Ayuda</span>
+                    </summary>
+                    <div class="datos-accordion-body datos-help-stack">
+                        <details class="datos-help">
+                            <summary>Actualizar un JSON ya analizado</summary>
+                            <p>Tras analizar de nuevo o usar <strong>Actualizar</strong>, aparece un informe numerado. Queda en <strong>Control de cambios</strong>. El archivo debe cubrir el perfil completo que desea sincronizar.</p>
+                        </details>
+                        <details class="datos-help">
+                            <summary>Cargar JSON en móvil (WhatsApp)</summary>
+                            <p>No abra con Word. Envíe un <strong>.zip</strong> desde el PC o renombre a <strong>.txt</strong>. Guarde el adjunto sin abrir → Abrir archivos aquí.</p>
+                        </details>
+                        <details class="datos-help">
+                            <summary>Servidor local vs móvil</summary>
+                            <p>Analizar PDF requiere el servidor en PC. En móvil/GitHub Pages solo cargue JSON ya exportados. Los datos quedan en este dispositivo.</p>
+                        </details>
+                    </div>
                 </details>
 
                 <p class="datos-clear-wrap">
@@ -561,6 +599,22 @@
                 </section>
                 </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="datos-update-file" accept=".json,.txt,.zip,application/json,application/zip,text/plain,*/*" multiple hidden>
+
+    <div id="datos-update-modal" class="datos-modal motion-root hidden" role="dialog" aria-modal="true" aria-labelledby="datos-update-title" hidden>
+        <div class="datos-modal-backdrop motion-backdrop" data-datos-update-close tabindex="-1"></div>
+        <div class="datos-modal-card motion-card datos-update-card">
+            <h3 id="datos-update-title" class="datos-modal-title">Actualizar carga</h3>
+            <div id="datos-update-modal-body" class="datos-modal-body datos-update-body"></div>
+            <div class="datos-modal-actions">
+                <button type="button" id="datos-update-copy" class="btn-ghost">Copiar informe</button>
+                <button type="button" id="datos-update-cancel" class="btn-ghost" data-datos-update-close>Cancelar</button>
+                <button type="button" id="datos-update-as-new" class="btn-secondary hidden" hidden>Nueva carga</button>
+                <button type="button" id="datos-update-confirm" class="btn-primary">Aplicar actualización</button>
             </div>
         </div>
     </div>
@@ -659,12 +713,13 @@
     <script src="dashboard-motion.js?v=1"></script>
     <script src="pwa.js?v=2"></script>
     <script src="dashboard-text-match.js?v=1"></script>
-    <script src="dashboard-data.js?v=32"></script>
+    <script src="dashboard-data.js?v=33"></script>
     <script src="dashboard-icons.js?v=5"></script>
     <script src="dashboard-storage.js?v=2"></script>
-    <script src="dashboard-datos.js?v=8"></script>
+    <script src="dashboard-update.js?v=2"></script>
+    <script src="dashboard-datos.js?v=12"></script>
     <script src="dashboard-grupos.js?v=22"></script>
-    <script src="dashboard-wizard.js?v=6"></script>
-    <script src="dashboard.js?v=102"></script>
+    <script src="dashboard-wizard.js?v=9"></script>
+    <script src="dashboard.js?v=106"></script>
 </body>
 </html>

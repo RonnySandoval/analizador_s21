@@ -181,8 +181,20 @@
         $('datos-panel-backdrop')?.addEventListener('click', closePanel);
 
         $('btn-datos-new-load')?.addEventListener('click', () => {
+            const wrap = $('datos-wizard-wrap');
+            if (wrap) wrap.open = true;
             window.S21DashboardWizard?.showWizard();
-            $('datos-wizard-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            wrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        $('btn-datos-update')?.addEventListener('click', () => startUpdatePick());
+        $('btn-loaded-update')?.addEventListener('click', () => startUpdatePick());
+        $('datos-update-file')?.addEventListener('change', onUpdateFileChosen);
+        $('datos-update-confirm')?.addEventListener('click', confirmUpdate);
+        $('datos-update-as-new')?.addEventListener('click', chooseUpdateAsNew);
+        $('datos-update-copy')?.addEventListener('click', () => copyReportText(pendingUpdate?.report?.text || lastShownReportText, $('datos-update-copy')));
+        $('btn-datos-copy-report')?.addEventListener('click', () => copyReportText(lastShownReportText, $('btn-datos-copy-report')));
+        document.querySelectorAll('[data-datos-update-close]').forEach(el => {
+            el.addEventListener('click', () => closeUpdateModal());
         });
 
         $('btn-datos-clear-link')?.addEventListener('click', () => openClearModal());
@@ -196,7 +208,8 @@
 
         document.addEventListener('keydown', e => {
             if (e.key !== 'Escape') return;
-            if (overlayVisible($('datos-save-modal'))) closeSaveModal(null);
+            if (overlayVisible($('datos-update-modal'))) closeUpdateModal();
+            else if (overlayVisible($('datos-save-modal'))) closeSaveModal(null);
             else if (overlayVisible($('datos-clear-modal'))) closeClearModal(false);
             else if (overlayVisible($('datos-panel'))) closePanel();
         });
@@ -225,6 +238,7 @@
 
         if (!datasets.length) {
             listEl.innerHTML = '<p class="datos-muted">Sin cargas guardadas. Use «Nueva carga» para añadir JSON.</p>';
+            await renderLastUpdateReport();
             return;
         }
 
@@ -263,6 +277,7 @@
                 deleteDatasetById(btn.dataset.id);
             });
         });
+        await renderLastUpdateReport();
     }
 
     function findInternalDuplicates(datasets) {
@@ -369,7 +384,7 @@
         });
     }
 
-    async function persistSave(action, packages, meta) {
+    async function persistSave(action, packages, meta = {}) {
         const activeId = await Storage.getActiveDatasetId();
         let dataset;
 
@@ -379,8 +394,12 @@
             dataset.name = meta.name || existing?.name || dataset.name;
             dataset.persistGrupos = existing?.persistGrupos ?? false;
             dataset.gruposConfig = existing?.persistGrupos ? (existing.gruposConfig || null) : null;
+            dataset.lastUpdateReport = meta.lastUpdateReport !== undefined
+                ? meta.lastUpdateReport
+                : (existing?.lastUpdateReport || null);
         } else {
             dataset = buildDatasetFromPackages(packages, meta);
+            dataset.lastUpdateReport = meta.lastUpdateReport || null;
         }
 
         await Storage.putDataset(dataset);
@@ -411,6 +430,263 @@
         const alsoGrupos = $('datos-clear-grupos')?.checked;
         closeClearModal();
         callbacks.onClearAll?.(alsoGrupos);
+    }
+
+    let pendingUpdate = null;
+    let pendingReviewResolve = null;
+    let lastShownReportText = '';
+
+    function setElHidden(el, hide) {
+        if (!el) return;
+        el.classList.toggle('hidden', hide);
+        el.hidden = hide;
+    }
+
+    function startUpdatePick() {
+        const hasActive = callbacks.hasActiveLoad?.();
+        if (!hasActive) {
+            alert('Abra o cargue una carga antes de actualizar.');
+            return;
+        }
+        const input = $('datos-update-file');
+        if (input) {
+            input.value = '';
+            input.click();
+        }
+    }
+
+    async function onUpdateFileChosen(event) {
+        const input = event.currentTarget;
+        const files = Array.from(input?.files || []);
+        if (input) input.value = '';
+        if (!files.length) return;
+        await runUpdateFromFiles(files);
+    }
+
+    async function copyReportText(text, btn) {
+        const value = String(text || '').trim();
+        if (!value) return;
+        let ok = false;
+        try {
+            await navigator.clipboard.writeText(value);
+            ok = true;
+        } catch {
+            const ta = document.createElement('textarea');
+            ta.value = value;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            ok = document.execCommand('copy');
+            ta.remove();
+        }
+        if (!btn) return;
+        const prev = btn.textContent;
+        btn.textContent = ok ? 'Copiado' : 'No se pudo copiar';
+        window.setTimeout(() => {
+            if (btn.textContent === 'Copiado' || btn.textContent === 'No se pudo copiar') {
+                btn.textContent = prev;
+            }
+        }, 1600);
+    }
+
+    function setUpdateModalChrome({ phase, allowNewLoad }) {
+        const title = $('datos-update-title');
+        const confirmBtn = $('datos-update-confirm');
+        const asNewBtn = $('datos-update-as-new');
+        const cancelBtn = $('datos-update-cancel');
+        const copyBtn = $('datos-update-copy');
+        const applied = phase === 'applied';
+        if (title) {
+            title.textContent = applied
+                ? 'Actualización aplicada'
+                : (allowNewLoad ? 'Cambios detectados' : 'Actualizar carga');
+        }
+        if (confirmBtn) {
+            confirmBtn.disabled = applied || !pendingUpdate?.diff?.hasChanges;
+            confirmBtn.textContent = 'Aplicar actualización';
+            setElHidden(confirmBtn, applied);
+        }
+        setElHidden(asNewBtn, applied || !allowNewLoad);
+        if (cancelBtn) cancelBtn.textContent = applied ? 'Cerrar' : 'Cancelar';
+        setElHidden(copyBtn, !pendingUpdate?.report?.text);
+        copyBtn && (copyBtn.textContent = 'Copiar informe');
+    }
+
+    function fillUpdateModal(diff, extra) {
+        const Update = window.S21DashboardUpdate;
+        const report = extra.report || Update.snapshotReport(diff, extra);
+        lastShownReportText = report.text || '';
+        const body = $('datos-update-modal-body');
+        if (body) body.innerHTML = extra.prefixHtml
+            ? `${extra.prefixHtml}${report.html}`
+            : report.html;
+        return report;
+    }
+
+    function openUpdateReviewModal({ allowNewLoad }) {
+        setUpdateModalChrome({ phase: 'review', allowNewLoad });
+        overlayOpen($('datos-update-modal'), 'scale');
+    }
+
+    function showAppliedUpdateState() {
+        const report = pendingUpdate?.report;
+        const prefix = '<p class="datos-update-lead">Los cambios ya están en la carga activa. Puede leer o copiar el detalle.</p>';
+        const body = $('datos-update-modal-body');
+        if (body && report?.html) body.innerHTML = prefix + report.html;
+        setUpdateModalChrome({ phase: 'applied', allowNewLoad: false });
+    }
+
+    async function renderLastUpdateReport(options = {}) {
+        const wrap = $('datos-update-report-wrap');
+        const body = $('datos-update-report');
+        const badge = $('datos-update-report-badge');
+        const empty = $('datos-update-report-empty');
+        if (!wrap || !body) return;
+        const ds = Storage?.isAvailable() ? await Storage.getActiveDataset?.() : null;
+        const report = ds?.lastUpdateReport;
+        const hasReport = !!(report?.html || report?.text);
+        const hadReport = wrap.classList.contains('has-report');
+        wrap.classList.toggle('has-report', hasReport);
+        if (!hasReport) {
+            body.innerHTML = '';
+            lastShownReportText = lastShownReportText || '';
+            if (badge) badge.textContent = 'Sin informe';
+            if (empty) empty.hidden = false;
+            return;
+        }
+        lastShownReportText = report.text || '';
+        const n = (report.summary || []).length;
+        const when = formatSavedAt(report.at);
+        if (badge) {
+            const count = n
+                ? `${n} ${n === 1 ? 'cambio' : 'cambios'}`
+                : 'Informe';
+            badge.textContent = when ? `${count} · ${when}` : count;
+        }
+        if (empty) empty.hidden = true;
+        body.innerHTML = report.html || `<pre class="datos-update-pre">${escapeHtml(report.text)}</pre>`;
+        if (options.open || !hadReport) wrap.open = true;
+        if (options.scroll) {
+            wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    async function promptIncomingReview(incoming, meta, currentPackages) {
+        const Update = window.S21DashboardUpdate;
+        if (!Update) return 'new';
+        let current = currentPackages || callbacks.getActivePackages?.() || [];
+        if (!current.length && Storage?.isAvailable()) {
+            try {
+                const active = await Storage.getActiveDataset();
+                current = active?.packages || [];
+            } catch {
+                current = [];
+            }
+        }
+        if (!current.length) return 'new';
+        const { packages, diff } = Update.applyPackageUpdate(current, incoming);
+        const report = Update.snapshotReport(diff, {
+            heading: 'Comparado con la carga abierta. Solo se sincronizan los perfiles y el año del resultado.',
+        });
+        pendingUpdate = {
+            packages,
+            diff,
+            incoming,
+            report,
+            meta,
+            source: 'wizard',
+            allowNewLoad: true,
+        };
+        fillUpdateModal(diff, { report });
+        return new Promise(resolve => {
+            pendingReviewResolve = resolve;
+            openUpdateReviewModal({ allowNewLoad: true });
+        });
+    }
+
+    function resolveIncomingReview(action) {
+        const resolve = pendingReviewResolve;
+        pendingReviewResolve = null;
+        resolve?.(action);
+    }
+
+    async function runUpdateFromFiles(files) {
+        const Update = window.S21DashboardUpdate;
+        const Wizard = window.S21DashboardWizard;
+        if (!Update || !Wizard?.packagesFromFiles) {
+            alert('Actualización no disponible.');
+            return;
+        }
+        const current = callbacks.getActivePackages?.();
+        if (!current?.length) {
+            alert('No hay una carga activa para actualizar.');
+            return;
+        }
+        const { packages: incoming, errors } = await Wizard.packagesFromFiles(files);
+        if (!incoming.length) {
+            alert(errors[0] || 'No se pudo leer ningún JSON válido.');
+            return;
+        }
+        const { packages, diff } = Update.applyPackageUpdate(current, incoming);
+        const report = Update.snapshotReport(diff, {
+            errors,
+            heading: 'Comparado con la carga activa. Solo se sincronizan los perfiles y el año del archivo.',
+        });
+        pendingUpdate = {
+            packages,
+            diff,
+            incoming,
+            report,
+            meta: { label: 'Actualización' },
+            source: 'file',
+            allowNewLoad: false,
+        };
+        fillUpdateModal(diff, { report });
+        openUpdateReviewModal({ allowNewLoad: false });
+    }
+
+    function closeUpdateModal() {
+        const applied = pendingUpdate?.applied;
+        overlayClose($('datos-update-modal'), 'scale');
+        pendingUpdate = null;
+        setUpdateModalChrome({ phase: 'review', allowNewLoad: false });
+        if (!applied) resolveIncomingReview(null);
+    }
+
+    function chooseUpdateAsNew() {
+        if (pendingUpdate?.applied || pendingUpdate?.source !== 'wizard') return;
+        overlayClose($('datos-update-modal'), 'scale');
+        pendingUpdate = null;
+        setUpdateModalChrome({ phase: 'review', allowNewLoad: false });
+        resolveIncomingReview('new');
+    }
+
+    async function confirmUpdate() {
+        if (!pendingUpdate || pendingUpdate.applying) return;
+        if (pendingUpdate.applied) {
+            closeUpdateModal();
+            return;
+        }
+        if (!pendingUpdate.diff?.hasChanges) {
+            closeUpdateModal();
+            return;
+        }
+        pendingUpdate.applying = true;
+        pendingUpdate.applied = true;
+        const confirmBtn = $('datos-update-confirm');
+        if (confirmBtn) confirmBtn.disabled = true;
+        const { packages, report, meta, source } = pendingUpdate;
+        await callbacks.onUpdateApplied?.(packages, {
+            ...meta,
+            label: meta?.label || 'Actualización',
+            lastUpdateReport: report,
+        });
+        if (pendingUpdate) pendingUpdate.applying = false;
+        showAppliedUpdateState();
+        await renderLastUpdateReport({ open: true, scroll: true });
+        if (source === 'wizard') resolveIncomingReview('update');
     }
 
     async function getActiveGruposMeta() {
@@ -452,6 +728,7 @@
         closePanel,
         renderHistory,
         promptSaveAction,
+        promptIncomingReview,
         persistSave,
         buildDatasetFromPackages,
         findDuplicateConflicts,

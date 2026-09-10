@@ -999,6 +999,7 @@ window.S21DashboardData = {
     groupFieldLabel,
     sortGroupValues,
     S21_CHART_METRICS,
+    parseNumero,
     parseJsonPackage,
     isPerfilInactivo,
     filterMensualByScope,
