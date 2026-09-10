@@ -2,7 +2,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const D = window.S21DashboardData;
     const G = window.S21DashboardGrupos;
     const FILTERS_COLLAPSED_KEY = 'analisis_servicio_filters_collapsed';
-    const TOTALS_VIEW_KEY = 'analisis_servicio_totals_view';
+    const TOTALS_LAYOUT_KEY = 'analisis_servicio_totals_layout';
+    const TOTALS_CHART_MODE_KEY = 'analisis_servicio_totals_chart_mode';
+    const TOTALS_EXCLUDE_KEY = 'analisis_servicio_totals_exclude';
+    const TOTALS_MONTH_FROM_KEY = 'analisis_servicio_totals_month_from';
+    const TOTALS_MONTH_TO_KEY = 'analisis_servicio_totals_month_to';
     const ACCORDION_STATE_KEY = 'analisis_servicio_accordion_state';
     const PERFIL_ALIASES_KEY = 'analisis_servicio_perfil_aliases';
     const CHART_PROFILES_KEY = 'analisis_servicio_chart_profiles';
@@ -41,6 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const dashboardContent = document.getElementById('dashboard-content');
     const emptyState = document.getElementById('empty-state');
     const kpiGrid = document.getElementById('kpi-grid');
+    const kpiNowLabel = document.getElementById('kpi-now-label');
+    const kpiSectionSub = document.getElementById('kpi-section-sub');
     const kpiModeBtns = document.querySelectorAll('.kpi-mode-btn');
     const kpiDetailModal = document.getElementById('kpi-detail-modal');
     const kpiDetailTitle = document.getElementById('kpi-detail-title');
@@ -58,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const group2 = document.getElementById('group-2');
     const totalsScopeSelect = document.getElementById('totals-scope');
     const metricSelect = document.getElementById('metric');
-    const chartExcludeToggle = document.getElementById('chart-exclude-toggle');
+    const totalsExcludeSelect = document.getElementById('totals-exclude');
     const pivotTable = document.getElementById('pivot-table');
     const pivotHead = document.getElementById('pivot-head');
     const pivotBody = document.getElementById('pivot-body');
@@ -116,6 +122,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedPublisherKey = '';
     let chartExcludeMonths = 0;
     let totalsScope = 'year';
+    let totalsLayoutMode = 'both';
+    let totalsChartMode = 'together';
+    let totalsMonthFrom = 'septiembre';
+    let totalsMonthTo = 'agosto';
+    let totalsMensualCache = [];
     let chartProfileInclude = {};
     let publisherSearchQuery = '';
     let publisherGroupFilter = '';
@@ -125,7 +136,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let chartBarRowsCache = [];
     let chartBarClickContext = null;
     let chartLineTrendCache = [];
-    let totalsViewMode = 'list';
     let totalsDimensionSwapped = false;
     let matrixCellCache = new Map();
     let expandedPublisherListKey = '';
@@ -138,6 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let singleActiveSection = 'kpi';
     let navSwapGen = 0;
     const NAV_SECTION_ORDER = ['kpi', 'table', 'grupos', 'publishers'];
+    const TOTALS_LAYOUT_LABELS = { table: 'Tabla', charts: 'Gráficos', both: 'Ambos' };
+    const TOTALS_CHART_LABELS = { together: 'Juntos', bar: 'Barras', line: 'Tendencia' };
 
     const CHART_SUBGROUP_COLORS = [
         { bg: 'rgba(56, 189, 248, 0.78)', border: 'rgba(56, 189, 248, 1)' },
@@ -150,15 +162,27 @@ document.addEventListener('DOMContentLoaded', () => {
         { bg: 'rgba(129, 140, 248, 0.78)', border: 'rgba(129, 140, 248, 1)' },
     ];
 
-    const btnTotalsViewList = document.getElementById('btn-totals-view-list');
-    const btnTotalsViewMatrix = document.getElementById('btn-totals-view-matrix');
-    const totalsViewField = document.getElementById('totals-view-field');
+    const totalsLayoutToggle = document.getElementById('totals-layout-toggle');
+    const totalsChartModeField = document.getElementById('totals-chart-mode-field');
+    const totalsChartModeToggle = document.getElementById('totals-chart-mode-toggle');
+    const totalsFloatVista = document.getElementById('totals-float-vista');
+    const totalsFloatGrafico = document.getElementById('totals-float-grafico');
+    const totalsFloatVistaBtn = document.getElementById('totals-float-vista-btn');
+    const totalsFloatGraficoBtn = document.getElementById('totals-float-grafico-btn');
+    const totalsFloatVistaValue = document.getElementById('totals-float-vista-value');
+    const totalsFloatGraficoValue = document.getElementById('totals-float-grafico-value');
+    const totalsMonthFromSelect = document.getElementById('totals-month-from');
+    const totalsMonthToSelect = document.getElementById('totals-month-to');
+    const totalsChartsBlock = document.getElementById('totals-charts-block');
+    const totalsTableBlock = document.getElementById('totals-table-block');
+    const totalsTableWrap = document.getElementById('totals-table-wrap');
     const totalsBody = document.getElementById('totals-body');
     const totalsDimensionToggleWrap = document.getElementById('totals-dimension-toggle-wrap');
     const btnDimPrimary = document.getElementById('btn-dim-primary');
     const btnDimSecondary = document.getElementById('btn-dim-secondary');
     const dimPrimaryLabel = document.getElementById('dim-primary-label');
     const dimSecondaryLabel = document.getElementById('dim-secondary-label');
+    const totalsMetricField = document.getElementById('totals-metric-field');
     const totalsMatrixSummary = document.getElementById('totals-matrix-summary');
     const dashboardHeaderSection = document.getElementById('dashboard-header-section');
     const publisherDetailBackWrap = document.getElementById('publisher-detail-back-wrap');
@@ -171,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const KPI_ITEMS = [
         { key: 'publicadores', label: 'Publicadores' },
         { key: 'horas', label: 'Horas' },
-        { key: 'cursos', label: 'Cursos' },
+        { key: 'cursos', label: 'Cursos / con cursos' },
         { key: 'participacion', label: 'Participación' },
         { key: 'precursor_aux', label: 'Prec. aux.' },
         { key: 'inactivos', label: 'Inactivos' },
@@ -372,10 +396,8 @@ document.addEventListener('DOMContentLoaded', () => {
             `<option value="${f.id}">${f.label}</option>`
         ).join('');
 
-        const storedView = localStorage.getItem(TOTALS_VIEW_KEY);
-        if (storedView === 'matrix') totalsViewMode = 'matrix';
+        restoreTotalsPrefs();
         syncTotalsReportLayout();
-        syncTotalsViewToggle();
 
         if (totalsScopeSelect) {
             totalsScopeSelect.innerHTML =
@@ -385,16 +407,61 @@ document.addEventListener('DOMContentLoaded', () => {
                 ).join('');
         }
 
-        metricSelect.innerHTML = D.S21_CHART_METRICS.map(m =>
-            `<option value="${m.id}">${m.label}</option>`
-        ).join('');
+        fillTotalsMonthSelect(totalsMonthFromSelect, totalsMonthFrom);
+        fillTotalsMonthSelect(totalsMonthToSelect, totalsMonthTo);
 
-        if (chartExcludeToggle) {
-            chartExcludeToggle.innerHTML = Array.from({ length: 12 }, (_, n) =>
-                `<button type="button" class="chart-exclude-btn${n === chartExcludeMonths ? ' active' : ''}"
-                    data-months="${n}" role="tab" aria-selected="${n === chartExcludeMonths}">${n}</button>`
+        if (metricSelect) {
+            metricSelect.innerHTML = D.S21_CHART_METRICS.map(m =>
+                `<option value="${m.id}">${m.label}</option>`
             ).join('');
         }
+
+        if (totalsExcludeSelect) {
+            totalsExcludeSelect.innerHTML = Array.from({ length: 12 }, (_, n) =>
+                `<option value="${n}">${n === 0 ? 'Ninguno' : n}</option>`
+            ).join('');
+            totalsExcludeSelect.value = String(chartExcludeMonths);
+        }
+    }
+
+    function fillTotalsMonthSelect(select, selected) {
+        if (!select) return;
+        select.innerHTML = D.S21_MESES.map(m =>
+            `<option value="${m}">${D.mesLabel(m, 'completo')}</option>`
+        ).join('');
+        select.value = D.S21_MESES.includes(selected) ? selected : D.S21_MESES[0];
+    }
+
+    function restoreTotalsPrefs() {
+        const layout = localStorage.getItem(TOTALS_LAYOUT_KEY);
+        if (layout === 'table' || layout === 'charts' || layout === 'both') totalsLayoutMode = layout;
+        const chartMode = localStorage.getItem(TOTALS_CHART_MODE_KEY);
+        if (chartMode === 'together' || chartMode === 'bar' || chartMode === 'line') totalsChartMode = chartMode;
+        const excludeRaw = Number(localStorage.getItem(TOTALS_EXCLUDE_KEY));
+        if (Number.isFinite(excludeRaw)) {
+            chartExcludeMonths = Math.max(0, Math.min(11, excludeRaw));
+        }
+        const from = localStorage.getItem(TOTALS_MONTH_FROM_KEY);
+        const to = localStorage.getItem(TOTALS_MONTH_TO_KEY);
+        if (D.S21_MESES.includes(from)) totalsMonthFrom = from;
+        if (D.S21_MESES.includes(to)) totalsMonthTo = to;
+    }
+
+    function persistTotalsTimePrefs() {
+        localStorage.setItem(TOTALS_EXCLUDE_KEY, String(chartExcludeMonths));
+        localStorage.setItem(TOTALS_MONTH_FROM_KEY, totalsMonthFrom);
+        localStorage.setItem(TOTALS_MONTH_TO_KEY, totalsMonthTo);
+    }
+
+    function normalizeTotalsMonthRange() {
+        const fromIdx = D.S21_MESES.indexOf(totalsMonthFrom);
+        const toIdx = D.S21_MESES.indexOf(totalsMonthTo);
+        if (fromIdx < 0 || toIdx < 0 || fromIdx <= toIdx) return;
+        const tmp = totalsMonthFrom;
+        totalsMonthFrom = totalsMonthTo;
+        totalsMonthTo = tmp;
+        if (totalsMonthFromSelect) totalsMonthFromSelect.value = totalsMonthFrom;
+        if (totalsMonthToSelect) totalsMonthToSelect.value = totalsMonthTo;
     }
 
     function setExportMenuOpen(menu, open) {
@@ -423,7 +490,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         document.addEventListener('click', () => closeExportMenus());
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeExportMenus();
+            if (e.key === 'Escape') {
+                closeExportMenus();
+                closeTotalsFloats();
+            }
         });
     }
 
@@ -439,27 +509,58 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pivotBody) pivotBody.addEventListener('click', onPivotBodyClick);
         group1.addEventListener('change', onTotalsGroupingChange);
         group2.addEventListener('change', onTotalsGroupingChange);
-        btnTotalsViewList?.addEventListener('click', () => setTotalsViewMode('list'));
-        btnTotalsViewMatrix?.addEventListener('click', () => setTotalsViewMode('matrix'));
         btnDimPrimary?.addEventListener('click', () => setTotalsDimensionSwapped(false));
         btnDimSecondary?.addEventListener('click', () => setTotalsDimensionSwapped(true));
+        totalsLayoutToggle?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-totals-layout]');
+            if (btn) {
+                setTotalsLayoutMode(btn.dataset.totalsLayout);
+                closeTotalsFloats();
+            }
+        });
+        totalsChartModeToggle?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-totals-chart]');
+            if (btn) {
+                setTotalsChartMode(btn.dataset.totalsChart);
+                closeTotalsFloats();
+            }
+        });
+        totalsFloatVistaBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleTotalsFloat(totalsFloatVista);
+        });
+        totalsFloatGraficoBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleTotalsFloat(totalsFloatGrafico);
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.totals-float')) closeTotalsFloats();
+        });
+        totalsExcludeSelect?.addEventListener('change', () => {
+            setChartExcludeMonths(Number(totalsExcludeSelect.value));
+        });
         totalsScopeSelect?.addEventListener('change', () => {
             totalsScope = totalsScopeSelect.value || 'year';
             refresh();
         });
-        metricSelect.addEventListener('change', () => {
+        totalsMonthFromSelect?.addEventListener('change', () => {
+            totalsMonthFrom = totalsMonthFromSelect.value || D.S21_MESES[0];
+            normalizeTotalsMonthRange();
+            persistTotalsTimePrefs();
+            refresh();
+        });
+        totalsMonthToSelect?.addEventListener('change', () => {
+            totalsMonthTo = totalsMonthToSelect.value || D.S21_MESES[D.S21_MESES.length - 1];
+            normalizeTotalsMonthRange();
+            persistTotalsTimePrefs();
+            refresh();
+        });
+        metricSelect?.addEventListener('change', () => {
             refreshCharts();
-            if (totalsViewMode === 'matrix') {
+            if (isTotalsReportMode()) {
                 renderTable(aggregated, getTotalsGroupFields());
             }
         });
-        if (chartExcludeToggle) {
-            chartExcludeToggle.addEventListener('click', (e) => {
-                const btn = e.target.closest('.chart-exclude-btn');
-                if (!btn) return;
-                setChartExcludeMonths(Number(btn.dataset.months));
-            });
-        }
         kpiModeBtns.forEach(btn => {
             btn.addEventListener('click', () => setKpiMode(btn.dataset.kpiMode));
         });
@@ -724,7 +825,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cb.addEventListener('change', () => {
                 chartProfileInclude[cb.dataset.origen] = cb.checked;
                 saveChartProfileInclude();
-                refreshCharts();
+                refresh();
             });
         });
     }
@@ -901,6 +1002,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeFilters = getActiveFilters();
         const mensualProfile = D.applyFilters(flat.mensual, activeFilters, filterMode);
         let pubs = D.applyFilters(flat.publicadores, activeFilters, filterMode);
+        if (D.uniquePublishers) pubs = D.uniquePublishers(pubs);
 
         if (detailMonthlyFilter) {
             pubs = D.applyMonthlyDrillFilter(pubs, mensualProfile, detailMonthlyFilter);
@@ -1077,29 +1179,139 @@ document.addEventListener('DOMContentLoaded', () => {
         return { primary: f1, secondary: f2, fields: [f1, f2] };
     }
 
-    function canUseMatrixView(groupFields = getTotalsGroupFields()) {
-        return groupFields.length === 2;
-    }
-
     function isTotalsReportMode() {
         return getTotalsGroupFields().length === 2;
+    }
+
+    function getTotalsMetricIds() {
+        return D.totalsMetricColumns(totalsScope, getTotalsGroupFields());
+    }
+
+    function isTotalsFullYearRange() {
+        return D.isFullServiceYearRange(totalsMonthFrom, totalsMonthTo);
+    }
+
+    function totalsHasTimeFilter() {
+        return chartExcludeMonths > 0 || !isTotalsFullYearRange();
+    }
+
+    function totalsHasProfileFilter() {
+        const all = D.uniqueValues(flat.mensual, 'origen');
+        if (!all.length) return false;
+        return getChartIncludedOrigenes().size !== all.length;
+    }
+
+    function getTotalsMensual(sourceMensual, { applyScope = true } = {}) {
+        let rows = sourceMensual || [];
+        if (applyScope) rows = D.filterMensualByScope(rows, totalsScope);
+        rows = D.filterMensualByMonthRange(rows, totalsMonthFrom, totalsMonthTo);
+        rows = D.filterMensualByExcludedMonths(rows, chartExcludeMonths);
+        return filterMensualForCharts(rows);
+    }
+
+    function totalsUniquePeople(mensual) {
+        return new Set((mensual || []).map(r => D.personKey(r))).size;
+    }
+
+    function totalsFooterPublisherCount() {
+        if (totalsScope === 'year' && !totalsHasTimeFilter() && !totalsHasProfileFilter()) {
+            return kpisCache.publicadores_total ?? totalsUniquePeople(totalsMensualCache);
+        }
+        return totalsUniquePeople(totalsMensualCache);
+    }
+
+    function totalsFooterInactivos(sumInactivos) {
+        if (totalsScope === 'year' && !totalsHasTimeFilter() && !totalsHasProfileFilter()) {
+            return kpisCache.metrics?.inactivos?.total ?? sumInactivos;
+        }
+        return sumInactivos;
+    }
+
+    function syncTotalsSegToggle(root, attr, value) {
+        root?.querySelectorAll(`[${attr}]`).forEach(btn => {
+            const active = btn.getAttribute(attr) === value;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+    }
+
+    function closeTotalsFloats(exceptRoot) {
+        [totalsFloatVista, totalsFloatGrafico].forEach(el => {
+            if (!el || el === exceptRoot) return;
+            el.classList.remove('is-open');
+            el.querySelector('.totals-float-btn')?.setAttribute('aria-expanded', 'false');
+        });
+    }
+
+    function toggleTotalsFloat(root) {
+        if (!root) return;
+        const willOpen = !root.classList.contains('is-open');
+        closeTotalsFloats(willOpen ? root : null);
+        root.classList.toggle('is-open', willOpen);
+        root.querySelector('.totals-float-btn')?.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    }
+
+    function syncTotalsFloatLabels() {
+        if (totalsFloatVistaValue) {
+            totalsFloatVistaValue.textContent = TOTALS_LAYOUT_LABELS[totalsLayoutMode] || totalsLayoutMode;
+        }
+        if (totalsFloatGraficoValue) {
+            totalsFloatGraficoValue.textContent = TOTALS_CHART_LABELS[totalsChartMode] || totalsChartMode;
+        }
+    }
+
+    function syncTotalsLayout() {
+        const showTable = totalsLayoutMode !== 'charts';
+        const showCharts = totalsLayoutMode !== 'table';
+        const showMetricBar = showCharts || isTotalsReportMode();
+        totalsChartsBlock?.classList.toggle('hidden', !showCharts);
+        totalsChartsBlock?.classList.toggle('totals-charts-block--metric-only', false);
+        chartGrid?.classList.toggle('hidden', !showCharts);
+        totalsTableBlock?.classList.toggle('hidden', !showTable);
+        totalsTableWrap?.classList.toggle('hidden', !showTable);
+        if (!showTable) totalsMatrixSummary?.classList.add('hidden');
+        totalsChartModeField?.classList.toggle('hidden', !showCharts);
+        totalsFloatGrafico?.classList.toggle('hidden', !showCharts);
+        totalsMetricField?.classList.toggle('hidden', !showMetricBar);
+        syncTotalsSegToggle(totalsLayoutToggle, 'data-totals-layout', totalsLayoutMode);
+        syncTotalsSegToggle(totalsChartModeToggle, 'data-totals-chart', totalsChartMode);
+        syncTotalsFloatLabels();
+        if (showCharts) scheduleChartResize();
+    }
+
+    function setTotalsLayoutMode(mode) {
+        if (mode !== 'table' && mode !== 'charts' && mode !== 'both') return;
+        if (totalsLayoutMode === mode) return;
+        totalsLayoutMode = mode;
+        localStorage.setItem(TOTALS_LAYOUT_KEY, mode);
+        syncTotalsLayout();
+        if (mode !== 'table') {
+            refreshCharts();
+            scheduleChartResize();
+        }
+    }
+
+    function setTotalsChartMode(mode) {
+        if (mode !== 'together' && mode !== 'bar' && mode !== 'line') return;
+        if (totalsChartMode === mode) return;
+        totalsChartMode = mode;
+        localStorage.setItem(TOTALS_CHART_MODE_KEY, mode);
+        syncTotalsSegToggle(totalsChartModeToggle, 'data-totals-chart', totalsChartMode);
+        refreshCharts();
+        scheduleChartResize();
     }
 
     function syncTotalsReportLayout() {
         const reportMode = isTotalsReportMode();
         const dims = getTotalsDimensions();
 
-        if (reportMode) {
-            totalsViewMode = 'matrix';
-        } else {
+        if (!reportMode) {
             totalsDimensionSwapped = false;
         }
 
         totalsBody?.classList.toggle('totals-body--report', reportMode);
-        totalsViewField?.classList.toggle('hidden', reportMode);
         totalsDimensionToggleWrap?.classList.toggle('hidden', !reportMode);
-        chartLineCard?.classList.toggle('hidden', reportMode);
-        chartGrid?.classList.toggle('single-chart', reportMode || (getTotalsGroupFields().length === 1 && getTotalsGroupFields()[0] === 'mes'));
+        pivotTable?.classList.toggle('totals-table--matrix', reportMode);
 
         if (dimPrimaryLabel && dims.primary) {
             dimPrimaryLabel.textContent = D.groupFieldLabel(dims.primary);
@@ -1112,27 +1324,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btnDimPrimary?.setAttribute('aria-selected', totalsDimensionSwapped ? 'false' : 'true');
         btnDimSecondary?.setAttribute('aria-selected', totalsDimensionSwapped ? 'true' : 'false');
 
-        pivotTable?.classList.toggle('totals-table--matrix', reportMode || (totalsViewMode === 'matrix' && canUseMatrixView()));
-
         if (!reportMode) {
-            syncTotalsViewToggle();
             totalsMatrixSummary?.classList.add('hidden');
         }
-    }
-
-    function syncTotalsViewToggle(groupFields = getTotalsGroupFields()) {
-        if (isTotalsReportMode()) return;
-        const matrixOk = canUseMatrixView(groupFields);
-        if (!matrixOk && totalsViewMode === 'matrix') {
-            totalsViewMode = 'list';
-            localStorage.setItem(TOTALS_VIEW_KEY, 'list');
-        }
-        btnTotalsViewMatrix?.toggleAttribute('disabled', !matrixOk);
-        btnTotalsViewList?.classList.toggle('active', totalsViewMode === 'list');
-        btnTotalsViewMatrix?.classList.toggle('active', totalsViewMode === 'matrix');
-        btnTotalsViewList?.setAttribute('aria-selected', totalsViewMode === 'list' ? 'true' : 'false');
-        btnTotalsViewMatrix?.setAttribute('aria-selected', totalsViewMode === 'matrix' ? 'true' : 'false');
-        pivotTable?.classList.toggle('totals-table--matrix', totalsViewMode === 'matrix' && matrixOk);
+        syncTotalsLayout();
     }
 
     function setTotalsDimensionSwapped(swapped) {
@@ -1142,20 +1337,10 @@ document.addEventListener('DOMContentLoaded', () => {
         refresh();
     }
 
-    function setTotalsViewMode(mode) {
-        if (mode === 'matrix' && !canUseMatrixView()) return;
-        totalsViewMode = mode === 'matrix' ? 'matrix' : 'list';
-        localStorage.setItem(TOTALS_VIEW_KEY, totalsViewMode);
-        syncTotalsViewToggle();
-        const groupFields = getTotalsGroupFields();
-        renderTable(aggregated, groupFields);
-    }
-
     function onTotalsGroupingChange() {
         if (group2.value && group2.value === group1.value) group2.value = '';
         totalsDimensionSwapped = false;
         syncTotalsReportLayout();
-        syncTotalsViewToggle();
         refresh();
     }
 
@@ -1178,7 +1363,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getMatrixMetricId() {
-        const ids = D.totalsMetricColumns(totalsScope);
+        const ids = getTotalsMetricIds();
         const chartToTable = {
             publicadores_con_cursos: 'publicadores',
             publicadores_sin_cursos: 'publicadores',
@@ -1824,12 +2009,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const g1 = group1.value;
         const g2 = group2.value;
         const groupFields = [g1, g2].filter((v, i, arr) => v && arr.indexOf(v) === i);
-        const scopedMensual = D.filterMensualByScope(flat.mensual, totalsScope);
+        const scopedMensual = getTotalsMensual(flat.mensual);
+        totalsMensualCache = scopedMensual;
+        const pubsForTotals = D.publicadoresEnMensual(scopedMensual, filterPublicadoresForCharts());
 
-        aggregated = D.aggregateRows(scopedMensual, groupFields, flat.publicadores);
+        aggregated = D.aggregateRows(scopedMensual, groupFields, pubsForTotals);
         syncTotalsReportLayout();
-        syncTotalsViewToggle(groupFields);
         renderTable(aggregated, groupFields);
+        syncTotalsLayout();
         renderCharts(aggregated, scopedMensual, metricSelect.value, groupFields);
         refreshPublishersSection();
     }
@@ -1838,7 +2025,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const g1 = group1.value;
         const g2 = group2.value;
         const groupFields = [g1, g2].filter((v, i, arr) => v && arr.indexOf(v) === i);
-        const scopedMensual = D.filterMensualByScope(flat.mensual, totalsScope);
+        const scopedMensual = getTotalsMensual(flat.mensual);
         renderCharts(aggregated, scopedMensual, metricSelect.value, groupFields);
     }
 
@@ -1846,19 +2033,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const months = Math.max(0, Math.min(11, Number(n) || 0));
         if (months === chartExcludeMonths) return;
         chartExcludeMonths = months;
-        chartExcludeToggle?.querySelectorAll('.chart-exclude-btn').forEach(btn => {
-            const active = Number(btn.dataset.months) === months;
-            btn.classList.toggle('active', active);
-            btn.setAttribute('aria-selected', active ? 'true' : 'false');
-        });
-        refreshCharts();
+        persistTotalsTimePrefs();
+        if (totalsExcludeSelect) totalsExcludeSelect.value = String(months);
+        refresh();
     }
 
-    function chartExcludeHintHtml() {
-        if (!chartExcludeMonths) return '';
-        const labels = D.excludedMonthLabels(chartExcludeMonths);
-        if (!labels.length) return '';
-        return `<span class="chart-title-note">(sin ${escapeHtml(labels.join(', ').toLowerCase())})</span>`;
+    function totalsTimeHintHtml() {
+        const parts = [];
+        if (!isTotalsFullYearRange()) {
+            parts.push(`${D.mesLabel(totalsMonthFrom, 'corto')}–${D.mesLabel(totalsMonthTo, 'corto')}`);
+        }
+        if (chartExcludeMonths) {
+            const labels = D.excludedMonthLabels(chartExcludeMonths);
+            if (labels.length) parts.push(`sin ${labels.join(', ').toLowerCase()}`);
+        }
+        if (!parts.length) return '';
+        return `<span class="chart-title-note">(${escapeHtml(parts.join(' · '))})</span>`;
+    }
+
+    function totalsTimeFilterLabel() {
+        const bits = [];
+        if (!isTotalsFullYearRange()) {
+            bits.push(`${D.mesLabel(totalsMonthFrom, 'corto')}–${D.mesLabel(totalsMonthTo, 'corto')}`);
+        }
+        if (chartExcludeMonths) {
+            const labels = D.excludedMonthLabels(chartExcludeMonths);
+            if (labels.length) bits.push(`sin ${labels.join(', ')}`);
+        }
+        return bits.join(' · ');
     }
 
     function chartBarTitleText(metricId, groupFields) {
@@ -1871,7 +2073,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function publicadoresForBarChart(mensualScoped) {
         const byProfile = filterPublicadoresForCharts();
-        if (totalsScope === 'year') return byProfile;
         return D.publicadoresEnMensual(mensualScoped, byProfile);
     }
 
@@ -1918,6 +2119,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function publishersForListDisplay() {
         let rows = filterPublishersForList(filteredPubCache);
+        if (D.uniquePublishers) rows = D.uniquePublishers(rows);
         if (selectedPublisherKey && !rows.some(p => D.personKey(p) === selectedPublisherKey)) {
             const pub = flat.publicadores.find(p => D.personKey(p) === selectedPublisherKey);
             if (pub) rows = [...rows, pub];
@@ -2754,31 +2956,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (i === 0) return 'Total';
             if (!col.numeric) return '';
             if (col.id === 'publicadores') {
-                let n = kpisCache.publicadores_total ?? 0;
-                if (totalsScope !== 'year') {
-                    n = new Set(
-                        D.filterMensualByScope(flat.mensual, totalsScope).map(r => D.personKey(r))
-                    ).size;
-                }
-                return formatNum(n);
+                return formatNum(totalsFooterPublisherCount());
             }
             if (col.id === 'inactivos') {
-                let n = kpisCache.metrics?.inactivos?.total ?? totals.inactivos;
-                if (totalsScope !== 'year') n = totals.inactivos;
-                return formatNum(n);
+                return formatNum(totalsFooterInactivos(totals.inactivos));
             }
             return formatNum(totals[col.id] ?? 0);
         });
 
-        const g1 = group1.value;
-        const g2 = group2.value;
-        const groupFields = [g1, g2].filter((v, i, arr) => v && arr.indexOf(v) === i);
+        const timeNote = totalsTimeFilterLabel();
+        const groupFields = getTotalsGroupFields();
         const groupLabels = groupFields.map(f => D.groupFieldLabel(f));
         const included = groups.map(g => g.label).join(' · ');
 
         return {
             title: 'Totales',
-            subtitle: `Alcance: ${totalsScopeLabel()} · Agrupado: ${groupLabels.join(' / ') || '—'} · ${included}`,
+            subtitle: `Alcance: ${totalsScopeLabel()} · Agrupado: ${groupLabels.join(' / ') || '—'}${timeNote ? ` · ${timeNote}` : ''} · ${included}`,
             headers: columns.map(c => c.label),
             headerGroups,
             rows,
@@ -2878,7 +3071,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return val;
             },
         }));
-        for (const metricId of D.totalsMetricColumns(totalsScope)) {
+        for (const metricId of getTotalsMetricIds()) {
             const spec = D.TOTALS_METRIC_COLUMNS[metricId];
             cols.push({
                 id: metricId,
@@ -2996,7 +3189,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderTable(rows, groupFields) {
-        if (isTotalsReportMode() || (totalsViewMode === 'matrix' && canUseMatrixView(groupFields))) {
+        if (isTotalsReportMode()) {
             renderMatrixTable(rows, groupFields);
             return;
         }
@@ -3043,7 +3236,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return acc;
         }, { horas: 0, cursos: 0, participacion: 0, precursor_auxiliar: 0, inactivos: 0 });
 
-        const metricIds = D.totalsMetricColumns(totalsScope);
         pivotFoot.innerHTML = `<tr>${tableColumns.map(col => {
             const labelAttr = ` data-label="${escapeAttr(col.label)}"`;
             if (col.type !== 'number') {
@@ -3051,24 +3243,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<td${labelAttr}>${isFirst ? 'Total' : ''}</td>`;
             }
             if (col.id === 'publicadores') {
-                let n = kpisCache.publicadores_total ?? 0;
-                if (totalsScope !== 'year') {
-                    n = new Set(
-                        D.filterMensualByScope(flat.mensual, totalsScope).map(r => D.personKey(r))
-                    ).size;
-                }
-                return `<td class="num"${labelAttr}>${formatNum(n)}</td>`;
+                return `<td class="num"${labelAttr}>${formatNum(totalsFooterPublisherCount())}</td>`;
             }
             if (col.id === 'inactivos') {
-                let n = kpisCache.metrics?.inactivos?.total ?? totals.inactivos;
-                if (totalsScope !== 'year') n = totals.inactivos;
-                return `<td class="num"${labelAttr}>${formatNum(n)}</td>`;
+                return `<td class="num"${labelAttr}>${formatNum(totalsFooterInactivos(totals.inactivos))}</td>`;
             }
             return `<td class="num"${labelAttr}>${formatNum(totals[col.id] ?? 0)}</td>`;
         }).join('')}</tr>`;
     }
 
     function kpiDetailScopeMonth(metricKey) {
+        if (metricKey === 'inactivos' && kpiMode !== 'max') {
+            return kpisCache.lastCompleteMonth || kpisCache.lastRegisteredMonth || null;
+        }
         if (kpiMode === 'last') return kpisCache.lastRegisteredMonth || null;
         if (kpiMode === 'max' && D.monthlySeriesForKpi) {
             const series = D.monthlySeriesForKpi(flat.mensual, metricKey);
@@ -3087,6 +3274,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function kpiDetailScopeLabel(metricKey) {
         const mes = kpiDetailScopeMonth(metricKey);
+        if (metricKey === 'inactivos' && mes) {
+            return `Regla S-21 a ${D.mesLabel(mes, 'completo')}`;
+        }
         if (kpiMode === 'last' && mes) {
             return `Último mes con informes: ${D.mesLabel(mes, 'completo')}`;
         }
@@ -3099,23 +3289,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'Año de servicio';
     }
 
-    function lastParticipationByPerson(mensual) {
-        const order = new Map(D.S21_MESES.map((mes, i) => [mes, i]));
-        const last = new Map();
-        for (const row of mensual) {
-            if (!row.participacion) continue;
-            const pk = D.personKey(row);
-            const idx = order.get(row.mes) ?? -1;
-            const prev = last.get(pk);
-            if (!prev || idx >= (order.get(prev) ?? -1)) last.set(pk, row.mes);
-        }
-        return last;
-    }
-
     function publisherMonthTotals(pub, mes) {
-        const key = D.personKey(pub);
+        const idKey = D.personIdentityKey?.(pub) || D.personKey(pub);
+        const samePerson = row => (D.personIdentityKey?.(row) || D.personKey(row)) === idKey;
         if (mes) {
-            const row = flat.mensual.find(r => D.personKey(r) === key && r.mes === mes);
+            const rows = flat.mensual.filter(r => samePerson(r) && r.mes === mes);
+            const row = rows.find(r => D.monthHasReport?.(r))
+                || rows.find(r => (r.horas || 0) > 0 || (r.cursos || 0) > 0 || r.precursor_auxiliar)
+                || rows[0];
             return {
                 horas: row?.horas || 0,
                 cursos: row?.cursos || 0,
@@ -3134,6 +3315,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function kpiDetailNameHtml(pub) {
         const name = escapeHtml(pub.nombre || '—');
         return `<span class="person-name">${Icons?.personNameInnerHtml(pub, name) || name}</span>`;
+    }
+
+    function kpiDetailWhyHtml(item) {
+        const short = String(item.reasonShort || 'Ver detalle').trim();
+        const full = String(item.reason || short).trim();
+        if (!full || full === short) {
+            return `<span class="kpi-detail-why-short">${escapeHtml(short)}</span>`;
+        }
+        return `<details class="kpi-detail-why-acc">
+            <summary class="kpi-detail-why-summary">
+                <span class="kpi-detail-why-short">${escapeHtml(short)}</span>
+                <span class="kpi-detail-why-plus" aria-hidden="true">+</span>
+            </summary>
+            <p class="kpi-detail-why-full">${escapeHtml(full)}</p>
+        </details>`;
     }
 
     function kpiDetailPrivilegeYes(val) {
@@ -3159,7 +3355,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function kpiDetailWasAuxLastMonth(pub, auxKeys) {
-        return auxKeys.has(D.personKey(pub));
+        return auxKeys.has(D.personIdentityKey?.(pub) || D.personKey(pub));
     }
 
     function kpiDetailAuxKeysLastMonth() {
@@ -3167,7 +3363,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const mes = kpisCache.lastRegisteredMonth;
         if (!mes) return keys;
         for (const row of flat.mensual) {
-            if (row.mes === mes && row.precursor_auxiliar) keys.add(D.personKey(row));
+            if (row.mes === mes && row.precursor_auxiliar) {
+                keys.add(D.personIdentityKey?.(row) || D.personKey(row));
+            }
         }
         return keys;
     }
@@ -3243,10 +3441,27 @@ document.addEventListener('DOMContentLoaded', () => {
             kpiDetailLead.textContent = `${kpiDetailScopeLabel(kpiDetailKey)} · ${countLabel}`;
         }
         if (kpiDetailBody) {
-            const empty = kpiPrivilegeFilterActive() && !detail.rowsHtml
+            const empty = kpiPrivilegeFilterActive() && !detail.rowsHtml && !detail.sections?.some(s => s.rowsHtml)
                 ? 'Ningún publicador coincide con la intersección de los filtros.'
                 : detail.empty;
-            kpiDetailBody.innerHTML = renderKpiDetailTable(detail.headers, detail.rowsHtml, empty);
+            if (detail.sections?.length) {
+                const note = detail.note
+                    ? `<p class="kpi-detail-note">${escapeHtml(detail.note)}</p>`
+                    : '';
+                kpiDetailBody.innerHTML = note + detail.sections.map(sec => {
+                    const title = `${sec.title} (${sec.count ?? 0})`;
+                    const hint = sec.hint
+                        ? `<p class="kpi-detail-section-hint">${escapeHtml(sec.hint)}</p>`
+                        : '';
+                    return `<section class="kpi-detail-section">
+                        <h4 class="kpi-detail-section-title">${escapeHtml(title)}</h4>
+                        ${hint}
+                        ${renderKpiDetailTable(sec.headers, sec.rowsHtml, sec.empty || empty)}
+                    </section>`;
+                }).join('');
+            } else {
+                kpiDetailBody.innerHTML = renderKpiDetailTable(detail.headers, detail.rowsHtml, empty);
+            }
         }
     }
 
@@ -3276,10 +3491,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function buildKpiDetail(metricKey) {
         const auxKeys = kpiDetailAuxKeysLastMonth();
-        const pubs = D.sortPublishers(flat.publicadores || [])
+        const sourcePubs = D.uniquePublishers
+            ? D.uniquePublishers(flat.publicadores || [])
+            : (flat.publicadores || []);
+        const pubs = D.sortPublishers(sourcePubs)
             .filter(pub => publisherMatchesKpiPrivilegeFilters(pub, auxKeys));
         const mes = kpiDetailScopeMonth(metricKey);
-        const lastPart = metricKey === 'inactivos' ? lastParticipationByPerson(flat.mensual) : null;
         const withTotals = pubs.map(pub => ({ pub, ...publisherMonthTotals(pub, mes) }));
 
         if (metricKey === 'publicadores') {
@@ -3299,20 +3516,67 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
 
-        if (metricKey === 'horas' || metricKey === 'cursos') {
-            const field = metricKey;
-            const label = metricKey === 'horas' ? 'Horas' : 'Cursos';
-            const rows = sortKpiDetailRows(withTotals.map(({ pub, ...vals }) => ({
+        if (metricKey === 'cursos') {
+            const withCourses = sortKpiDetailRows(withTotals
+                .filter(item => item.cursos > 0)
+                .map(({ pub, cursos }) => ({
+                    nombre: pub.nombre,
+                    origen: pub.origen,
+                    value: cursos,
+                    html: `<tr>
+                        <td>${kpiDetailNameHtml(pub)}</td>
+                        <td>${escapeHtml(displayPerfil(pub.origen))}</td>
+                        <td class="num">${formatNum(cursos)}</td>
+                    </tr>`,
+                })), 'value');
+            const withoutCourses = sortKpiDetailRows(withTotals
+                .filter(item => item.cursos <= 0)
+                .map(({ pub }) => ({
+                    nombre: pub.nombre,
+                    origen: pub.origen,
+                    html: `<tr>
+                        <td>${kpiDetailNameHtml(pub)}</td>
+                        <td>${escapeHtml(displayPerfil(pub.origen))}</td>
+                    </tr>`,
+                })));
+            const cursosTotal = withTotals.reduce((sum, item) => sum + (item.cursos || 0), 0);
+            return {
+                count: withCourses.length,
+                empty: 'No hay publicadores.',
+                note: mes
+                    ? `${formatNum(cursosTotal)} cursos en ${D.mesLabel(mes, 'completo')} · ${withCourses.length} publicador${withCourses.length === 1 ? '' : 'es'} con cursos.`
+                    : `${formatNum(cursosTotal)} cursos en el año · ${withCourses.length} publicador${withCourses.length === 1 ? '' : 'es'} con cursos.`,
+                sections: [
+                    {
+                        title: 'Con cursos',
+                        headers: [{ label: 'Nombre' }, { label: 'Perfil' }, { label: 'Cursos', numeric: true }],
+                        rowsHtml: withCourses.map(r => r.html).join(''),
+                        count: withCourses.length,
+                        empty: 'Nadie tuvo cursos en este periodo.',
+                    },
+                    {
+                        title: 'Sin cursos',
+                        headers: [{ label: 'Nombre' }, { label: 'Perfil' }],
+                        rowsHtml: withoutCourses.map(r => r.html).join(''),
+                        count: withoutCourses.length,
+                        empty: 'Todos tuvieron cursos.',
+                    },
+                ],
+            };
+        }
+
+        if (metricKey === 'horas') {
+            const rows = sortKpiDetailRows(withTotals.map(({ pub, horas }) => ({
                 nombre: pub.nombre,
                 origen: pub.origen,
-                value: vals[field],
+                value: horas,
                 html: `<tr>
                     <td>${kpiDetailNameHtml(pub)}</td>
-                    <td class="num">${formatNum(vals[field])}</td>
+                    <td class="num">${formatNum(horas)}</td>
                 </tr>`,
             })), 'value');
             return {
-                headers: [{ label: 'Nombre' }, { label, numeric: true }],
+                headers: [{ label: 'Nombre' }, { label: 'Horas', numeric: true }],
                 rowsHtml: rows.map(r => r.html).join(''),
                 count: rows.length,
                 empty: 'No hay publicadores.',
@@ -3366,24 +3630,72 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (metricKey === 'inactivos') {
-            const rows = sortKpiDetailRows(pubs
-                .filter(pub => D.isPerfilInactivo(pub.origen))
-                .map(pub => {
-                    const lastMes = lastPart.get(D.personKey(pub));
-                    return {
-                        nombre: pub.nombre,
-                        origen: pub.origen,
-                        html: `<tr>
-                            <td>${kpiDetailNameHtml(pub)}</td>
-                            <td>${lastMes ? escapeHtml(D.mesLabel(lastMes, 'completo')) : 'Sin participación'}</td>
-                        </tr>`,
-                    };
-                }));
+            const refMes = mes || kpisCache.lastCompleteMonth || kpisCache.lastRegisteredMonth;
+            const classified = D.classifyPublishersActivity(pubs, flat.mensual, refMes);
+            const rowHtml = item => `<tr>
+                <td>${kpiDetailNameHtml(item.pub)}</td>
+                <td>${escapeHtml(displayPerfil(item.pub.origen))}</td>
+                <td class="kpi-detail-why">${kpiDetailWhyHtml(item)}</td>
+            </tr>`;
+            const headers = [
+                { label: 'Nombre' },
+                { label: 'Perfil' },
+                { label: 'Detalle' },
+            ];
+            const inactivos = sortKpiDetailRows(
+                classified.filter(item => item.status === 'inactivo').map(item => ({
+                    nombre: item.pub.nombre,
+                    origen: item.pub.origen,
+                    html: rowHtml(item),
+                }))
+            );
+            const irregulares = sortKpiDetailRows(
+                classified.filter(item => item.status === 'irregular').map(item => ({
+                    nombre: item.pub.nombre,
+                    origen: item.pub.origen,
+                    html: rowHtml(item),
+                }))
+            );
+            const carpeta = sortKpiDetailRows(
+                classified.filter(item => item.inFolder && item.status === 'ok').map(item => ({
+                    nombre: item.pub.nombre,
+                    origen: item.pub.origen,
+                    html: rowHtml(item),
+                }))
+            );
+            const sections = [
+                {
+                    title: 'Inactivos',
+                    hint: 'Sin participación 6 meses seguidos o más (regla S-21).',
+                    headers,
+                    rowsHtml: inactivos.map(r => r.html).join(''),
+                    count: inactivos.length,
+                    empty: 'Nadie cumple la regla de inactivo.',
+                },
+                {
+                    title: 'Irregulares',
+                    hint: 'Sin participación en alguno de los últimos 6 meses, sin llegar a 6 seguidos.',
+                    headers,
+                    rowsHtml: irregulares.map(r => r.html).join(''),
+                    count: irregulares.length,
+                    empty: 'Nadie es irregular en este periodo.',
+                },
+            ];
+            if (carpeta.length) {
+                sections.push({
+                    title: 'En carpeta Inactivos (no por la regla)',
+                    hint: 'Están en el perfil Inactivos, pero informaron hace menos de 6 meses.',
+                    headers,
+                    rowsHtml: carpeta.map(r => r.html).join(''),
+                    count: carpeta.length,
+                    empty: '',
+                });
+            }
             return {
-                headers: [{ label: 'Nombre' }, { label: 'Último mes' }],
-                rowsHtml: rows.map(r => r.html).join(''),
-                count: rows.length,
-                empty: 'No hay publicadores inactivos.',
+                count: inactivos.length + irregulares.length,
+                empty: 'Nadie es inactivo ni irregular según la regla S-21.',
+                note: 'La cifra cuenta inactivos e irregulares por la regla de 6 meses. Estar en la carpeta Inactivos es una nota aparte.',
+                sections,
             };
         }
 
@@ -3451,64 +3763,132 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderKpis(kpis) {
         if (!kpis?.metrics) {
             kpiGrid.innerHTML = '';
+            if (kpiNowLabel) {
+                kpiNowLabel.hidden = true;
+                kpiNowLabel.textContent = '';
+            }
             return;
         }
         const lastHint = kpis.lastRegisteredMonthShort && kpis.lastRegisteredMonthShort !== '—'
             ? kpis.lastRegisteredMonthShort
             : '';
+        const lastFull = kpis.lastRegisteredMonthLabel && kpis.lastRegisteredMonthLabel !== '—'
+            ? kpis.lastRegisteredMonthLabel
+            : '';
+        if (kpiNowLabel) {
+            if (lastFull) {
+                kpiNowLabel.hidden = false;
+                kpiNowLabel.textContent = `Mes de cierre: ${lastFull}`;
+            } else {
+                kpiNowLabel.hidden = true;
+                kpiNowLabel.textContent = '';
+            }
+        }
+        if (kpiSectionSub) {
+            kpiSectionSub.textContent = lastFull
+                ? `Indicadores a ${lastFull} (último mes con informes)`
+                : 'Indicadores del último mes con informes';
+        }
+        const lastBtn = document.querySelector('.kpi-mode-btn[data-kpi-mode="last"]');
+        if (lastBtn) lastBtn.textContent = lastHint ? `Último · ${lastHint}` : 'Último';
         kpiGrid.innerHTML = KPI_ITEMS.map(({ key, label }) => {
             const m = kpis.metrics[key];
             let valueHtml;
             let hint = '';
-            if (kpiMode === 'max') {
+            if (key === 'cursos') {
+                const con = kpis.metrics.con_cursos || {};
+                let cursosVal;
+                let conVal;
+                if (kpiMode === 'max') {
+                    cursosVal = m.max;
+                    conVal = con.max;
+                    if (m.maxMes && m.maxMes !== '—') hint = m.maxMes;
+                } else if (kpiMode === 'avg') {
+                    cursosVal = m.avg;
+                    conVal = con.avg;
+                } else if (kpiMode === 'last') {
+                    cursosVal = m.last;
+                    conVal = con.last;
+                    if (lastHint) hint = lastHint;
+                } else {
+                    cursosVal = m.total;
+                    conVal = con.total;
+                }
+                const cursosText = kpiMode === 'avg' ? formatNum(cursosVal, 1) : formatNum(cursosVal);
+                const conText = kpiMode === 'avg' ? formatNum(conVal, 1) : formatNum(conVal);
+                valueHtml = `${cursosText}<span class="kpi-value-sep">/</span>${conText}`;
+            } else if (kpiMode === 'max') {
                 valueHtml = formatNum(m.max);
                 if (m.maxMes && m.maxMes !== '—') hint = m.maxMes;
             } else if (kpiMode === 'avg') {
                 valueHtml = formatNum(m.avg, 1);
             } else if (kpiMode === 'last') {
                 valueHtml = formatNum(m.last);
-                if (lastHint) hint = lastHint;
+                if (key === 'inactivos') {
+                    const s21 = kpis.lastCompleteMonthShort && kpis.lastCompleteMonthShort !== '—'
+                        ? kpis.lastCompleteMonthShort
+                        : lastHint;
+                    hint = s21 ? `${s21} · S-21` : 'S-21';
+                } else if (lastHint) hint = lastHint;
             } else {
                 valueHtml = formatNum(m.total);
+                if (key === 'inactivos') hint = 'S-21';
             }
+            const valueClass = key === 'cursos' ? 'kpi-value kpi-value--split' : 'kpi-value';
             return `<button type="button" class="kpi-card kpi-card--${key}" data-kpi-key="${escapeAttr(key)}" aria-haspopup="dialog" aria-controls="kpi-detail-modal" title="Ver detalle">
                 <span class="kpi-card-icon" aria-hidden="true">${Icons?.metricIcon(key) || ''}</span>
-                <span class="kpi-value">${valueHtml}</span>
+                <span class="${valueClass}">${valueHtml}</span>
                 <span class="kpi-label">${label}</span>
                 ${hint ? `<span class="kpi-hint">${escapeHtml(hint)}</span>` : ''}
             </button>`;
         }).join('');
     }
 
+    function totalsAllowedMonths() {
+        const ranged = D.filterMensualByMonthRange(
+            D.S21_MESES.map(mes => ({ mes })),
+            totalsMonthFrom,
+            totalsMonthTo
+        );
+        return new Set(
+            D.filterMensualByExcludedMonths(ranged, chartExcludeMonths).map(r => r.mes)
+        );
+    }
+
+    function applyTotalsTimeToTrend(trend) {
+        const allowed = totalsAllowedMonths();
+        return (trend || []).filter(t => allowed.has(t.mes));
+    }
+
     function renderCharts(aggRows, filteredMensual, metricId, groupFields) {
+        if (totalsLayoutMode === 'table') {
+            destroyCharts();
+            chartBarRowsCache = [];
+            chartLineTrendCache = [];
+            return;
+        }
+
         const dims = getTotalsDimensions();
         const fields = dims.fields.length ? dims.fields : (groupFields || []);
-        const onlyMes = fields.length === 1 && fields[0] === 'mes';
-        const hideBar = onlyMes;
-        const reportMode = isTotalsReportMode();
+        const hideBar = totalsChartMode === 'line';
+        const hideLine = totalsChartMode === 'bar';
 
         if (chartBarCard) chartBarCard.classList.toggle('hidden', hideBar);
-        if (chartLineCard) chartLineCard.classList.toggle('hidden', reportMode);
-        if (chartGrid) chartGrid.classList.toggle('single-chart', hideBar || reportMode);
+        if (chartLineCard) chartLineCard.classList.toggle('hidden', hideLine);
+        if (chartGrid) chartGrid.classList.toggle('single-chart', hideBar || hideLine);
 
-        const mensualByProfileScoped = filterMensualForCharts(filteredMensual);
-        const mensualForBar = D.filterMensualByExcludedMonths(mensualByProfileScoped, chartExcludeMonths);
-        const mensualForTrend = D.filterMensualByExcludedMonths(
-            filterMensualForCharts(flat.mensual),
-            chartExcludeMonths
-        );
+        const mensualForBar = filteredMensual;
         const barRows = D.aggregateRows(
             mensualForBar,
             fields,
             publicadoresForBarChart(mensualForBar)
         );
-        const trend = D.trimMonthlySeries(
-            D.aggregateMonthlyTrend(mensualForTrend, metricId),
-            chartExcludeMonths
+        const trend = applyTotalsTimeToTrend(
+            D.aggregateMonthlyTrend(getTotalsMensual(flat.mensual, { applyScope: false }), metricId)
         );
         const focusMes = totalsScope !== 'year' ? totalsScope : null;
         const lineStyles = buildLineChartFocusStyles(trend, focusMes);
-        const excludeHint = chartExcludeHintHtml();
+        const timeHint = totalsTimeHintHtml();
         const lineLabels = trend.map(t => t.mes_label);
         const lineData = trend.map(t => t.value);
         const chartLabel = D.chartMetricLabel(metricId);
@@ -3516,8 +3896,7 @@ document.addEventListener('DOMContentLoaded', () => {
         destroyCharts();
 
         if (!hideBar) {
-            const aggFields = groupFields || getTotalsGroupFields();
-            const barChartData = buildGroupedBarChartData(barRows, fields, metricId, aggFields);
+            const barChartData = buildGroupedBarChartData(barRows, fields, metricId, fields);
             chartBarClickContext = barChartData;
             chartBarRowsCache = barChartData.mode === 'simple' ? barChartData.clickRows : [];
             const stacked = barChartData.mode === 'stacked';
@@ -3531,24 +3910,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     chartBarTitle,
                     escapeHtml(chartBarTitleText(metricId, titleFields)),
                     chartScopeHintHtml(),
-                    excludeHint + subgroupHint
+                    timeHint,
+                    subgroupHint
                 );
             }
 
-            barChart = new Chart(document.getElementById('chart-bar'), {
-                type: 'bar',
-                data: {
-                    labels: barChartData.labels,
-                    datasets: barChartData.datasets,
-                },
-                options: {
-                    ...chartBarOptions(metricId, stacked),
-                    onClick: (_evt, elements) => handleBarChartClick(elements),
-                },
-                plugins: stacked ? [createStackTotalsPlugin(metricId)] : [],
-            });
-            refreshChartScrollWidths();
-            requestAnimationFrame(refreshChartScrollWidths);
+            const barCanvas = document.getElementById('chart-bar');
+            if (barCanvas) {
+                barChart = new Chart(barCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: barChartData.labels,
+                        datasets: barChartData.datasets,
+                    },
+                    options: {
+                        ...chartBarOptions(metricId, stacked),
+                        onClick: (_evt, elements) => handleBarChartClick(elements),
+                    },
+                    plugins: stacked ? [createStackTotalsPlugin(metricId)] : [],
+                });
+                refreshChartScrollWidths();
+                requestAnimationFrame(refreshChartScrollWidths);
+            }
         } else {
             chartBarRowsCache = [];
             syncBarChartDimensions(
@@ -3558,16 +3941,20 @@ document.addEventListener('DOMContentLoaded', () => {
             );
         }
 
-        chartLineTrendCache = trend;
+        chartLineTrendCache = hideLine ? [] : trend;
         const lineCardTitle = document.querySelector('#chart-line-card h3');
         if (lineCardTitle) {
             const focusHint = focusMes
                 ? chartTitleNoteHtml(`foco: ${D.mesLabel(focusMes, 'completo')}`)
                 : '';
-            setChartTitle(lineCardTitle, 'Tendencia mensual', excludeHint, focusHint);
+            setChartTitle(lineCardTitle, 'Tendencia mensual', timeHint, focusHint);
         }
 
-        lineChart = new Chart(document.getElementById('chart-line'), {
+        if (hideLine) return;
+
+        const lineCanvas = document.getElementById('chart-line');
+        if (!lineCanvas) return;
+        lineChart = new Chart(lineCanvas, {
             type: 'line',
             data: {
                 labels: lineLabels,

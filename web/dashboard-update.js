@@ -8,8 +8,21 @@
         return JSON.parse(JSON.stringify(value));
     }
 
+    function foldName(value) {
+        return D().foldText ? D().foldText(value) : String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    }
+
+    function foldOrigen(value) {
+        return foldName(value);
+    }
+
+    function origenCompatible(a, b) {
+        if (D().origenCompatible) return D().origenCompatible(a, b);
+        return foldOrigen(a) === foldOrigen(b);
+    }
+
     function normName(value) {
-        return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+        return foldName(value);
     }
 
     function normOrigen(value) {
@@ -43,7 +56,11 @@
     }
 
     function personId(pkg, reg) {
-        return `${registroOrigen(pkg, reg)}::${normName(reg?.identificacion?.nombre)}`;
+        return `${foldOrigen(registroOrigen(pkg, reg))}::${foldName(reg?.identificacion?.nombre)}`;
+    }
+
+    function nameYearId(pkg, reg) {
+        return `${foldName(reg?.identificacion?.nombre)}::${registroYear(pkg, reg) ?? ''}`;
     }
 
     function cardId(pkg, reg) {
@@ -56,7 +73,7 @@
 
     function monthSnapshot(cell) {
         const horas = num(cell?.horas);
-        const cursos = num(cell?.cursos_biblicos);
+        const cursos = num(cell?.cursos_biblicos ?? cell?.cursos);
         const participacion = boolish(cell?.participacion);
         const precursor_auxiliar = boolish(cell?.precursor_auxiliar);
         const notas = String(cell?.comentarios ?? cell?.notas ?? '').trim();
@@ -122,6 +139,7 @@
     function indexCurrent(packages) {
         const byCard = new Map();
         const byPerson = new Map();
+        const byNameYear = new Map();
         const scopes = new Set();
         (packages || []).forEach((pkg, pkgIndex) => {
             (pkg.registros || []).forEach((reg, regIndex) => {
@@ -130,10 +148,32 @@
                 const pid = personId(pkg, reg);
                 if (!byPerson.has(pid)) byPerson.set(pid, []);
                 byPerson.get(pid).push(loc);
-                scopes.add(`${registroOrigen(pkg, reg)}::${registroYear(pkg, reg) ?? ''}`);
+                const nid = nameYearId(pkg, reg);
+                if (!byNameYear.has(nid)) byNameYear.set(nid, []);
+                byNameYear.get(nid).push(loc);
+                scopes.add(`${foldOrigen(registroOrigen(pkg, reg))}::${registroYear(pkg, reg) ?? ''}`);
             });
         });
-        return { byCard, byPerson, scopes };
+        return { byCard, byPerson, byNameYear, scopes };
+    }
+
+    function findCurrentLoc(current, pkg, reg) {
+        const cid = cardId(pkg, reg);
+        if (current.byCard.has(cid)) return current.byCard.get(cid);
+        const pid = personId(pkg, reg);
+        const samePerson = current.byPerson.get(pid) || [];
+        const year = registroYear(pkg, reg);
+        const sameYear = samePerson.filter(loc => registroYear(loc.pkg, loc.reg) === year);
+        if (sameYear.length === 1) return sameYear[0];
+        if (samePerson.length === 1 && year == null) return samePerson[0];
+        const nid = nameYearId(pkg, reg);
+        const byNy = current.byNameYear.get(nid) || [];
+        if (byNy.length === 1) return byNy[0];
+        const origen = registroOrigen(pkg, reg);
+        const compat = byNy.filter(loc => origenCompatible(registroOrigen(loc.pkg, loc.reg), origen));
+        if (compat.length === 1) return compat[0];
+        if (sameYear.length === 1) return sameYear[0];
+        return null;
     }
 
     function compareIdentity(oldReg, newReg, nombre, origen) {
@@ -186,7 +226,17 @@
                 return;
             }
             if (!a.empty && b.empty) {
-                cleared.push({ nombre, origen, mes, mesLabel, year });
+                const lost = MONTH_FIELDS
+                    .filter(f => {
+                        const emptyA = f.id === 'notas' ? !a.notas : !a[f.id];
+                        const emptyB = f.id === 'notas' ? !b.notas : !b[f.id];
+                        return !emptyA && emptyB;
+                    })
+                    .map(f => `${f.label}: ${formatCell(f.id, a[f.id])} → ${formatCell(f.id, b[f.id])}`);
+                cleared.push({
+                    nombre, origen, mes, mesLabel, year,
+                    detail: lost.join(' · ') || 'Mes vacío',
+                });
                 return;
             }
             MONTH_FIELDS.forEach(f => {
@@ -219,16 +269,15 @@
         (incomingPackages || []).forEach(pkg => {
             (pkg.registros || []).forEach(reg => {
                 const pid = personId(pkg, reg);
-                const cid = cardId(pkg, reg);
                 const year = registroYear(pkg, reg);
                 const origen = registroOrigen(pkg, reg);
                 const nombre = registroNombre(reg);
-                const scope = `${origen}::${year ?? ''}`;
+                const scope = `${foldOrigen(origen)}::${year ?? ''}`;
                 incomingPersonIds.add(pid);
                 if (!incomingIdsByScope.has(scope)) incomingIdsByScope.set(scope, new Set());
                 incomingIdsByScope.get(scope).add(pid);
 
-                const sameCard = current.byCard.get(cid);
+                const sameCard = findCurrentLoc(current, pkg, reg);
                 if (sameCard) {
                     const idDiff = compareIdentity(sameCard.reg, reg, nombre, origen);
                     diff.personalChanges.push(...idDiff.personal);
@@ -240,7 +289,8 @@
                     return;
                 }
 
-                const previous = current.byPerson.get(pid);
+                const previous = current.byPerson.get(pid)
+                    || current.byNameYear.get(nameYearId(pkg, reg));
                 if (previous?.length) {
                     const fromYear = registroYear(previous[0].pkg, previous[0].reg);
                     diff.newYearCards.push({
@@ -260,7 +310,7 @@
             (pkg.registros || []).forEach(reg => {
                 const year = registroYear(pkg, reg);
                 const origen = registroOrigen(pkg, reg);
-                const scope = `${origen}::${year ?? ''}`;
+                const scope = `${foldOrigen(origen)}::${year ?? ''}`;
                 if (!incomingIdsByScope.has(scope)) return;
                 const pid = personId(pkg, reg);
                 if (incomingIdsByScope.get(scope).has(pid)) return;
@@ -273,7 +323,7 @@
                     diff.removedCards.push(item);
                 } else {
                     const stillElsewhere = (current.byPerson.get(pid) || []).some(loc => {
-                        const otherScope = `${registroOrigen(loc.pkg, loc.reg)}::${registroYear(loc.pkg, loc.reg) ?? ''}`;
+                        const otherScope = `${foldOrigen(registroOrigen(loc.pkg, loc.reg))}::${registroYear(loc.pkg, loc.reg) ?? ''}`;
                         return otherScope !== scope && !incomingIdsByScope.has(otherScope);
                     });
                     if (stillElsewhere) diff.removedCards.push(item);
@@ -294,44 +344,111 @@
         return diff;
     }
 
+    function filledMonthCount(reg) {
+        const months = D().S21_MESES || [];
+        const map = reg?.registro || {};
+        return months.reduce((n, mes) => n + (monthSnapshot(map[mes]).empty ? 0 : 1), 0);
+    }
+
+    function locateRegistro(packages, inPkg, inReg) {
+        const cid = cardId(inPkg, inReg);
+        const nid = nameYearId(inPkg, inReg);
+        const pid = personId(inPkg, inReg);
+        const year = registroYear(inPkg, inReg);
+        const origen = registroOrigen(inPkg, inReg);
+        const hits = [];
+        packages.forEach((pkg, pkgIndex) => {
+            (pkg.registros || []).forEach((reg, regIndex) => {
+                hits.push({ pkg, reg, pkgIndex, regIndex });
+            });
+        });
+        const byCard = hits.find(h => cardId(h.pkg, h.reg) === cid);
+        if (byCard) return byCard;
+        const byPidYear = hits.filter(h => personId(h.pkg, h.reg) === pid && registroYear(h.pkg, h.reg) === year);
+        if (byPidYear.length === 1) return byPidYear[0];
+        const byNy = hits.filter(h => nameYearId(h.pkg, h.reg) === nid);
+        if (byNy.length === 1) return byNy[0];
+        const compat = byNy.filter(h => origenCompatible(registroOrigen(h.pkg, h.reg), origen));
+        if (compat.length === 1) return compat[0];
+        if (byPidYear.length > 1) return byPidYear[0];
+        return null;
+    }
+
+    function findPackageIndex(packages, inPkg, inReg) {
+        const key = packageKey(inPkg);
+        const exact = packages.findIndex(p => packageKey(p) === key);
+        if (exact >= 0) return exact;
+        const year = registroYear(inPkg, inReg) ?? D().packageServiceYear?.(inPkg);
+        const origen = registroOrigen(inPkg, inReg) || inPkg?.origen;
+        const compat = packages.findIndex(p => {
+            const py = D().packageServiceYear?.(p);
+            if (year != null && py != null && Number(py) !== Number(year)) return false;
+            return origenCompatible(p.origen, origen);
+        });
+        return compat;
+    }
+
+    function dedupeRegistros(pkg) {
+        const map = new Map();
+        (pkg.registros || []).forEach(reg => {
+            const id = `${personId(pkg, reg)}::${registroYear(pkg, reg) ?? ''}`;
+            const prev = map.get(id);
+            if (!prev || filledMonthCount(reg) >= filledMonthCount(prev)) map.set(id, reg);
+        });
+        pkg.registros = [...map.values()];
+        pkg.cantidad = pkg.registros.length;
+        return pkg;
+    }
+
     function applyPackageUpdate(currentPackages, incomingPackages) {
         const diff = diffPackagesForUpdate(currentPackages, incomingPackages);
         const next = clone(currentPackages || []);
-        const destByKey = new Map();
-        next.forEach((pkg, i) => destByKey.set(packageKey(pkg), i));
 
         (incomingPackages || []).forEach(inPkg => {
-            const key = packageKey(inPkg);
-            let destIndex = destByKey.get(key);
-            if (destIndex == null) {
-                next.push(clone(inPkg));
-                destByKey.set(key, next.length - 1);
-                return;
-            }
-            const dest = next[destIndex];
-            const incomingByPerson = new Map();
-            (inPkg.registros || []).forEach(reg => {
-                incomingByPerson.set(personId(inPkg, reg), clone(reg));
-            });
-            dest.registros = (dest.registros || []).filter(reg => incomingByPerson.has(personId(dest, reg)));
-            const destByPerson = new Map();
-            dest.registros.forEach((reg, i) => destByPerson.set(personId(dest, reg), i));
-            incomingByPerson.forEach((reg, pid) => {
-                const idx = destByPerson.get(pid);
-                if (idx == null) {
-                    dest.registros.push(reg);
-                    destByPerson.set(pid, dest.registros.length - 1);
-                } else {
-                    dest.registros[idx] = reg;
+            (inPkg.registros || []).forEach(inReg => {
+                const cloned = clone(inReg);
+                const loc = locateRegistro(next, inPkg, inReg);
+                if (loc) {
+                    next[loc.pkgIndex].registros[loc.regIndex] = cloned;
+                    return;
                 }
+                let pkgIndex = findPackageIndex(next, inPkg, inReg);
+                if (pkgIndex < 0) {
+                    next.push(clone({ ...inPkg, registros: [] }));
+                    pkgIndex = next.length - 1;
+                }
+                next[pkgIndex].registros = next[pkgIndex].registros || [];
+                next[pkgIndex].registros.push(cloned);
             });
-            dest.cantidad = dest.registros.length;
-            if (inPkg.exported_at) dest.exported_at = inPkg.exported_at;
-            if (inPkg.año_servicio) dest.año_servicio = clone(inPkg.año_servicio);
-            if (inPkg.titulo) dest.titulo = inPkg.titulo;
+            const destIndex = findPackageIndex(next, inPkg, (inPkg.registros || [])[0] || {});
+            if (destIndex >= 0) {
+                const dest = next[destIndex];
+                if (inPkg.exported_at) dest.exported_at = inPkg.exported_at;
+                if (inPkg.año_servicio) dest.año_servicio = clone(inPkg.año_servicio);
+                if (inPkg.titulo && !dest.titulo) dest.titulo = inPkg.titulo;
+            }
         });
 
-        return { packages: next, diff };
+        const incomingScopes = new Map();
+        (incomingPackages || []).forEach(pkg => {
+            (pkg.registros || []).forEach(reg => {
+                const scope = `${foldOrigen(registroOrigen(pkg, reg))}::${registroYear(pkg, reg) ?? ''}`;
+                if (!incomingScopes.has(scope)) incomingScopes.set(scope, new Set());
+                incomingScopes.get(scope).add(personId(pkg, reg));
+                incomingScopes.get(scope).add(nameYearId(pkg, reg));
+            });
+        });
+        next.forEach(pkg => {
+            pkg.registros = (pkg.registros || []).filter(reg => {
+                const scope = `${foldOrigen(registroOrigen(pkg, reg))}::${registroYear(pkg, reg) ?? ''}`;
+                const covered = incomingScopes.get(scope);
+                if (!covered) return true;
+                return covered.has(personId(pkg, reg)) || covered.has(nameYearId(pkg, reg));
+            });
+        });
+
+        next.forEach(dedupeRegistros);
+        return { packages: next.filter(pkg => (pkg.registros || []).length), diff };
     }
 
     function summarizeDiff(diff) {
@@ -473,7 +590,7 @@
             lines.push(`${nextTitle(title)} (${items.length})`);
             groupByPerson(items).slice(0, REPORT_LIMIT).forEach(group => {
                 lines.push(`  ${personLabel(group)}`);
-                group.items.forEach(item => lines.push(`    · ${item.mesLabel || item.mes}`));
+                group.items.forEach(item => lines.push(`    · ${item.mesLabel || item.mes}${item.detail ? ` (${item.detail})` : ''}`));
             });
             if (groupByPerson(items).length > REPORT_LIMIT) {
                 lines.push(`  - … y más`);
@@ -546,7 +663,7 @@
         addSection('Meses borrados', diff.monthsCleared.length,
             groupByPerson(diff.monthsCleared).map(group =>
                 `<div class="datos-update-person"><strong>${escapeHtml(personLabel(group))}</strong><ul>${
-                    group.items.map(item => `<li>${escapeHtml(item.mesLabel || item.mes)}</li>`).join('')
+                    group.items.map(item => `<li>${escapeHtml(item.mesLabel || item.mes)}${item.detail ? ` · ${escapeHtml(item.detail)}` : ''}</li>`).join('')
                 }</ul></div>`
             ).join(''));
         addSection('Celdas cambiadas o borradas', diff.cellChanges.length,

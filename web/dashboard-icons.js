@@ -85,15 +85,16 @@
         return `<text class="person-mark" x="19.2" y="18.2" text-anchor="middle" fill="currentColor" stroke="none" font-size="7" font-weight="800" font-family="Outfit, system-ui, sans-serif">${letter}</text>`;
     }
 
-    function personIconHtml(pub) {
+    function personIconHtml(pub, options) {
         const shape = personShapeRole(pub);
         const color = personColorRole(pub);
         const inner = personBust(isFemale(pub)) + shoulderMark(shape);
-        return personSvg(inner, `person-icon person-icon--${color}`, personTitle(pub));
+        const title = options?.decorative ? '' : personTitle(pub);
+        return personSvg(inner, `person-icon person-icon--${color}`, title);
     }
 
     function personNameInnerHtml(pub, escapedName) {
-        return `${personIconHtml(pub)}<span class="person-name-text">${escapedName}</span>`;
+        return `${personIconHtml(pub, { decorative: true })}<span class="person-name-text">${escapedName}</span>`;
     }
 
     const METRIC_PATHS = {
@@ -102,7 +103,7 @@
         cursos: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h5"/>',
         participacion: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>',
         precursor_aux: '<circle cx="9" cy="7" r="3.2"/><path d="M3.5 20.5v-.8c0-3 2.5-5.1 5.5-5.1 1.1 0 2.1.3 3 .8"/><circle cx="17.5" cy="16.5" r="4"/><path d="M17.5 14.6v2.1l1.4.8"/>',
-        inactivos: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 8l5 5M22 8l-5 5"/>',
+        con_cursos: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h5"/><path d="M16 16l2 2 4-4"/>',
         publicadores_con_cursos: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 5h6v8h-6z"/><path d="M16 9h6"/>',
         publicadores_sin_cursos: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 7h6M20 4v6"/>',
         precursor_auxiliar: '<circle cx="9" cy="7" r="3.2"/><path d="M3.5 20.5v-.8c0-3 2.5-5.1 5.5-5.1 1.1 0 2.1.3 3 .8"/><circle cx="17.5" cy="16.5" r="4"/><path d="M17.5 14.6v2.1l1.4.8"/>',

@@ -43,8 +43,14 @@
     --chart-focus-tick: #38bdf8;
     --chart-focus-tick-muted: #6b8299;
     --person-publicador: #d5e4f7;
-    --person-siervo: #67f6ff;
-    --person-anciano: #ffd24a;
+    --person-siervo: #ff7a45;
+    --person-anciano: #ffc933;
+    --person-sup: #2dd4bf;
+    --person-sup-bg: rgba(45, 212, 191, 0.18);
+    --person-sup-border: rgba(45, 212, 191, 0.4);
+    --person-aux: #99f6e4;
+    --person-aux-bg: rgba(153, 246, 228, 0.14);
+    --person-aux-border: rgba(153, 246, 228, 0.38);
     /* Motion: overlays & view changes (not data re-renders) */
     --motion-fast: 150ms;
     --motion-panel: 240ms;

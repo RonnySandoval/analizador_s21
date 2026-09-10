@@ -49,8 +49,14 @@
     --chart-focus-tick: #0891b2;
     --chart-focus-tick-muted: #64748b;
     --person-publicador: #64748b;
-    --person-siervo: #0891b2;
-    --person-anciano: #d97706;
+    --person-siervo: #c2410c;
+    --person-anciano: #a16207;
+    --person-sup: #0f766e;
+    --person-sup-bg: rgba(13, 148, 136, 0.12);
+    --person-sup-border: rgba(13, 148, 136, 0.35);
+    --person-aux: #0d9488;
+    --person-aux-bg: rgba(13, 148, 136, 0.08);
+    --person-aux-border: rgba(13, 148, 136, 0.28);
     --heading-section-color: #1e293b;
     --heading-subsection-color: #1e293b;
     --heading-panel-color: #475569;
@@ -232,18 +238,6 @@
 [data-theme="light"] .grupos-others-details {
     background: rgba(241, 245, 249, 0.65);
     border-color: rgba(100, 116, 139, 0.28);
-}
-
-[data-theme="light"] .grupos-chip--sup {
-    color: #b45309;
-    background: rgba(217, 119, 6, 0.12);
-    border-color: rgba(217, 119, 6, 0.35);
-}
-
-[data-theme="light"] .grupos-chip--aux {
-    color: #0369a1;
-    background: rgba(8, 145, 178, 0.12);
-    border-color: rgba(8, 145, 178, 0.35);
 }
 
 [data-theme="light"] .filter-chip-exclude.on {

@@ -499,13 +499,15 @@
         const copyBtn = $('datos-update-copy');
         const applied = phase === 'applied';
         if (title) {
-            title.textContent = applied
-                ? 'Actualización aplicada'
-                : (allowNewLoad ? 'Cambios detectados' : 'Actualizar carga');
+            if (applied) title.textContent = 'Actualización aplicada';
+            else if (!pendingUpdate?.diff?.hasChanges) title.textContent = 'Sin cambios en los informes';
+            else title.textContent = allowNewLoad ? 'Cambios detectados' : 'Actualizar carga';
         }
         if (confirmBtn) {
-            confirmBtn.disabled = applied || !pendingUpdate?.diff?.hasChanges;
-            confirmBtn.textContent = 'Aplicar actualización';
+            confirmBtn.disabled = !!applied;
+            confirmBtn.textContent = pendingUpdate?.diff?.hasChanges
+                ? 'Aplicar actualización'
+                : 'Usar este archivo';
             setElHidden(confirmBtn, applied);
         }
         setElHidden(asNewBtn, applied || !allowNewLoad);
@@ -666,10 +668,6 @@
     async function confirmUpdate() {
         if (!pendingUpdate || pendingUpdate.applying) return;
         if (pendingUpdate.applied) {
-            closeUpdateModal();
-            return;
-        }
-        if (!pendingUpdate.diff?.hasChanges) {
             closeUpdateModal();
             return;
         }

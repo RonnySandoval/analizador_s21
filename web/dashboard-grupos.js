@@ -278,7 +278,8 @@
     }
 
     function getPublishers() {
-        return ctx?.getPublishers?.() || [];
+        const rows = ctx?.getPublishers?.() || [];
+        return window.S21DashboardData?.uniquePublishers?.(rows) || rows;
     }
 
     function escapeHtml(s) {

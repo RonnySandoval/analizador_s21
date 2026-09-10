@@ -90,11 +90,223 @@ const S21_CHART_METRICS = [
     { id: 'precursor_auxiliar', label: 'Meses precursor auxiliar', aggregation: 'avg' },
     { id: 'publicadores_con_cursos', label: 'Publicadores con cursos', aggregation: 'count' },
     { id: 'publicadores_sin_cursos', label: 'Publicadores sin cursos', aggregation: 'count' },
-    { id: 'inactivos', label: 'Inactivos (perfil)', aggregation: 'count' },
+    { id: 'inactivos', label: 'Inactivos e irregulares (S-21)', aggregation: 'count' },
 ];
 
 function isPerfilInactivo(origen) {
     return /\binactiv/i.test(String(origen || ''));
+}
+
+const S21_INACTIVE_MONTHS = 6;
+
+function monthHasReport(row) {
+    if (!row) return false;
+    return !!row.participacion || Number(row.horas) > 0;
+}
+
+function elapsedMonthsThrough(refMes) {
+    const idx = S21_MESES.indexOf(refMes);
+    if (idx < 0) return [];
+    return S21_MESES.slice(0, idx + 1);
+}
+
+function indexMensualByPerson(mensual) {
+    const map = new Map();
+    (mensual || []).forEach(row => {
+        if (!row?.nombre) return;
+        const pk = personIdentityKey(row);
+        if (!map.has(pk)) map.set(pk, new Map());
+        const monthMap = map.get(pk);
+        const existing = monthMap.get(row.mes);
+        if (!existing || (monthHasReport(row) && !monthHasReport(existing))) {
+            monthMap.set(row.mes, row);
+        }
+    });
+    return map;
+}
+
+function monthSpanLabel(meses) {
+    if (!meses?.length) return '';
+    if (meses.length === 1) return mesLabel(meses[0], 'completo');
+    return `${mesLabel(meses[0], 'corto')}–${mesLabel(meses[meses.length - 1], 'corto')}`;
+}
+
+function classifyPublisherActivity(pub, mensualByPerson, refMes) {
+    const pk = personIdentityKey(pub);
+    const byMes = mensualByPerson instanceof Map && mensualByPerson.get(pk) instanceof Map
+        ? mensualByPerson.get(pk)
+        : (mensualByPerson instanceof Map ? mensualByPerson.get(pk) : null);
+    const monthMap = byMes instanceof Map ? byMes : new Map();
+    const elapsed = elapsedMonthsThrough(refMes);
+    const window = elapsed.slice(-S21_INACTIVE_MONTHS);
+    const missedFromEnd = [];
+    for (let i = elapsed.length - 1; i >= 0; i--) {
+        if (monthHasReport(monthMap.get(elapsed[i]))) break;
+        missedFromEnd.push(elapsed[i]);
+    }
+    missedFromEnd.reverse();
+    const streak = missedFromEnd.length;
+    const missedInWindow = window.filter(mes => !monthHasReport(monthMap.get(mes)));
+    const reportedInWindow = window.filter(mes => monthHasReport(monthMap.get(mes)));
+    const lastReportMes = [...elapsed].reverse().find(mes => monthHasReport(monthMap.get(mes))) || null;
+    const inFolder = isPerfilInactivo(pub?.origen);
+    let status = 'ok';
+    if (streak >= S21_INACTIVE_MONTHS) status = 'inactivo';
+    else if (missedInWindow.length > 0) status = 'irregular';
+
+    let reason;
+    if (status === 'inactivo') {
+        reason = `${streak} meses seguidos sin participación (${monthSpanLabel(missedFromEnd)}). Regla S-21: 6 meses seguidos = inactivo.`;
+    } else if (status === 'irregular') {
+        if (streak > 0) {
+            const n = `${streak} mes${streak === 1 ? '' : 'es'} seguido${streak === 1 ? '' : 's'}`;
+            reason = `${n} sin participación (${monthSpanLabel(missedFromEnd)}). Aún no llega a 6 (S-21).`;
+        } else {
+            reason = `Sin participación en ${missedInWindow.length} de los últimos ${window.length} meses (${monthSpanLabel(missedInWindow)}). Último informe: ${lastReportMes ? mesLabel(lastReportMes, 'completo') : '—'}.`;
+        }
+    } else if (lastReportMes) {
+        reason = `Informó en ${mesLabel(lastReportMes, 'completo')}. No cumple la regla de 6 meses.`;
+    } else if (!elapsed.length) {
+        reason = 'No hay un mes de referencia para aplicar la regla S-21.';
+    } else {
+        reason = 'No hay informes en el periodo visible.';
+    }
+    if (inFolder) {
+        reason += status === 'ok'
+            ? ' Está en el perfil Inactivos, pero la regla S-21 no lo marca inactivo.'
+            : ' También está en el perfil Inactivos.';
+    }
+
+    let reasonShort;
+    if (status === 'inactivo') {
+        reasonShort = `${streak} meses seguidos`;
+    } else if (status === 'irregular' && streak > 0) {
+        reasonShort = `${streak} mes${streak === 1 ? '' : 'es'} seguido${streak === 1 ? '' : 's'}`;
+    } else if (status === 'irregular') {
+        reasonShort = `${missedInWindow.length} mes${missedInWindow.length === 1 ? '' : 'es'} sin informe`;
+    } else if (lastReportMes) {
+        reasonShort = `Informó en ${mesLabel(lastReportMes, 'corto')}`;
+    } else {
+        reasonShort = 'Sin informe';
+    }
+    if (inFolder && status === 'ok') reasonShort = 'Carpeta, sí informó';
+
+    return {
+        status,
+        inMetric: status === 'inactivo' || status === 'irregular',
+        inFolder,
+        streak,
+        lastReportMes,
+        missedInWindow,
+        reasonShort,
+        reason,
+        refMes,
+    };
+}
+
+function foldText(value) {
+    return String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+}
+
+function isBlankDate(value) {
+    const s = String(value ?? '').trim();
+    return !s || s === '—' || s === '-' || /^n\/?a$/i.test(s);
+}
+
+function origenCompatible(a, b) {
+    const x = foldText(a);
+    const y = foldText(b);
+    if (!x || !y) return !x && !y;
+    if (x === y) return true;
+    return x.includes(y) || y.includes(x);
+}
+
+function namesLikelySame(a, b) {
+    const x = foldText(a);
+    const y = foldText(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    const shorter = x.length <= y.length ? x : y;
+    const longer = x.length <= y.length ? y : x;
+    if (shorter.length < 12) return false;
+    return longer.startsWith(shorter);
+}
+
+function publisherScore(p) {
+    return (Number(p?.total_horas) || 0)
+        + (Number(p?.total_cursos) || 0)
+        + (Number(p?.meses_participacion) || 0);
+}
+
+function publishersAreDuplicate(a, b) {
+    if (!a || !b) return false;
+    if (personIdentityKey(a) === personIdentityKey(b)) return true;
+    if (foldText(a.nombre) === foldText(b.nombre) && origenCompatible(a.origen, b.origen)) return true;
+    const dateA = String(a.fecha_nacimiento || '').trim();
+    const dateB = String(b.fecha_nacimiento || '').trim();
+    if (!isBlankDate(dateA) && dateA === dateB && namesLikelySame(a.nombre, b.nombre)) return true;
+    return false;
+}
+
+function uniquePublishers(rows) {
+    const map = new Map();
+    (rows || []).forEach(p => {
+        const pk = personIdentityKey(p);
+        const prev = map.get(pk);
+        if (!prev || publisherScore(p) >= publisherScore(prev)) map.set(pk, p);
+    });
+    const kept = [];
+    for (const p of map.values()) {
+        const idx = kept.findIndex(k => publishersAreDuplicate(k, p));
+        if (idx < 0) kept.push(p);
+        else if (publisherScore(p) >= publisherScore(kept[idx])) kept[idx] = p;
+    }
+    return kept;
+}
+
+function uniqueMensualRows(rows) {
+    const map = new Map();
+    (rows || []).forEach(row => {
+        const key = `${personIdentityKey(row)}::${row.mes || ''}`;
+        const prev = map.get(key);
+        if (!prev) {
+            map.set(key, row);
+            return;
+        }
+        const prevYear = Number(prev.año_servicio) || 0;
+        const nextYear = Number(row.año_servicio) || 0;
+        if (nextYear !== prevYear) {
+            map.set(key, nextYear >= prevYear ? row : prev);
+            return;
+        }
+        map.set(key, row);
+    });
+    const list = [...map.values()];
+    const kept = [];
+    for (const row of list) {
+        const idx = kept.findIndex(k => k.mes === row.mes && publishersAreDuplicate(k, row));
+        if (idx < 0) kept.push(row);
+        else {
+            const prev = kept[idx];
+            const prevYear = Number(prev.año_servicio) || 0;
+            const nextYear = Number(row.año_servicio) || 0;
+            kept[idx] = nextYear >= prevYear ? row : prev;
+        }
+    }
+    return kept;
+}
+
+function classifyPublishersActivity(publicadores, mensual, refMes) {
+    const byPerson = indexMensualByPerson(mensual);
+    return uniquePublishers(publicadores).map(pub => ({
+        pub,
+        ...classifyPublisherActivity(pub, byPerson, refMes),
+    }));
 }
 
 function filterMensualByScope(rows, scope) {
@@ -233,6 +445,8 @@ function flattenPackages(packages) {
             const meta = reg.metadata || {};
             const origen = meta.carpeta_origen || pkg.origen;
 
+            const year = meta.año_servicio ?? pkg.año_servicio?.valor ?? pkg.año_servicio ?? null;
+
             const base = {
                 origen,
                 titulo_paquete: pkg.titulo,
@@ -247,6 +461,7 @@ function flattenPackages(packages) {
                 precursor_especial: boolLabel(!!priv.precursor_especial),
                 misionero: boolLabel(!!priv.misionero),
                 archivo: meta.archivo || '',
+                año_servicio: year == null || Number.isNaN(Number(year)) ? null : Number(year),
             };
 
             let totalHoras = reg.totales?.horas;
@@ -298,7 +513,11 @@ function flattenPackages(packages) {
         }
     }
 
-    return { mensual, publicadores, packages };
+    return {
+        mensual: uniqueMensualRows(mensual),
+        publicadores: uniquePublishers(publicadores),
+        packages,
+    };
 }
 
 function uniqueValues(rows, field) {
@@ -341,6 +560,32 @@ function excludedMonthLabels(excludeLastN) {
     return S21_MESES.slice(-n).map(m => mesLabel(m, 'corto'));
 }
 
+function monthRangeBounds(fromMes, toMes) {
+    let from = S21_MESES.indexOf(fromMes);
+    let to = S21_MESES.indexOf(toMes);
+    if (from < 0) from = 0;
+    if (to < 0) to = S21_MESES.length - 1;
+    if (from > to) {
+        const tmp = from;
+        from = to;
+        to = tmp;
+    }
+    return { from, to };
+}
+
+function isFullServiceYearRange(fromMes, toMes) {
+    const { from, to } = monthRangeBounds(fromMes, toMes);
+    return from === 0 && to === S21_MESES.length - 1;
+}
+
+function filterMensualByMonthRange(rows, fromMes, toMes) {
+    if (!rows?.length) return rows || [];
+    if (isFullServiceYearRange(fromMes, toMes)) return rows;
+    const { from, to } = monthRangeBounds(fromMes, toMes);
+    const allowed = new Set(S21_MESES.slice(from, to + 1));
+    return rows.filter(r => allowed.has(r.mes));
+}
+
 function makeGroup(parts, groupFields) {
     return {
         keys: groupFields.map((f, i) => ({
@@ -353,7 +598,7 @@ function makeGroup(parts, groupFields) {
         participacion: 0,
         precursor_auxiliar: 0,
         _people: new Set(),
-        _inactivosPerfil: new Set(),
+        _inactivosRegla: new Set(),
         _conCursos: new Set(),
         _sinCursos: new Set(),
     };
@@ -363,12 +608,20 @@ function aggregateRows(mensualRows, groupFields, publicadoresRows = []) {
     const fields = groupFields.filter(Boolean);
     const includesMes = fields.includes('mes');
     const groups = new Map();
+    const byPerson = indexMensualByPerson(mensualRows);
+    const refMesYear = findLastRegisteredMonth(mensualRows);
 
     function getGroup(row) {
         const parts = fields.map(f => row[f] ?? '—');
         const key = parts.join('\0') || '(total)';
         if (!groups.has(key)) groups.set(key, makeGroup(parts, fields));
         return groups.get(key);
+    }
+
+    function markActivity(g, pubLike, refMes) {
+        if (!pubLike?.nombre || !refMes) return;
+        const cls = classifyPublisherActivity(pubLike, byPerson, refMes);
+        if (cls.inMetric) g._inactivosRegla.add(personKey(pubLike));
     }
 
     for (const row of mensualRows) {
@@ -381,11 +634,9 @@ function aggregateRows(mensualRows, groupFields, publicadoresRows = []) {
             const pk = personKey(row);
             if (includesMes) {
                 g._people.add(pk);
-                if (isPerfilInactivo(row.origen)) g._inactivosPerfil.add(pk);
+                markActivity(g, row, row.mes);
                 if (row.cursos > 0) g._conCursos.add(pk);
                 else g._sinCursos.add(pk);
-            } else if (isPerfilInactivo(row.origen)) {
-                g._inactivosPerfil.add(pk);
             }
         }
     }
@@ -396,7 +647,7 @@ function aggregateRows(mensualRows, groupFields, publicadoresRows = []) {
             if (row.nombre) {
                 const pk = personKey(row);
                 g._people.add(pk);
-                if (isPerfilInactivo(row.origen)) g._inactivosPerfil.add(pk);
+                markActivity(g, row, refMesYear);
                 if (row.total_cursos > 0) g._conCursos.add(pk);
                 else g._sinCursos.add(pk);
             }
@@ -413,7 +664,7 @@ function aggregateRows(mensualRows, groupFields, publicadoresRows = []) {
         participacion: g.participacion,
         precursor_auxiliar: g.precursor_auxiliar,
         publicadores: g._people.size,
-        inactivos: g._inactivosPerfil.size,
+        inactivos: g._inactivosRegla.size,
         publicadores_con_cursos: g._conCursos.size,
         publicadores_sin_cursos: g._sinCursos.size,
     }));
@@ -434,7 +685,30 @@ function aggregateMonthlyTrend(rows, metricId) {
             const pk = personKey(row);
             if (row.cursos > 0) slot.con.add(pk);
             else slot.sin.add(pk);
-            if (metricId === 'inactivos' && isPerfilInactivo(row.origen)) slot.inactivos.add(pk);
+        }
+        if (metricId === 'inactivos') {
+            const lastMes = findLastRegisteredMonth(rows);
+            const lastIdx = lastMes ? S21_MESES.indexOf(lastMes) : -1;
+            const byPerson = indexMensualByPerson(rows);
+            const pubs = [];
+            const seen = new Set();
+            rows.forEach(row => {
+                if (!row.nombre) return;
+                const pk = personKey(row);
+                if (seen.has(pk)) return;
+                seen.add(pk);
+                pubs.push(row);
+            });
+            return S21_MESES.map((m, idx) => {
+                const slot = byMes.get(m);
+                let value = 0;
+                if (lastIdx >= 0 && idx <= lastIdx) {
+                    pubs.forEach(pub => {
+                        if (classifyPublisherActivity(pub, byPerson, m).inMetric) value += 1;
+                    });
+                }
+                return { mes: m, mes_label: slot.mes_label, value };
+            });
         }
         return S21_MESES.map(m => {
             const slot = byMes.get(m);
@@ -472,7 +746,7 @@ function monthlySeriesForKpi(mensual, metricKey) {
     if (metricKey === 'publicadores') {
         const byMes = new Map(S21_MESES.map(m => [m, new Set()]));
         for (const row of mensual) {
-            if (row.nombre) byMes.get(row.mes)?.add(personKey(row));
+            if (row.nombre) byMes.get(row.mes)?.add(personIdentityKey(row));
         }
         return S21_MESES.map(m => ({
             mes: m,
@@ -492,11 +766,32 @@ function monthlySeriesForKpi(mensual, metricKey) {
         }));
     }
     if (metricKey === 'inactivos') {
+        const lastMes = findLastCompleteMonth(mensual);
+        const lastIdx = lastMes ? S21_MESES.indexOf(lastMes) : -1;
+        const byPerson = indexMensualByPerson(mensual);
+        const pubs = [];
+        const seen = new Set();
+        for (const row of mensual) {
+            if (!row.nombre) continue;
+            const pk = personIdentityKey(row);
+            if (seen.has(pk)) continue;
+            seen.add(pk);
+            pubs.push(row);
+        }
+        return S21_MESES.map((m, idx) => {
+            let value = 0;
+            if (lastIdx >= 0 && idx <= lastIdx) {
+                pubs.forEach(pub => {
+                    if (classifyPublisherActivity(pub, byPerson, m).inMetric) value += 1;
+                });
+            }
+            return { mes: m, mes_label: mesLabel(m, 'corto'), value };
+        });
+    }
+    if (metricKey === 'con_cursos') {
         const byMes = new Map(S21_MESES.map(m => [m, new Set()]));
         for (const row of mensual) {
-            if (row.nombre && isPerfilInactivo(row.origen)) {
-                byMes.get(row.mes)?.add(personKey(row));
-            }
+            if (row.nombre && row.cursos > 0) byMes.get(row.mes)?.add(personIdentityKey(row));
         }
         return S21_MESES.map(m => ({
             mes: m,
@@ -546,27 +841,55 @@ function monthHasRegisteredActivity(mensual, mes) {
         || stats.precursor_auxiliar > 0;
 }
 
-/** Último mes del año de servicio con datos; omite meses vacíos al final (p. ej. agosto sin informes). */
+function monthReportCounts(mensual) {
+    const byMes = new Map(S21_MESES.map(m => [m, new Set()]));
+    for (const row of mensual || []) {
+        if (!row?.nombre || !monthHasReport(row)) continue;
+        byMes.get(row.mes)?.add(personIdentityKey(row));
+    }
+    return S21_MESES.map(mes => ({ mes, score: byMes.get(mes).size }));
+}
+
+/** Último mes con al menos un informe (el «hoy» del dashboard, aunque el mes aún esté incompleto). */
 function findLastRegisteredMonth(mensual) {
-    for (let i = S21_MESES.length - 1; i >= 0; i--) {
-        const mes = S21_MESES[i];
-        if (monthHasRegisteredActivity(mensual, mes)) return mes;
+    const scored = monthReportCounts(mensual);
+    for (let i = scored.length - 1; i >= 0; i--) {
+        if (scored[i].score > 0) return scored[i].mes;
     }
     return null;
 }
 
+/** Último mes con volumen real de informes; ignora un mes nuevo casi vacío al aplicar la regla S-21. */
+function findLastCompleteMonth(mensual) {
+    const scored = monthReportCounts(mensual);
+    const peak = Math.max(0, ...scored.map(s => s.score));
+    if (!peak) return null;
+    const threshold = Math.max(1, Math.ceil(peak * 0.2));
+    for (let i = scored.length - 1; i >= 0; i--) {
+        if (scored[i].score >= threshold) return scored[i].mes;
+    }
+    return findLastRegisteredMonth(mensual);
+}
+
+function trimSeriesToLastRegistered(series, mensual) {
+    const lastMes = findLastCompleteMonth(mensual);
+    const lastIdx = lastMes ? S21_MESES.indexOf(lastMes) : -1;
+    if (lastIdx < 0) return series;
+    return series.filter(slot => S21_MESES.indexOf(slot.mes) <= lastIdx);
+}
+
 function kpiMetric(mensual, publicadores, metricKey, lastMes = null) {
-    const series = monthlySeriesForKpi(mensual, metricKey);
+    const full = monthlySeriesForKpi(mensual, metricKey);
+    const series = trimSeriesToLastRegistered(full, mensual);
     const { max, maxMes, avg } = statsFromMonthlySeries(series);
     let last = 0;
     if (lastMes) {
-        const slot = series.find(s => s.mes === lastMes);
-        last = slot?.value ?? 0;
+        last = (full.find(s => s.mes === lastMes) || series.find(s => s.mes === lastMes))?.value ?? 0;
     }
     let total;
     switch (metricKey) {
         case 'publicadores':
-            total = new Set(publicadores.map(p => `${p.origen}::${p.nombre}`)).size;
+            total = uniquePublishers(publicadores).length;
             break;
         case 'origenes':
             total = new Set(publicadores.map(p => p.origen)).size;
@@ -583,10 +906,14 @@ function kpiMetric(mensual, publicadores, metricKey, lastMes = null) {
         case 'precursor_aux':
             total = mensual.reduce((s, r) => s + r.precursor_auxiliar, 0);
             break;
-        case 'inactivos':
-            total = new Set(
-                publicadores.filter(p => isPerfilInactivo(p.origen)).map(p => personKey(p))
-            ).size;
+        case 'inactivos': {
+            const ref = lastMes || findLastCompleteMonth(mensual);
+            total = classifyPublishersActivity(publicadores, mensual, ref)
+                .filter(item => item.inMetric).length;
+            break;
+        }
+        case 'con_cursos':
+            total = uniquePublishers(publicadores).filter(p => (p.total_cursos || 0) > 0).length;
             break;
         default:
             total = 0;
@@ -595,17 +922,22 @@ function kpiMetric(mensual, publicadores, metricKey, lastMes = null) {
 }
 
 function computeKpis(mensual, publicadores) {
-    const keys = ['publicadores', 'horas', 'cursos', 'participacion', 'precursor_aux', 'inactivos'];
+    const keys = ['publicadores', 'horas', 'cursos', 'con_cursos', 'participacion', 'precursor_aux', 'inactivos'];
     const lastRegisteredMonth = findLastRegisteredMonth(mensual);
+    const lastCompleteMonth = findLastCompleteMonth(mensual);
     const metrics = {};
     for (const key of keys) {
-        metrics[key] = kpiMetric(mensual, publicadores, key, lastRegisteredMonth);
+        const ref = key === 'inactivos' ? lastCompleteMonth : lastRegisteredMonth;
+        metrics[key] = kpiMetric(mensual, publicadores, key, ref);
     }
     return {
         publicadores_total: metrics.publicadores.total,
         lastRegisteredMonth,
+        lastCompleteMonth,
         lastRegisteredMonthLabel: lastRegisteredMonth ? mesLabel(lastRegisteredMonth, 'completo') : '—',
         lastRegisteredMonthShort: lastRegisteredMonth ? mesLabel(lastRegisteredMonth, 'corto') : '—',
+        lastCompleteMonthLabel: lastCompleteMonth ? mesLabel(lastCompleteMonth, 'completo') : '—',
+        lastCompleteMonthShort: lastCompleteMonth ? mesLabel(lastCompleteMonth, 'corto') : '—',
         metrics,
     };
 }
@@ -616,18 +948,20 @@ const TOTALS_METRIC_COLUMNS = {
     participacion: { label: 'Participación', getValue: row => row.participacion },
     precursor_auxiliar: { label: 'Prec. aux.', getValue: row => row.precursor_auxiliar },
     publicadores: { label: 'Publicadores', getValue: row => row.publicadores },
-    inactivos: { label: 'Inactivos', getValue: row => row.inactivos },
+    inactivos: { label: 'Inact./irreg.', getValue: row => row.inactivos },
 };
 
-function totalsMetricColumns(scope = 'year') {
-    if (scope && scope !== 'year') {
+function totalsMetricColumns(scope = 'year', groupFields = []) {
+    const fields = (groupFields || []).filter(Boolean);
+    const onlyMes = fields.length === 1 && fields[0] === 'mes';
+    if (onlyMes || (scope && scope !== 'year')) {
         return ['horas', 'cursos', 'participacion', 'precursor_auxiliar', 'publicadores', 'inactivos'];
     }
     return ['horas', 'publicadores', 'inactivos'];
 }
 
 function aggregatedToCsv(rows, groupFields, formatGroupValue = (_f, v) => v, scope = 'year') {
-    const metricIds = totalsMetricColumns(scope);
+    const metricIds = totalsMetricColumns(scope, groupFields);
     const headers = [
         ...groupFields.filter(Boolean).map(f => S21_GROUP_FIELDS.find(g => g.id === f)?.label || f),
         ...metricIds.map(id => TOTALS_METRIC_COLUMNS[id].label),
@@ -647,6 +981,15 @@ function aggregatedToCsv(rows, groupFields, formatGroupValue = (_f, v) => v, sco
 
 function personKey(row) {
     return `${row.origen || ''}::${row.nombre || ''}`;
+}
+
+function personIdentityKey(row) {
+    const nom = foldText(row?.nombre);
+    const nac = String(row?.fecha_nacimiento || '').trim();
+    if (nom && !isBlankDate(nac)) return `id::${nom}::${nac}`;
+    const origen = foldText(row?.origen);
+    if (nom && origen) return `id::${nom}::${origen}`;
+    return personKey(row);
 }
 
 /** Criterios sobre celdas mensuales (participación, cursos, precursor auxiliar). */
@@ -1002,6 +1345,13 @@ window.S21DashboardData = {
     parseNumero,
     parseJsonPackage,
     isPerfilInactivo,
+    S21_INACTIVE_MONTHS,
+    classifyPublisherActivity,
+    classifyPublishersActivity,
+    uniquePublishers,
+    foldText,
+    origenCompatible,
+    indexMensualByPerson,
     filterMensualByScope,
     filterRowsByOrigenes,
     publicadoresEnMensual,
@@ -1026,8 +1376,11 @@ window.S21DashboardData = {
     computeKpis,
     monthlySeriesForKpi,
     findLastRegisteredMonth,
+    findLastCompleteMonth,
+    monthHasReport,
     aggregatedToCsv,
     personKey,
+    personIdentityKey,
     applyMonthlyDrillFilter,
     monthlyCriteriaFromTableColumn,
     detailMetricFromDrillSource,
@@ -1038,6 +1391,8 @@ window.S21DashboardData = {
     parsePersonKey,
     trimMonthlySeries,
     filterMensualByExcludedMonths,
+    filterMensualByMonthRange,
+    isFullServiceYearRange,
     excludedMonthLabels,
     getPublisherMonthlyRows,
     sumPublisherMonthly,

@@ -44,11 +44,38 @@ MESES = {
     31: "agosto",
 }
 
+# Segunda columna de año en algunas S-21 (mismas claves 901-905, filas +12).
+MESES_COLUMNA_DERECHA = {fila + 12: mes for fila, mes in MESES.items()}
+
 MESES_LIST = [
     "septiembre", "octubre", "noviembre", "diciembre",
     "enero", "febrero", "marzo", "abril",
     "mayo", "junio", "julio", "agosto"
 ]
+
+# Columna izquierda (año 1, campo 898) y derecha (año 2, campo 899).
+COLUMNAS_REGISTRO = {
+    1: {
+        "año_campo": "898_1_Text_SanSerif",
+        "mapa": {
+            901: "participacion",
+            902: "cursos_biblicos",
+            903: "precursor_auxiliar",
+            904: "horas",
+            905: "notas",
+        },
+    },
+    2: {
+        "año_campo": "899_1_Text_SanSerif",
+        "mapa": {
+            906: "participacion",
+            907: "cursos_biblicos",
+            908: "precursor_auxiliar",
+            909: "horas",
+            910: "notas",
+        },
+    },
+}
 
 CSV_ENCODING = "utf-8-sig"
 
@@ -131,6 +158,109 @@ def periodo_año_servicio(valor):
         "periodo_fin": f"{valor}-08",
         "periodo_texto": f"Septiembre {inicio} — Agosto {valor}",
     }
+
+
+def campo_activo(valor):
+    """Interpreta casillas AcroForm (/Yes, /On, Yes, true, 1)."""
+    if valor in (None, False, "/Off", "/No", "Off", "No", ""):
+        return False
+    texto = str(valor).strip().lstrip("/").lower()
+    return texto in ("yes", "on", "true", "1", "si", "sí")
+
+
+def mes_vacio():
+    return {
+        "participacion": False,
+        "cursos_biblicos": 0,
+        "precursor_auxiliar": False,
+        "horas": 0,
+        "notas": "",
+        "comentarios": "",
+    }
+
+
+def mes_tiene_datos(celda):
+    if not celda:
+        return False
+    return bool(
+        celda.get("participacion")
+        or celda.get("precursor_auxiliar")
+        or celda.get("horas")
+        or celda.get("cursos_biblicos")
+        or str(celda.get("notas") or "").strip()
+    )
+
+
+def contar_meses_con_datos(registro):
+    return sum(1 for mes in MESES_LIST if mes_tiene_datos((registro or {}).get(mes)))
+
+
+def extraer_años_columnas(campos):
+    """Años escritos encima de cada columna de la S-21 (898 izquierda, 899 derecha)."""
+    años = {}
+    if not campos:
+        return años
+    for col, spec in COLUMNAS_REGISTRO.items():
+        obj = campos.get(spec["año_campo"])
+        if not obj:
+            continue
+        año = parse_año_servicio(obj.get("/V"))
+        if año is not None:
+            años[col] = año
+    return años
+
+
+def aplicar_campo_mes(registro, mes, tipo, activo, texto):
+    celda = registro.setdefault(mes, mes_vacio())
+    if tipo == "participacion":
+        celda["participacion"] = activo
+    elif tipo == "cursos_biblicos":
+        celda["cursos_biblicos"] = parse_numero(texto)
+    elif tipo == "precursor_auxiliar":
+        celda["precursor_auxiliar"] = activo
+    elif tipo == "horas":
+        celda["horas"] = parse_numero(texto)
+    elif tipo == "notas":
+        notas = normalizar_texto(texto)
+        celda["notas"] = notas
+        celda["comentarios"] = notas
+
+
+def resolver_columna_registro(años_col, target_year, registros_col, campos):
+    """Elige la columna de la tarjeta que corresponde al año de servicio pedido."""
+    has_right_prefix = False
+    has_right_rows = False
+    for nombre in campos or {}:
+        texto = str(nombre)
+        if re.match(r"^(90[6-9]|910)_", texto):
+            has_right_prefix = True
+            break
+        m = re.match(r"^90[1-5]_(\d+)_", texto)
+        if m and int(m.group(1)) >= 32:
+            has_right_rows = True
+    has_right = has_right_prefix or has_right_rows
+    y1, y2 = años_col.get(1), años_col.get(2)
+    scores = {col: contar_meses_con_datos(registros_col.get(col)) for col in (1, 2)}
+
+    if target_year:
+        if y2 == target_year:
+            return 2
+        if y1 == target_year:
+            return 1
+        if y1 == target_year - 1 and (has_right or scores[2] or y2 == target_year):
+            return 2
+        if y2 == target_year + 1 and scores[1]:
+            return 1
+
+    if has_right and y1 and target_year and y1 != target_year:
+        return 2
+    if scores[2] and not scores[1]:
+        return 2
+    if scores[1] and not scores[2]:
+        return 1
+    if has_right:
+        return 2
+    return 1
 
 
 def extraer_año_servicio_campos(campos):
@@ -245,7 +375,10 @@ def leer_s21_from_bytes(contenido, nombre_archivo="archivo.pdf"):
 
 def _parse_s21_reader(reader, nombre_archivo):
     campos = reader.get_fields()
+    años_col = extraer_años_columnas(campos)
     año_pdf = extraer_año_servicio_campos(campos)
+    if años_col:
+        año_pdf = max(años_col.values())
     if año_pdf is None:
         año_pdf = extraer_año_servicio_nombre(nombre_archivo)
 
@@ -272,9 +405,11 @@ def _parse_s21_reader(reader, nombre_archivo):
     if not campos:
         return data
 
+    registros_col = {1: {}, 2: {}}
+
     for campo, obj in campos.items():
         v = obj.get("/V")
-        activo = v == "/Yes"
+        activo = campo_activo(v)
         texto = "" if v in (None, "/Off") else str(v)
 
         # ---------- IDENTIFICACIÓN ----------
@@ -305,40 +440,35 @@ def _parse_s21_reader(reader, nombre_archivo):
         elif campo == "900_12_CheckBox" and activo:
             data["privilegios"]["misionero"] = True
 
-        # ---------- REGISTRO MENSUAL ----------
-        m = re.match(r"(90[1-5])_(\d+)_", campo)
-        if m:
-            col, fila = int(m.group(1)), int(m.group(2))
-            mes = MESES.get(fila)
-            if not mes:
-                continue
+        m = re.match(r"(90[1-9]|910)_(\d+)_", str(campo))
+        if not m:
+            continue
+        col, fila = int(m.group(1)), int(m.group(2))
+        bloque = None
+        mes = MESES.get(fila)
+        if mes and col in COLUMNAS_REGISTRO[1]["mapa"]:
+            bloque = 1
+            tipo = COLUMNAS_REGISTRO[1]["mapa"][col]
+        elif mes and col in COLUMNAS_REGISTRO[2]["mapa"]:
+            bloque = 2
+            tipo = COLUMNAS_REGISTRO[2]["mapa"][col]
+        elif fila in MESES_COLUMNA_DERECHA and col in COLUMNAS_REGISTRO[1]["mapa"]:
+            mes = MESES_COLUMNA_DERECHA[fila]
+            bloque = 2
+            tipo = COLUMNAS_REGISTRO[1]["mapa"][col]
+        else:
+            continue
+        aplicar_campo_mes(registros_col[bloque], mes, tipo, activo, texto)
 
-            data["registro"].setdefault(mes, {
-                "participacion": False,
-                "cursos_biblicos": 0,
-                "precursor_auxiliar": False,
-                "horas": 0,
-                "notas": "",
-                "comentarios": "",
-            })
-
-            if col == 901:
-                data["registro"][mes]["participacion"] = activo
-            elif col == 902:
-                cursos = parse_numero(texto)
-                data["registro"][mes]["cursos_biblicos"] = cursos
-                data["totales"]["cursos_biblicos"] += cursos
-            elif col == 903:
-                data["registro"][mes]["precursor_auxiliar"] = activo
-            elif col == 904:
-                horas = parse_numero(texto)
-                data["registro"][mes]["horas"] = horas
-                data["totales"]["horas"] += horas
-            elif col == 905:
-                texto_notas = normalizar_texto(texto)
-                data["registro"][mes]["notas"] = texto_notas
-                data["registro"][mes]["comentarios"] = texto_notas
-
+    columna = resolver_columna_registro(años_col, año_pdf, registros_col, campos)
+    data["registro"] = registros_col.get(columna) or {}
+    data["totales"] = {
+        "horas": sum(int((data["registro"].get(mes) or {}).get("horas") or 0) for mes in MESES_LIST),
+        "cursos_biblicos": sum(int((data["registro"].get(mes) or {}).get("cursos_biblicos") or 0) for mes in MESES_LIST),
+    }
+    data["metadata"]["columna_s21"] = "derecha" if columna == 2 else "izquierda"
+    if años_col:
+        data["metadata"]["años_en_tarjeta"] = años_col
     if año_pdf is not None:
         data["metadata"]["año_servicio"] = año_pdf
 
