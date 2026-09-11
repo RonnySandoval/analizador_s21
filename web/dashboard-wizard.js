@@ -62,7 +62,7 @@
     }
 
     async function fetchServerInfo() {
-        const analyzeBtn = $('btn-wizard-analyze');
+        const analyzeBtns = [$('btn-wizard-analyze'), $('btn-datos-analyze')].filter(Boolean);
         const chooseLead = document.querySelector('.wizard-step[data-step="choose"] .wizard-lead');
         try {
             const res = await fetch(window.s21Url('api/info'));
@@ -77,12 +77,12 @@
             window.S21_SERVER_AVAILABLE = false;
         }
 
-        if (analyzeBtn) {
+        analyzeBtns.forEach((analyzeBtn) => {
             analyzeBtn.disabled = !window.S21_SERVER_AVAILABLE;
             analyzeBtn.title = window.S21_SERVER_AVAILABLE
-                ? ''
+                ? 'Analizar PDF'
                 : 'Requiere el servidor Python en su PC (iniciar_interfaz.bat)';
-        }
+        });
 
         if (chooseLead && !window.S21_SERVER_AVAILABLE) {
             chooseLead.textContent = 'Sin servidor: cargue JSON (.zip, .txt o archivos). Ver Ayuda abajo.';
@@ -90,16 +90,8 @@
     }
 
     function bindEvents() {
-        $('btn-wizard-analyze')?.addEventListener('click', () => {
-            path = 'analyze';
-            resetAnalyzeState();
-            showStep('pdfs');
-        });
-
-        $('btn-wizard-load')?.addEventListener('click', async () => {
-            path = 'json';
-            await openJsonPickStep();
-        });
+        $('btn-wizard-analyze')?.addEventListener('click', () => startAnalyze());
+        $('btn-wizard-load')?.addEventListener('click', () => startJsonLoad());
 
         $('btn-wizard-add-folder')?.addEventListener('click', onAddFolder);
         $('btn-wizard-remove-folder')?.addEventListener('click', onRemoveFolder);
@@ -224,9 +216,37 @@
         setPaneOpen(els.wizard, true, { from: 'fade' });
     }
 
+    function openWizardAccordion() {
+        const wrap = $('datos-wizard-wrap');
+        if (wrap) wrap.open = true;
+        wrap?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function startAnalyze() {
+        if (window.S21_SERVER_AVAILABLE === false) return;
+        resetAll();
+        showWizard();
+        path = 'analyze';
+        resetAnalyzeState();
+        showStep('pdfs');
+        openWizardAccordion();
+    }
+
+    async function startJsonLoad() {
+        resetAll();
+        showWizard();
+        path = 'json';
+        await openJsonPickStep();
+        openWizardAccordion();
+    }
+
     function showLoaded() {
         setPaneOpen(els.wizard, false, { from: 'fade' });
         setPaneOpen(els.loadedPanel, true, { from: 'fade' });
+        const wizardWrap = $('datos-wizard-wrap');
+        if (wizardWrap) wizardWrap.open = false;
+        const historyWrap = $('datos-history-wrap');
+        if (historyWrap) historyWrap.open = true;
     }
 
     let wizardStepGen = 0;
@@ -1085,6 +1105,8 @@
         showWizard,
         showLoaded,
         resetAll,
+        startAnalyze,
+        startJsonLoad,
         packagesFromFiles,
     };
 })();

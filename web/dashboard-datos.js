@@ -139,7 +139,7 @@
         });
     }
 
-    const PANEL_TITLES = { datos: 'Datos', apariencia: 'Apariencia' };
+    const PANEL_TITLES = { datos: 'Ajustes', apariencia: 'Apariencia' };
 
     function setSettingsTab(tabId) {
         if (!PANEL_TITLES[tabId]) return;
@@ -180,11 +180,11 @@
         $('datos-panel-close')?.addEventListener('click', closePanel);
         $('datos-panel-backdrop')?.addEventListener('click', closePanel);
 
-        $('btn-datos-new-load')?.addEventListener('click', () => {
-            const wrap = $('datos-wizard-wrap');
-            if (wrap) wrap.open = true;
-            window.S21DashboardWizard?.showWizard();
-            wrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        $('btn-datos-analyze')?.addEventListener('click', () => {
+            window.S21DashboardWizard?.startAnalyze?.();
+        });
+        $('btn-datos-load-json')?.addEventListener('click', () => {
+            window.S21DashboardWizard?.startJsonLoad?.();
         });
         $('btn-datos-update')?.addEventListener('click', () => startUpdatePick());
         $('btn-loaded-update')?.addEventListener('click', () => startUpdatePick());
@@ -237,7 +237,7 @@
         }
 
         if (!datasets.length) {
-            listEl.innerHTML = '<p class="datos-muted">Sin cargas guardadas. Use «Nueva carga» para añadir JSON.</p>';
+            listEl.innerHTML = '<p class="datos-muted">Sin cargas. Use Analizar o Cargar JSON.</p>';
             await renderLastUpdateReport();
             return;
         }
@@ -303,7 +303,7 @@
             return;
         }
         if (!ds.packages?.length) {
-            alert(`La carga «${ds.name}» no tiene datos JSON guardados.\n\nElimínela y vuelva a cargar los archivos con «Nueva carga».`);
+            alert(`La carga «${ds.name}» no tiene datos JSON guardados.\n\nElimínela y vuelva a cargar los archivos con Analizar o Cargar JSON.`);
             return;
         }
         await Storage.setActiveDatasetId(id);

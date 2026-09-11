@@ -97,7 +97,7 @@
     <link rel="stylesheet" href="style.css?v=7" type="text/css">
     <link rel="stylesheet" href="theme-cyber.css?v=3" type="text/css">
     <link rel="stylesheet" href="theme-light.css?v=8" type="text/css">
-    <link rel="stylesheet" href="dashboard.css?v=118" type="text/css">
+    <link rel="stylesheet" href="dashboard.css?v=120" type="text/css">
     <script>
     (function () {
         if (location.protocol !== 'file:') return;
@@ -137,7 +137,7 @@
                 <button type="button" id="btn-open-apariencia-panel" class="dashboard-header-btn" aria-label="Apariencia" title="Apariencia">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
                 </button>
-                <button type="button" id="btn-open-datos-panel" class="dashboard-header-btn" aria-label="Datos y configuración" title="Datos">
+                <button type="button" id="btn-open-datos-panel" class="dashboard-header-btn" aria-label="Ajustes" title="Ajustes">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 </button>
             </div>
@@ -529,7 +529,7 @@
             </section>
 
             <div id="empty-state" class="empty-state motion-root is-open">
-                Use el icono de <strong>engranaje</strong> en la barra superior para cargar JSON o ver cargas guardadas.
+                Use el icono de <strong>engranaje</strong> (Ajustes) en la barra superior para analizar PDF, cargar JSON o ver cargas guardadas.
             </div>
             </div>
         </main>
@@ -539,47 +539,45 @@
         <div id="datos-panel-backdrop" class="datos-panel-backdrop motion-backdrop" tabindex="-1"></div>
         <div class="datos-panel-sheet motion-sheet">
             <header class="datos-panel-header">
-                <h2 id="datos-panel-title">Datos</h2>
+                <h2 id="datos-panel-title">Ajustes</h2>
                 <button type="button" id="datos-panel-close" class="datos-panel-close" aria-label="Cerrar">×</button>
             </header>
             <nav class="settings-tabs settings-tabs--hidden" role="tablist" aria-label="Secciones de configuración" hidden>
-                <button type="button" role="tab" id="settings-tab-datos" class="settings-tab active" data-settings-tab="datos" aria-selected="true" aria-controls="settings-panel-datos">Datos</button>
+                <button type="button" role="tab" id="settings-tab-datos" class="settings-tab active" data-settings-tab="datos" aria-selected="true" aria-controls="settings-panel-datos">Ajustes</button>
                 <button type="button" role="tab" id="settings-tab-apariencia" class="settings-tab" data-settings-tab="apariencia" aria-selected="false" aria-controls="settings-panel-apariencia">Apariencia</button>
             </nav>
             <div class="datos-panel-body">
                 <div class="settings-tab-stage">
                 <div id="settings-panel-datos" class="settings-tab-panel motion-root is-open" role="tabpanel" aria-labelledby="settings-tab-datos">
-                <details id="datos-update-report-wrap" class="datos-accordion">
-                    <summary class="datos-accordion-summary">
-                        <span class="datos-accordion-title">Control de cambios</span>
-                        <span id="datos-update-report-badge" class="datos-accordion-badge">Sin informe</span>
-                    </summary>
-                    <div class="datos-accordion-body">
-                        <div class="datos-section-actions datos-accordion-actions">
-                            <button type="button" id="btn-datos-update" class="btn-secondary btn-compact">Actualizar</button>
-                            <button type="button" id="btn-datos-copy-report" class="btn-ghost btn-compact">Copiar</button>
-                        </div>
-                        <p id="datos-update-report-empty" class="datos-accordion-empty">Tras analizar o actualizar, el detalle numerado queda aquí.</p>
-                        <div id="datos-update-report" class="datos-update-report-saved"></div>
-                    </div>
-                </details>
-
                 <details id="datos-history-wrap" class="datos-accordion" open>
                     <summary class="datos-accordion-summary">
-                        <span class="datos-accordion-title">Cargas guardadas</span>
+                        <span class="datos-accordion-title">Cargas</span>
                     </summary>
                     <div class="datos-accordion-body">
-                        <div class="datos-section-actions datos-accordion-actions">
-                            <button type="button" id="btn-datos-new-load" class="btn-secondary btn-compact">+ Nueva carga</button>
+                        <div class="datos-section-actions datos-accordion-actions datos-load-entry">
+                            <button type="button" id="btn-datos-analyze" class="btn-primary">Analizar</button>
+                            <button type="button" id="btn-datos-load-json" class="btn-secondary">Cargar JSON</button>
                         </div>
                         <p id="dataset-duplicate-hint" class="dataset-duplicate-hint hidden"></p>
                         <div id="dataset-history-list" class="dataset-history-list"></div>
+                        <div id="load-loaded" class="load-loaded motion-root hidden" hidden>
+                            <div id="drop-zone" class="load-panel has-sources">
+                                <div id="data-sources-bar" class="data-sources-bar">
+                                    <div class="data-sources-bar-main">
+                                        <span class="data-sources-title">Alias de perfiles</span>
+                                        <p id="perfil-aliases-hint" class="perfil-aliases-hint"></p>
+                                    </div>
+                                    <button type="button" id="btn-reset-perfil-aliases" class="btn-ghost btn-compact">Restaurar</button>
+                                </div>
+                                <ul id="file-list" class="file-list"></ul>
+                            </div>
+                        </div>
                     </div>
                 </details>
 
-                <details id="datos-wizard-wrap" class="datos-accordion" open>
+                <details id="datos-wizard-wrap" class="datos-accordion">
                     <summary class="datos-accordion-summary">
-                        <span class="datos-accordion-title">Cargar datos</span>
+                        <span class="datos-accordion-title">Nueva carga</span>
                     </summary>
                     <div class="datos-accordion-body">
                     <div class="wizard-shell">
@@ -726,23 +724,22 @@
                         </div>
                         </div>
                     </div>
-                    <div id="load-loaded" class="load-loaded motion-root hidden" hidden>
-                        <div id="drop-zone" class="load-panel has-sources">
-                            <div id="data-sources-bar" class="data-sources-bar">
-                                <div class="data-sources-bar-main">
-                                    <span class="data-sources-title">Alias de perfiles</span>
-                                    <p id="perfil-aliases-hint" class="perfil-aliases-hint"></p>
-                                </div>
-                                <button type="button" id="btn-reset-perfil-aliases" class="btn-ghost btn-compact">Restaurar</button>
-                            </div>
-                            <ul id="file-list" class="file-list"></ul>
-                            <div class="load-loaded-actions">
-                                <button type="button" id="btn-loaded-update" class="btn-primary btn-compact">Actualizar</button>
-                                <button type="button" id="btn-new-load" class="btn-secondary btn-compact">Otra carga</button>
-                            </div>
+                    </div>
+                    </div>
+                </details>
+
+                <details id="datos-update-report-wrap" class="datos-accordion">
+                    <summary class="datos-accordion-summary">
+                        <span class="datos-accordion-title">Control de cambios</span>
+                        <span id="datos-update-report-badge" class="datos-accordion-badge">Sin informe</span>
+                    </summary>
+                    <div class="datos-accordion-body">
+                        <div class="datos-section-actions datos-accordion-actions">
+                            <button type="button" id="btn-datos-update" class="btn-secondary btn-compact">Actualizar</button>
+                            <button type="button" id="btn-datos-copy-report" class="btn-ghost btn-compact">Copiar</button>
                         </div>
-                    </div>
-                    </div>
+                        <p id="datos-update-report-empty" class="datos-accordion-empty">El informe de una actualización de la carga activa queda aquí.</p>
+                        <div id="datos-update-report" class="datos-update-report-saved"></div>
                     </div>
                 </details>
 
@@ -750,19 +747,9 @@
                     <summary class="datos-accordion-summary">
                         <span class="datos-accordion-title">Ayuda</span>
                     </summary>
-                    <div class="datos-accordion-body datos-help-stack">
-                        <details class="datos-help">
-                            <summary>Actualizar un JSON ya analizado</summary>
-                            <p>Tras analizar de nuevo o usar <strong>Actualizar</strong>, aparece un informe numerado. Queda en <strong>Control de cambios</strong>. El archivo debe cubrir el perfil completo que desea sincronizar.</p>
-                        </details>
-                        <details class="datos-help">
-                            <summary>Cargar JSON en móvil (WhatsApp)</summary>
-                            <p>No abra con Word. Envíe un <strong>.zip</strong> desde el PC o renombre a <strong>.txt</strong>. Guarde el adjunto sin abrir → Abrir archivos aquí.</p>
-                        </details>
-                        <details class="datos-help">
-                            <summary>Servidor local vs móvil</summary>
-                            <p>Analizar PDF requiere el servidor en PC. En móvil/GitHub Pages solo cargue JSON ya exportados. Los datos quedan en este dispositivo.</p>
-                        </details>
+                    <div class="datos-accordion-body datos-help-copy">
+                        <p>En PC, con el servidor local, puede analizar PDF. En móvil o GitHub Pages solo cargue JSON ya exportados; los datos quedan en este dispositivo.</p>
+                        <p>WhatsApp: no abra el archivo con Word. Envíe un <strong>.zip</strong> o renómbrelo a <strong>.txt</strong>, guarde el adjunto y use <strong>Cargar JSON</strong>.</p>
                     </div>
                 </details>
 
@@ -773,8 +760,7 @@
 
                 <div id="settings-panel-apariencia" class="settings-tab-panel motion-root hidden" role="tabpanel" aria-labelledby="settings-tab-apariencia" hidden>
                 <section id="datos-settings-block" class="datos-section">
-                    <h3 class="datos-section-title">Apariencia</h3>
-                    <p class="datos-section-lead">Tamaño del texto en todo el panel.</p>
+                    <p class="datos-section-lead">Tema y tamaño de texto en toda la app.</p>
                     <div class="theme-choice-group" role="group" aria-label="Tema">
                         <button type="button" class="theme-choice-btn" data-theme-choice="light" id="pref-theme-light">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
@@ -910,9 +896,9 @@
     <script src="dashboard-icons.js?v=7"></script>
     <script src="dashboard-storage.js?v=2"></script>
     <script src="dashboard-update.js?v=4"></script>
-    <script src="dashboard-datos.js?v=13"></script>
+    <script src="dashboard-datos.js?v=15"></script>
     <script src="dashboard-grupos.js?v=23"></script>
-    <script src="dashboard-wizard.js?v=9"></script>
+    <script src="dashboard-wizard.js?v=11"></script>
     <script src="dashboard.js?v=120"></script>
 </body>
 </html>

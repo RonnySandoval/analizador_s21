@@ -413,17 +413,27 @@ body.dashboard-body.pwa-bar-visible .dashboard-nav--bottom {
 }
 
 @media (max-width: 420px) {
+    :root {
+        --dashboard-nav-height: 4.15rem;
+    }
+
     .dashboard-nav-text {
-        display: none;
+        display: block;
+        font-size: calc(10px * var(--app-font-scale, 1));
+        white-space: normal;
+        line-height: 1.15;
+        letter-spacing: 0;
     }
 
     .dashboard-nav-btn {
-        padding: 0.45rem 0.25rem;
+        padding: 0.28rem 0.1rem 0.22rem;
+        gap: 0.1rem;
+        min-height: 44px;
     }
 
     .dashboard-nav-icon {
-        width: 1.45rem;
-        height: 1.45rem;
+        width: 1.2rem;
+        height: 1.2rem;
     }
 }
 
@@ -6048,6 +6058,27 @@ html[data-theme="light"] .totals-dock-panel-card::before {
     margin: 0.45rem 0 0.35rem;
 }
 
+.datos-load-entry {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin: 0.2rem 0 0.85rem;
+}
+
+.datos-load-entry .btn-primary,
+.datos-load-entry .btn-secondary {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.datos-load-entry .btn-primary {
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
 .datos-accordion-empty {
     margin: 0.35rem 0 0;
     font-size: 0.8rem;
@@ -6059,6 +6090,23 @@ html[data-theme="light"] .totals-dock-panel-card::before {
     flex-direction: column;
     gap: 0.4rem;
     padding-top: 0.55rem;
+}
+
+.datos-help-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.datos-help-copy p {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+.datos-accordion-body .data-sources-bar {
+    margin-top: 0.55rem;
 }
 
 .datos-help-stack .datos-help {
