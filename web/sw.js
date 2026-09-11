@@ -1,4 +1,4 @@
-const CACHE_NAME = 's21-analizador-v1.4.40';
+const CACHE_NAME = 's21-analizador-v1.4.45';
 const STATIC_ASSETS = [
     'dashboard.html',
     'index.html',
@@ -34,6 +34,22 @@ function assetUrl(name) {
     return new URL(name, self.location).href;
 }
 
+function cachedLooksValid(request, cached) {
+    if (!cached) return null;
+    const ct = (cached.headers.get('content-type') || '').toLowerCase();
+    const path = new URL(request.url).pathname;
+    if (/\.css$/i.test(path) && ct.includes('text/html')) return null;
+    if (/\.js$/i.test(path) && ct.includes('text/html')) return null;
+    if (request.destination === 'style' && ct && !ct.includes('css')) return null;
+    return cached;
+}
+
+async function matchCached(request) {
+    const exact = cachedLooksValid(request, await caches.match(request));
+    if (exact) return exact;
+    return cachedLooksValid(request, await caches.match(request, { ignoreSearch: true }));
+}
+
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
@@ -60,17 +76,14 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     event.respondWith(
-        caches.match(event.request).then((cached) => {
-            const network = fetch(event.request)
-                .then((response) => {
-                    if (response.ok && url.origin === self.location.origin) {
-                        const clone = response.clone();
-                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-                    }
-                    return response;
-                })
-                .catch(() => cached);
-            return cached || network;
-        })
+        fetch(event.request)
+            .then((response) => {
+                if (response.ok && url.origin === self.location.origin) {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+                }
+                return response;
+            })
+            .catch(() => matchCached(event.request))
     );
 });

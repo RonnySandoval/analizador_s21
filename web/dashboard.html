@@ -10,13 +10,102 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="S-21">
     <title>Análisis de Servicio</title>
+    <style>
+        .hidden, [hidden] { display: none !important; }
+        body.dashboard-body {
+            margin: 0;
+            background: #05060d;
+            color: #e8f4ff;
+            font-family: Outfit, system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        html[data-theme="light"] body.dashboard-body {
+            background: #e8eaee;
+            color: #1e293b;
+        }
+        .dashboard-app-header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        .dashboard-app-header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+        .dashboard-app-header-titles {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .dashboard-app-header-mark {
+            position: relative;
+            display: block;
+            width: 2rem;
+            height: 2rem;
+            overflow: hidden;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dashboard-app-header-logo {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            object-fit: cover;
+        }
+        .dashboard-app-header-logo--dark { display: block; }
+        html[data-theme="light"] .dashboard-app-header-logo--dark { display: none; }
+        html[data-theme="light"] .dashboard-app-header-logo--light { display: block; }
+        .dashboard-header-btn {
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dashboard-header-btn svg,
+        .dashboard-nav-icon,
+        .totals-dock-btn svg,
+        .totals-dock-peek svg,
+        .totals-dock-collapse svg {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+        .dashboard-nav--bottom {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        .dashboard-nav-inner { display: flex; width: 100%; }
+        .dashboard-nav-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.2rem;
+        }
+    </style>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icons/icon-192.png" type="image/png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="style.css?v=7">
-    <link rel="stylesheet" href="theme-cyber.css?v=3">
-    <link rel="stylesheet" href="theme-light.css?v=8">
-    <link rel="stylesheet" href="dashboard.css?v=111">
+    <link rel="stylesheet" href="style.css?v=7" type="text/css">
+    <link rel="stylesheet" href="theme-cyber.css?v=3" type="text/css">
+    <link rel="stylesheet" href="theme-light.css?v=8" type="text/css">
+    <link rel="stylesheet" href="dashboard.css?v=118" type="text/css">
+    <script>
+    (function () {
+        if (location.protocol !== 'file:') return;
+        document.querySelectorAll('link[rel="stylesheet"][href*="?"]').forEach(function (el) {
+            el.href = el.getAttribute('href').split('?')[0];
+        });
+    })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -38,19 +127,148 @@
                 </div>
             </div>
             <div class="dashboard-app-header-actions">
+                <button type="button" id="btn-toggle-totals-dock" class="dashboard-header-btn hidden" aria-label="Ocultar filtros" aria-pressed="true" aria-controls="totals-dock-right" title="Ocultar filtros" hidden>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
+                </button>
                 <button type="button" id="btn-toggle-layout-mode" class="dashboard-header-btn" aria-label="Vista por sección" aria-pressed="false" title="Vista por sección">
-                    <svg class="dashboard-layout-icon dashboard-layout-icon--to-single" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="5" width="12" height="14" rx="2"/></svg>
-                    <svg class="dashboard-layout-icon dashboard-layout-icon--to-continuous hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="5" rx="1"/><rect x="4" y="10" width="16" height="5" rx="1"/><rect x="4" y="16" width="16" height="4" rx="1"/></svg>
+                    <svg class="dashboard-layout-icon dashboard-layout-icon--to-single" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="5" width="12" height="14" rx="2"/></svg>
+                    <svg class="dashboard-layout-icon dashboard-layout-icon--to-continuous hidden" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="5" rx="1"/><rect x="4" y="10" width="16" height="5" rx="1"/><rect x="4" y="16" width="16" height="4" rx="1"/></svg>
                 </button>
                 <button type="button" id="btn-open-apariencia-panel" class="dashboard-header-btn" aria-label="Apariencia" title="Apariencia">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
                 </button>
                 <button type="button" id="btn-open-datos-panel" class="dashboard-header-btn" aria-label="Datos y configuración" title="Datos">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 </button>
             </div>
         </div>
     </header>
+
+<aside class="totals-dock totals-dock--right totals-dock--floating hidden" id="totals-dock-right" hidden aria-label="Filtros y vista">
+                                <button type="button" class="totals-dock-peek" data-dock-toggle="right" aria-label="Mostrar herramientas" title="Mostrar herramientas">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                                </button>
+                                <div class="totals-dock-rail">
+                                    <button type="button" class="totals-dock-btn" data-dock-panel="periodo" aria-expanded="false" aria-controls="totals-dock-panel-periodo" data-tip="Periodo" title="Periodo">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>
+                                    </button>
+                                    <button type="button" class="totals-dock-btn" data-dock-panel="recorte" aria-expanded="false" aria-controls="totals-dock-panel-recorte" data-tip="Recorte" title="Recorte">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                                    </button>
+                                    <button type="button" class="totals-dock-btn" data-dock-panel="agrupar" aria-expanded="false" aria-controls="totals-dock-panel-agrupar" data-tip="Agrupar" title="Agrupar">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                                    </button>
+                                    <button type="button" class="totals-dock-btn" data-dock-panel="vista" aria-expanded="false" aria-controls="totals-dock-panel-vista" data-tip="Vista" title="Vista">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                                    </button>
+                                    <button type="button" class="totals-dock-btn" id="totals-dock-btn-grafico" data-dock-panel="grafico" aria-expanded="false" aria-controls="totals-dock-panel-grafico" data-tip="Gráfico" title="Gráfico">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                                    </button>
+                                    <button type="button" class="totals-dock-btn hidden" id="totals-dock-btn-ejes" aria-pressed="false" data-tip="Invertir ejes" title="Invertir ejes">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                                    </button>
+                                    <button type="button" class="totals-dock-collapse" data-dock-toggle="right" aria-label="Ocultar herramientas" title="Ocultar">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                                    </button>
+                                </div>
+                                <div id="totals-dock-panel-periodo" class="totals-dock-panel motion-root hidden" hidden>
+                                    <div class="totals-dock-panel-card motion-card">
+                                        <div class="totals-dock-panel-head">
+                                            <strong>Periodo</strong>
+                                            <button type="button" class="totals-dock-panel-close" data-dock-close aria-label="Cerrar">×</button>
+                                        </div>
+                                        <div class="totals-dock-panel-body">
+                                            <div class="toolbar-field">
+                                                <label for="totals-scope">Alcance</label>
+                                                <select id="totals-scope"></select>
+                                            </div>
+                                            <div class="toolbar-field">
+                                                <label for="totals-month-from">Desde</label>
+                                                <select id="totals-month-from"></select>
+                                            </div>
+                                            <div class="toolbar-field">
+                                                <label for="totals-month-to">Hasta</label>
+                                                <select id="totals-month-to"></select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="totals-dock-panel-recorte" class="totals-dock-panel motion-root hidden" hidden>
+                                    <div class="totals-dock-panel-card motion-card">
+                                        <div class="totals-dock-panel-head">
+                                            <strong>Recorte</strong>
+                                            <button type="button" class="totals-dock-panel-close" data-dock-close aria-label="Cerrar">×</button>
+                                        </div>
+                                        <div class="totals-dock-panel-body">
+                                            <span class="toolbar-field-label">Acción</span>
+                                            <div id="totals-trim-mode" class="totals-view-toggle totals-view-toggle--compact" role="tablist" aria-label="Omitir o mostrar meses">
+                                                <button type="button" class="totals-view-btn active" data-trim-mode="omit" role="tab" aria-selected="true">Omitir</button>
+                                                <button type="button" class="totals-view-btn" data-trim-mode="keep" role="tab" aria-selected="false">Mostrar</button>
+                                            </div>
+                                            <span class="toolbar-field-label">Extremo</span>
+                                            <div id="totals-trim-side" class="totals-view-toggle totals-view-toggle--compact" role="tablist" aria-label="Primeros o últimos meses">
+                                                <button type="button" class="totals-view-btn" data-trim-side="first" role="tab" aria-selected="false">Primeros</button>
+                                                <button type="button" class="totals-view-btn active" data-trim-side="last" role="tab" aria-selected="true">Últimos</button>
+                                            </div>
+                                            <div class="toolbar-field">
+                                                <label for="totals-exclude">Cantidad</label>
+                                                <select id="totals-exclude"></select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="totals-dock-panel-agrupar" class="totals-dock-panel motion-root hidden" hidden>
+                                    <div class="totals-dock-panel-card motion-card">
+                                        <div class="totals-dock-panel-head">
+                                            <strong>Agrupar</strong>
+                                            <button type="button" class="totals-dock-panel-close" data-dock-close aria-label="Cerrar">×</button>
+                                        </div>
+                                        <div class="totals-dock-panel-body">
+                                            <div class="toolbar-field">
+                                                <label for="group-1">Agrupar</label>
+                                                <select id="group-1"></select>
+                                            </div>
+                                            <div class="toolbar-field">
+                                                <label for="group-2">Subagrupar</label>
+                                                <select id="group-2">
+                                                    <option value="">— Ninguno —</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="totals-dock-panel-vista" class="totals-dock-panel motion-root hidden" hidden>
+                                    <div class="totals-dock-panel-card motion-card">
+                                        <div class="totals-dock-panel-head">
+                                            <strong>Vista</strong>
+                                            <button type="button" class="totals-dock-panel-close" data-dock-close aria-label="Cerrar">×</button>
+                                        </div>
+                                        <div class="totals-dock-panel-body">
+                                            <div id="totals-layout-toggle" class="totals-check-list" aria-label="Vista de totales">
+                                                <label class="totals-check"><input type="checkbox" data-totals-view="table" checked> Tabla</label>
+                                                <label class="totals-check"><input type="checkbox" data-totals-view="charts" checked> Gráficos</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="totals-dock-panel-grafico" class="totals-dock-panel motion-root hidden" hidden>
+                                    <div class="totals-dock-panel-card motion-card">
+                                        <div class="totals-dock-panel-head">
+                                            <strong>Gráfico</strong>
+                                            <button type="button" class="totals-dock-panel-close" data-dock-close aria-label="Cerrar">×</button>
+                                        </div>
+                                        <div class="totals-dock-panel-body">
+                                            <div id="totals-chart-mode-field" class="totals-chart-mode-field">
+                                                <div id="totals-chart-mode-toggle" class="totals-check-list" aria-label="Tipo de gráfico">
+                                                    <label class="totals-check"><input type="checkbox" data-totals-chart="bar" checked> Barras</label>
+                                                    <label class="totals-check"><input type="checkbox" data-totals-chart="line" checked> Tendencia</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </aside>
+
 
     <div class="container dashboard-container">
         <main class="main-card dashboard-main">
@@ -115,88 +333,19 @@
                     </div>
                     <div id="accordion-body-table" class="dashboard-accordion-body">
                         <div class="dashboard-accordion-inner">
-                            <div class="totals-controls">
-                            <div class="dashboard-toolbar totals-toolbar-row totals-toolbar-row--group">
-                                <div class="toolbar-field">
-                                    <label for="totals-scope">Alcance</label>
-                                    <select id="totals-scope"></select>
-                                </div>
-                                <div class="toolbar-field">
-                                    <label for="group-1">Agrupar</label>
-                                    <select id="group-1"></select>
-                                </div>
-                                <div class="toolbar-field">
-                                    <label for="group-2">Subagrupar</label>
-                                    <select id="group-2">
-                                        <option value="">— Ninguno —</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="dashboard-toolbar totals-toolbar-row totals-toolbar-row--time" id="totals-time-row">
-                                <div class="toolbar-field">
-                                    <label for="totals-exclude">Omitir</label>
-                                    <select id="totals-exclude"></select>
-                                </div>
-                                <div class="toolbar-field">
-                                    <label for="totals-month-from">Desde</label>
-                                    <select id="totals-month-from"></select>
-                                </div>
-                                <div class="toolbar-field">
-                                    <label for="totals-month-to">Hasta</label>
-                                    <select id="totals-month-to"></select>
+                            <div class="totals-workspace" id="totals-workspace">
+                            <div class="totals-workspace-main">
+                            <div class="totals-chart-heading">
+                                <div id="totals-metric-field" class="toolbar-field totals-metric-field">
+                                    <label for="metric">Métrica</label>
+                                    <select id="metric"></select>
                                 </div>
                             </div>
                             <div id="chart-profile-toggles-wrap" class="totals-toolbar-row totals-toolbar-row--profiles hidden">
                                 <span class="toolbar-field-label">Perfiles</span>
                                 <div id="chart-profile-toggles" class="chart-profile-toggles"></div>
                             </div>
-                            </div>
                             <div id="totals-body" class="totals-body">
-                                <div class="totals-chart-heading">
-                                    <div id="totals-metric-field" class="toolbar-field totals-metric-field">
-                                        <label for="metric">Métrica</label>
-                                        <select id="metric"></select>
-                                    </div>
-                                    <div class="totals-footer-toggles">
-                                    <div class="totals-floats">
-                                        <div id="totals-float-vista" class="totals-float totals-float--vista">
-                                            <button type="button" id="totals-float-vista-btn" class="totals-float-btn" aria-expanded="false" aria-controls="totals-float-vista-panel">
-                                                <span class="totals-float-kicker">Vista</span>
-                                                <span id="totals-float-vista-value" class="totals-float-value">Ambos</span>
-                                            </button>
-                                            <div id="totals-float-vista-panel" class="totals-float-panel">
-                                                <div id="totals-layout-toggle" class="totals-view-toggle totals-view-toggle--compact" role="tablist" aria-label="Vista de totales">
-                                                    <button type="button" class="totals-view-btn" data-totals-layout="table" role="tab" aria-selected="false">Tabla</button>
-                                                    <button type="button" class="totals-view-btn" data-totals-layout="charts" role="tab" aria-selected="false">Gráficos</button>
-                                                    <button type="button" class="totals-view-btn active" data-totals-layout="both" role="tab" aria-selected="true">Ambos</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div id="totals-float-grafico" class="totals-float totals-float--grafico">
-                                            <button type="button" id="totals-float-grafico-btn" class="totals-float-btn" aria-expanded="false" aria-controls="totals-float-grafico-panel">
-                                                <span class="totals-float-kicker">Gráfico</span>
-                                                <span id="totals-float-grafico-value" class="totals-float-value">Juntos</span>
-                                            </button>
-                                            <div id="totals-float-grafico-panel" class="totals-float-panel">
-                                                <div id="totals-chart-mode-field" class="totals-chart-mode-field">
-                                                    <div id="totals-chart-mode-toggle" class="totals-view-toggle totals-view-toggle--compact" role="tablist" aria-label="Tipo de gráfico">
-                                                        <button type="button" class="totals-view-btn active" data-totals-chart="together" role="tab" aria-selected="true">Juntos</button>
-                                                        <button type="button" class="totals-view-btn" data-totals-chart="bar" role="tab" aria-selected="false">Barras</button>
-                                                        <button type="button" class="totals-view-btn" data-totals-chart="line" role="tab" aria-selected="false">Tendencia</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div id="totals-dimension-toggle-wrap" class="totals-dimension-toggle-wrap hidden">
-                                        <div class="totals-dimension-toggle totals-dimension-toggle--compact" role="tablist" aria-label="Orientación de matriz">
-                                            <button type="button" id="btn-dim-primary" class="totals-dimension-btn active" role="tab" aria-selected="true"><span id="dim-primary-label">—</span></button>
-                                            <span class="totals-dimension-swap" aria-hidden="true">⇄</span>
-                                            <button type="button" id="btn-dim-secondary" class="totals-dimension-btn" role="tab" aria-selected="false"><span id="dim-secondary-label">—</span></button>
-                                        </div>
-                                    </div>
-                                    </div>
-                                </div>
                                 <div id="totals-charts-block" class="summary-charts-block totals-charts-block">
                                     <div class="chart-grid" id="chart-grid">
                                         <div class="chart-card" id="chart-bar-card">
@@ -227,6 +376,8 @@
                                 </div>
                                 <div id="totals-matrix-summary" class="totals-matrix-summary hidden" aria-live="polite"></div>
                                 </div>
+                            </div>
+                            </div>
                             </div>
                         </div>
                     </div>
@@ -695,19 +846,19 @@
     <nav id="dashboard-nav" class="dashboard-nav dashboard-nav--bottom" aria-label="Ir a sección">
         <div class="dashboard-nav-inner">
             <button type="button" class="dashboard-nav-btn active" data-nav-target="kpi" title="Indicadores" aria-label="Indicadores">
-                <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                <svg class="dashboard-nav-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
                 <span class="dashboard-nav-text">Indicadores</span>
             </button>
             <button type="button" class="dashboard-nav-btn" data-nav-target="table" title="Totales" aria-label="Totales">
-                <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M10 4v16"/></svg>
+                <svg class="dashboard-nav-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M10 4v16"/></svg>
                 <span class="dashboard-nav-text">Totales</span>
             </button>
             <button type="button" class="dashboard-nav-btn" data-nav-target="grupos" title="Grupos" aria-label="Grupos">
-                <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                <svg class="dashboard-nav-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                 <span class="dashboard-nav-text">Grupos</span>
             </button>
             <button type="button" class="dashboard-nav-btn" data-nav-target="publishers" title="Publicadores" aria-label="Publicadores">
-                <svg class="dashboard-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <svg class="dashboard-nav-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 <span class="dashboard-nav-text">Publicadores</span>
             </button>
         </div>
@@ -755,13 +906,13 @@
     <script src="dashboard-motion.js?v=1"></script>
     <script src="pwa.js?v=2"></script>
     <script src="dashboard-text-match.js?v=1"></script>
-    <script src="dashboard-data.js?v=38"></script>
+    <script src="dashboard-data.js?v=39"></script>
     <script src="dashboard-icons.js?v=7"></script>
     <script src="dashboard-storage.js?v=2"></script>
     <script src="dashboard-update.js?v=4"></script>
     <script src="dashboard-datos.js?v=13"></script>
     <script src="dashboard-grupos.js?v=23"></script>
     <script src="dashboard-wizard.js?v=9"></script>
-    <script src="dashboard.js?v=114"></script>
+    <script src="dashboard.js?v=120"></script>
 </body>
 </html>

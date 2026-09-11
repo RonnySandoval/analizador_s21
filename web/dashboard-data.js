@@ -541,23 +541,57 @@ function applyFilters(rows, filters, mode = 'include') {
     });
 }
 
-function trimMonthlySeries(series, excludeLastN) {
-    const n = Math.max(0, Math.min(Number(excludeLastN) || 0, series.length));
-    if (!n) return series;
-    return series.slice(0, series.length - n);
+function normalizeMonthTrim(opts) {
+    if (opts && typeof opts === 'object') {
+        return {
+            n: Math.max(0, Math.min(Number(opts.n) || 0, S21_MESES.length)),
+            side: opts.side === 'first' ? 'first' : 'last',
+            mode: opts.mode === 'keep' ? 'keep' : 'omit',
+        };
+    }
+    return {
+        n: Math.max(0, Math.min(Number(opts) || 0, S21_MESES.length)),
+        side: 'last',
+        mode: 'omit',
+    };
 }
 
-function filterMensualByExcludedMonths(rows, excludeLastN) {
-    const n = Math.max(0, Math.min(Number(excludeLastN) || 0, S21_MESES.length));
-    if (!n) return rows;
-    const excluded = new Set(S21_MESES.slice(-n));
-    return rows.filter(r => !excluded.has(r.mes));
+function monthTrimSet(opts) {
+    const { n, side } = normalizeMonthTrim(opts);
+    if (!n) return new Set();
+    const months = side === 'first' ? S21_MESES.slice(0, n) : S21_MESES.slice(-n);
+    return new Set(months);
 }
 
-function excludedMonthLabels(excludeLastN) {
-    const n = Math.max(0, Math.min(Number(excludeLastN) || 0, S21_MESES.length));
-    if (!n) return [];
-    return S21_MESES.slice(-n).map(m => mesLabel(m, 'corto'));
+function trimMonthlySeries(series, opts) {
+    const list = series || [];
+    const { n, side, mode } = normalizeMonthTrim(opts);
+    const count = Math.max(0, Math.min(n, list.length));
+    if (!count) return list;
+    if (side === 'first') {
+        return mode === 'keep' ? list.slice(0, count) : list.slice(count);
+    }
+    return mode === 'keep' ? list.slice(list.length - count) : list.slice(0, list.length - count);
+}
+
+function filterMensualByExcludedMonths(rows, opts) {
+    const trim = normalizeMonthTrim(opts);
+    if (!trim.n) return rows || [];
+    const set = monthTrimSet(trim);
+    if (trim.mode === 'keep') return (rows || []).filter(r => set.has(r.mes));
+    return (rows || []).filter(r => !set.has(r.mes));
+}
+
+function excludedMonthLabels(opts) {
+    return [...monthTrimSet(opts)].map(m => mesLabel(m, 'corto'));
+}
+
+function monthTrimHint(opts) {
+    const labels = excludedMonthLabels(opts);
+    if (!labels.length) return '';
+    const { mode } = normalizeMonthTrim(opts);
+    const list = labels.join(', ');
+    return mode === 'keep' ? `solo ${list}` : `sin ${list}`;
 }
 
 function monthRangeBounds(fromMes, toMes) {
@@ -1394,6 +1428,7 @@ window.S21DashboardData = {
     filterMensualByMonthRange,
     isFullServiceYearRange,
     excludedMonthLabels,
+    monthTrimHint,
     getPublisherMonthlyRows,
     sumPublisherMonthly,
     sortPublishers,

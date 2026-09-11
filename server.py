@@ -136,6 +136,12 @@ class S21Handler(http.server.SimpleHTTPRequestHandler):
         **getattr(http.server.SimpleHTTPRequestHandler, 'extensions_map', {}),
         '.webmanifest': 'application/manifest+json',
         '.json': 'application/json',
+        '.css': 'text/css',
+        '.js': 'text/javascript',
+        '.mjs': 'text/javascript',
+        '.svg': 'image/svg+xml',
+        '.png': 'image/png',
+        '.html': 'text/html',
     }
 
     def __init__(self, *args, **kwargs):

@@ -5,8 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const TOTALS_LAYOUT_KEY = 'analisis_servicio_totals_layout';
     const TOTALS_CHART_MODE_KEY = 'analisis_servicio_totals_chart_mode';
     const TOTALS_EXCLUDE_KEY = 'analisis_servicio_totals_exclude';
+    const TOTALS_TRIM_SIDE_KEY = 'analisis_servicio_totals_trim_side';
+    const TOTALS_TRIM_MODE_KEY = 'analisis_servicio_totals_trim_mode';
     const TOTALS_MONTH_FROM_KEY = 'analisis_servicio_totals_month_from';
     const TOTALS_MONTH_TO_KEY = 'analisis_servicio_totals_month_to';
+    const TOTALS_DOCK_LEFT_KEY = 'analisis_servicio_totals_dock_left';
+    const TOTALS_DOCK_RIGHT_KEY = 'analisis_servicio_totals_dock_right';
+    const TOTALS_DOCK_VISIBLE_KEY = 'analisis_servicio_totals_dock_visible';
     const ACCORDION_STATE_KEY = 'analisis_servicio_accordion_state';
     const PERFIL_ALIASES_KEY = 'analisis_servicio_perfil_aliases';
     const CHART_PROFILES_KEY = 'analisis_servicio_chart_profiles';
@@ -119,8 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let kpiMode = 'last';
     let kpiDetailKey = '';
     let kpiDetailPrivilegeFilters = ['', ''];
+    let kpiDetailCursosTab = 'with';
     let selectedPublisherKey = '';
     let chartExcludeMonths = 0;
+    let chartTrimSide = 'last';
+    let chartTrimMode = 'omit';
     let totalsScope = 'year';
     let totalsLayoutMode = 'both';
     let totalsChartMode = 'together';
@@ -147,9 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let layoutMode = 'continuous';
     let singleActiveSection = 'kpi';
     let navSwapGen = 0;
+    let totalsDockUserVisible = localStorage.getItem(TOTALS_DOCK_VISIBLE_KEY) !== '0';
     const NAV_SECTION_ORDER = ['kpi', 'table', 'grupos', 'publishers'];
-    const TOTALS_LAYOUT_LABELS = { table: 'Tabla', charts: 'Gráficos', both: 'Ambos' };
-    const TOTALS_CHART_LABELS = { together: 'Juntos', bar: 'Barras', line: 'Tendencia' };
 
     const CHART_SUBGROUP_COLORS = [
         { bg: 'rgba(56, 189, 248, 0.78)', border: 'rgba(56, 189, 248, 1)' },
@@ -165,23 +172,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalsLayoutToggle = document.getElementById('totals-layout-toggle');
     const totalsChartModeField = document.getElementById('totals-chart-mode-field');
     const totalsChartModeToggle = document.getElementById('totals-chart-mode-toggle');
-    const totalsFloatVista = document.getElementById('totals-float-vista');
-    const totalsFloatGrafico = document.getElementById('totals-float-grafico');
-    const totalsFloatVistaBtn = document.getElementById('totals-float-vista-btn');
-    const totalsFloatGraficoBtn = document.getElementById('totals-float-grafico-btn');
-    const totalsFloatVistaValue = document.getElementById('totals-float-vista-value');
-    const totalsFloatGraficoValue = document.getElementById('totals-float-grafico-value');
+    const totalsTrimModeToggle = document.getElementById('totals-trim-mode');
+    const totalsTrimSideToggle = document.getElementById('totals-trim-side');
+    const totalsDockRight = document.getElementById('totals-dock-right');
+    const totalsDockBtnGrafico = document.getElementById('totals-dock-btn-grafico');
+    const totalsDockBtnEjes = document.getElementById('totals-dock-btn-ejes');
+    const btnToggleTotalsDock = document.getElementById('btn-toggle-totals-dock');
     const totalsMonthFromSelect = document.getElementById('totals-month-from');
     const totalsMonthToSelect = document.getElementById('totals-month-to');
     const totalsChartsBlock = document.getElementById('totals-charts-block');
     const totalsTableBlock = document.getElementById('totals-table-block');
     const totalsTableWrap = document.getElementById('totals-table-wrap');
     const totalsBody = document.getElementById('totals-body');
-    const totalsDimensionToggleWrap = document.getElementById('totals-dimension-toggle-wrap');
-    const btnDimPrimary = document.getElementById('btn-dim-primary');
-    const btnDimSecondary = document.getElementById('btn-dim-secondary');
-    const dimPrimaryLabel = document.getElementById('dim-primary-label');
-    const dimSecondaryLabel = document.getElementById('dim-secondary-label');
     const totalsMetricField = document.getElementById('totals-metric-field');
     const totalsMatrixSummary = document.getElementById('totals-matrix-summary');
     const dashboardHeaderSection = document.getElementById('dashboard-header-section');
@@ -195,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const KPI_ITEMS = [
         { key: 'publicadores', label: 'Publicadores' },
         { key: 'horas', label: 'Horas' },
-        { key: 'cursos', label: 'Cursos / con cursos' },
+        { key: 'cursos', label: 'Cursos' },
         { key: 'participacion', label: 'Participación' },
         { key: 'precursor_aux', label: 'Prec. aux.' },
         { key: 'inactivos', label: 'Inactivos' },
@@ -230,16 +232,31 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'precursor_auxiliar', label: 'P. aux.', title: 'Precursor auxiliar' },
     ];
 
-    initControls();
-    bindEvents();
-    initSectionAccordions();
-    initDashboardNav();
-    initLayoutMode();
-    initFiltersCollapsed();
-    initDatosModule();
-    initWizard();
-    initGruposModule();
-    restoreDashboardCache();
+    try {
+        initControls();
+    } catch (error) {
+        console.error('No se pudieron iniciar los controles de Totales', error);
+    }
+    let chromeReady = false;
+    try {
+        bindEvents();
+        initSectionAccordions();
+        initDashboardNav();
+        chromeReady = true;
+        initLayoutMode();
+        initFiltersCollapsed();
+        initDatosModule();
+        initWizard();
+        initGruposModule();
+        restoreDashboardCache();
+    } catch (error) {
+        console.error('Error al iniciar el dashboard', error);
+        if (!chromeReady) {
+            try { initDashboardNav(); } catch (navError) {
+                console.error('No se pudo iniciar la navegación', navError);
+            }
+        }
+    }
 
     function initDatosModule() {
         if (!Datos) return;
@@ -387,6 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initControls() {
+        if (!D || !group1 || !group2) return;
         group1.innerHTML = D.S21_TOTALS_GROUP_FIELDS.map(f =>
             `<option value="${f.id}">${f.label}</option>`
         ).join('');
@@ -397,6 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ).join('');
 
         restoreTotalsPrefs();
+        syncTotalsGroupSelects();
         syncTotalsReportLayout();
 
         if (totalsScopeSelect) {
@@ -441,6 +460,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Number.isFinite(excludeRaw)) {
             chartExcludeMonths = Math.max(0, Math.min(11, excludeRaw));
         }
+        const trimSide = localStorage.getItem(TOTALS_TRIM_SIDE_KEY);
+        if (trimSide === 'first' || trimSide === 'last') chartTrimSide = trimSide;
+        const trimMode = localStorage.getItem(TOTALS_TRIM_MODE_KEY);
+        if (trimMode === 'keep' || trimMode === 'omit') chartTrimMode = trimMode;
         const from = localStorage.getItem(TOTALS_MONTH_FROM_KEY);
         const to = localStorage.getItem(TOTALS_MONTH_TO_KEY);
         if (D.S21_MESES.includes(from)) totalsMonthFrom = from;
@@ -449,6 +472,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function persistTotalsTimePrefs() {
         localStorage.setItem(TOTALS_EXCLUDE_KEY, String(chartExcludeMonths));
+        localStorage.setItem(TOTALS_TRIM_SIDE_KEY, chartTrimSide);
+        localStorage.setItem(TOTALS_TRIM_MODE_KEY, chartTrimMode);
         localStorage.setItem(TOTALS_MONTH_FROM_KEY, totalsMonthFrom);
         localStorage.setItem(TOTALS_MONTH_TO_KEY, totalsMonthTo);
     }
@@ -492,14 +517,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') {
                 closeExportMenus();
-                closeTotalsFloats();
+                closeTotalsDockPanels();
             }
         });
     }
 
     function bindEvents() {
         btnClearData?.addEventListener('click', () => clearAll(false));
-        btnToggleFilters.addEventListener('click', toggleFilters);
+        btnToggleFilters?.addEventListener('click', toggleFilters);
         filterModeBtns.forEach(btn => {
             btn.addEventListener('click', () => setFilterMode(btn.dataset.filterMode));
         });
@@ -507,35 +532,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnClearCrossFilter) btnClearCrossFilter.addEventListener('click', clearDetailLinkFilter);
         if (btnResetPerfilAliases) btnResetPerfilAliases.addEventListener('click', resetPerfilAliasesToSuggested);
         if (pivotBody) pivotBody.addEventListener('click', onPivotBodyClick);
-        group1.addEventListener('change', onTotalsGroupingChange);
-        group2.addEventListener('change', onTotalsGroupingChange);
-        btnDimPrimary?.addEventListener('click', () => setTotalsDimensionSwapped(false));
-        btnDimSecondary?.addEventListener('click', () => setTotalsDimensionSwapped(true));
-        totalsLayoutToggle?.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-totals-layout]');
-            if (btn) {
-                setTotalsLayoutMode(btn.dataset.totalsLayout);
-                closeTotalsFloats();
-            }
+        group1?.addEventListener('change', onTotalsGroupingChange);
+        group2?.addEventListener('change', onTotalsGroupingChange);
+        totalsLayoutToggle?.addEventListener('change', onTotalsViewCheck);
+        totalsChartModeToggle?.addEventListener('change', onTotalsChartCheck);
+        totalsTrimModeToggle?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-trim-mode]');
+            if (btn) setTotalsTrimMode(btn.dataset.trimMode);
         });
-        totalsChartModeToggle?.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-totals-chart]');
-            if (btn) {
-                setTotalsChartMode(btn.dataset.totalsChart);
-                closeTotalsFloats();
-            }
+        totalsTrimSideToggle?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-trim-side]');
+            if (btn) setTotalsTrimSide(btn.dataset.trimSide);
         });
-        totalsFloatVistaBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleTotalsFloat(totalsFloatVista);
-        });
-        totalsFloatGraficoBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleTotalsFloat(totalsFloatGrafico);
-        });
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.totals-float')) closeTotalsFloats();
-        });
+        bindTotalsDocks();
         totalsExcludeSelect?.addEventListener('change', () => {
             setChartExcludeMonths(Number(totalsExcludeSelect.value));
         });
@@ -565,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', () => setKpiMode(btn.dataset.kpiMode));
         });
         bindKpiDetailModal();
-        btnExportCsv.addEventListener('click', () => requestExport('totals', 'csv'));
+        btnExportCsv?.addEventListener('click', () => requestExport('totals', 'csv'));
         btnExportPng?.addEventListener('click', () => requestExport('totals', 'image'));
         btnExportPdf?.addEventListener('click', () => requestExport('totals', 'pdf'));
         btnExportPublishersCsv?.addEventListener('click', () => requestExport('publishers', 'csv'));
@@ -702,6 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setPublisherDetailVisible(false, 'instant');
             renderFileList();
             if (chartProfileTogglesWrap) chartProfileTogglesWrap.classList.add('hidden');
+            syncTotalsDockChrome();
             return;
         }
 
@@ -726,6 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (layoutMode === 'single') {
             applySingleSectionView(singleActiveSection);
         }
+        syncTotalsDockChrome();
     }
 
     function loadPerfilAliasesSaved() {
@@ -1163,8 +1174,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getTotalsGroupFields() {
-        const g1 = group1.value;
-        const g2 = group2.value;
+        const g1 = group1?.value;
+        const g2 = group2?.value;
         return [g1, g2].filter((v, i, arr) => v && arr.indexOf(v) === i);
     }
 
@@ -1205,7 +1216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let rows = sourceMensual || [];
         if (applyScope) rows = D.filterMensualByScope(rows, totalsScope);
         rows = D.filterMensualByMonthRange(rows, totalsMonthFrom, totalsMonthTo);
-        rows = D.filterMensualByExcludedMonths(rows, chartExcludeMonths);
+        rows = D.filterMensualByExcludedMonths(rows, getTotalsTrimOpts());
         return filterMensualForCharts(rows);
     }
 
@@ -1235,29 +1246,198 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function closeTotalsFloats(exceptRoot) {
-        [totalsFloatVista, totalsFloatGrafico].forEach(el => {
-            if (!el || el === exceptRoot) return;
-            el.classList.remove('is-open');
-            el.querySelector('.totals-float-btn')?.setAttribute('aria-expanded', 'false');
+    function getTotalsTrimOpts() {
+        return { n: chartExcludeMonths, side: chartTrimSide, mode: chartTrimMode };
+    }
+
+    function setDockPanelOpen(panel, open, from) {
+        if (window.S21Motion?.setOpen) {
+            return window.S21Motion.setOpen(panel, open, { from });
+        }
+        panel.classList.toggle('hidden', !open);
+        panel.hidden = !open;
+        panel.classList.toggle('is-open', !!open);
+        return Promise.resolve();
+    }
+
+    function closeTotalsDockPanels(exceptId) {
+        document.querySelectorAll('.totals-dock-panel').forEach(panel => {
+            if (exceptId && panel.id === exceptId) return;
+            const from = 'right';
+            setDockPanelOpen(panel, false, from);
+        });
+        document.querySelectorAll('.totals-dock-btn.is-open').forEach(btn => {
+            if (exceptId && btn.getAttribute('aria-controls') === exceptId) return;
+            btn.classList.remove('is-open');
+            btn.setAttribute('aria-expanded', 'false');
         });
     }
 
-    function toggleTotalsFloat(root) {
-        if (!root) return;
-        const willOpen = !root.classList.contains('is-open');
-        closeTotalsFloats(willOpen ? root : null);
-        root.classList.toggle('is-open', willOpen);
-        root.querySelector('.totals-float-btn')?.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    function openTotalsDockPanel(panelId) {
+        const panel = document.getElementById(panelId);
+        const btn = document.querySelector(`.totals-dock-btn[aria-controls="${panelId}"]`);
+        if (!panel || !btn) return;
+        const from = 'right';
+        const willOpen = !panel.classList.contains('is-open');
+        closeTotalsDockPanels(willOpen ? panelId : null);
+        setDockPanelOpen(panel, willOpen, from);
+        btn.classList.toggle('is-open', willOpen);
+        btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
     }
 
-    function syncTotalsFloatLabels() {
-        if (totalsFloatVistaValue) {
-            totalsFloatVistaValue.textContent = TOTALS_LAYOUT_LABELS[totalsLayoutMode] || totalsLayoutMode;
+    function setTotalsDockCollapsed(side, collapsed) {
+        const dock = totalsDockRight;
+        if (!dock) return;
+        dock.classList.toggle('is-collapsed', collapsed);
+        localStorage.setItem(TOTALS_DOCK_RIGHT_KEY, collapsed ? '0' : '1');
+        if (collapsed) closeTotalsDockPanels();
+        scheduleChartResize();
+    }
+
+    function bindTotalsDocks() {
+        document.querySelectorAll('.totals-dock-btn[data-dock-panel]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                openTotalsDockPanel(btn.getAttribute('aria-controls'));
+            });
+        });
+        totalsDockBtnEjes?.addEventListener('click', e => {
+            e.stopPropagation();
+            if (!isTotalsReportMode()) return;
+            setTotalsDimensionSwapped(!totalsDimensionSwapped);
+        });
+        document.querySelectorAll('[data-dock-toggle]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                setTotalsDockCollapsed('right', !totalsDockRight?.classList.contains('is-collapsed'));
+            });
+        });
+        document.querySelectorAll('[data-dock-close]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                closeTotalsDockPanels();
+            });
+        });
+        document.addEventListener('pointerdown', e => {
+            if (e.target.closest?.('.totals-dock') || e.target.closest?.('#btn-toggle-totals-dock')) return;
+            if (e.target.closest?.('option')) return;
+            const selectWasOpen = isTotalsDockSelectActive();
+            window.setTimeout(() => {
+                if (selectWasOpen && isTotalsDockSelectActive()) return;
+                closeTotalsDockPanels();
+            }, 0);
+        });
+        if (localStorage.getItem(TOTALS_DOCK_RIGHT_KEY) === '0' || localStorage.getItem(TOTALS_DOCK_LEFT_KEY) === '0') {
+            totalsDockRight?.classList.add('is-collapsed');
         }
-        if (totalsFloatGraficoValue) {
-            totalsFloatGraficoValue.textContent = TOTALS_CHART_LABELS[totalsChartMode] || totalsChartMode;
+        btnToggleTotalsDock?.addEventListener('click', e => {
+            e.stopPropagation();
+            setTotalsDockUserVisible(!totalsDockUserVisible);
+        });
+        syncTotalsDockMarks();
+        syncTotalsViewChecks();
+        syncTotalsGroupSelects();
+        syncTotalsDockChrome();
+    }
+
+    function isTotalsDockSelectActive() {
+        const active = document.activeElement;
+        if (!active) return false;
+        if (active.matches?.('select, option')) {
+            return Boolean(totalsDockRight?.contains(active) || active.closest?.('.totals-dock'));
         }
+        return Boolean(totalsDockRight?.contains(active));
+    }
+
+    function syncTotalsGroupSelects() {
+        const g1 = group1?.value || '';
+        const g2 = group2?.value || '';
+        group1?.querySelectorAll('option').forEach(opt => {
+            opt.disabled = Boolean(g2) && opt.value === g2;
+        });
+        group2?.querySelectorAll('option').forEach(opt => {
+            if (!opt.value) return;
+            opt.disabled = Boolean(g1) && opt.value === g1;
+        });
+    }
+
+    function isTotalsSectionOpen() {
+        if (!packages.length) return false;
+        if (dashboardContent?.hidden || dashboardContent?.classList.contains('hidden')) return false;
+        if (layoutMode === 'single') return singleActiveSection === 'table';
+        const section = getDashboardSectionElement('table');
+        if (!section || section.classList.contains('collapsed')) return false;
+        return getCurrentNavTarget() === 'table';
+    }
+
+    function setTotalsDockUserVisible(visible) {
+        totalsDockUserVisible = Boolean(visible);
+        localStorage.setItem(TOTALS_DOCK_VISIBLE_KEY, totalsDockUserVisible ? '1' : '0');
+        if (!totalsDockUserVisible) closeTotalsDockPanels();
+        syncTotalsDockChrome();
+    }
+
+    function syncTotalsDockChrome() {
+        const allowed = isTotalsSectionOpen();
+        const show = allowed && totalsDockUserVisible;
+        if (btnToggleTotalsDock) {
+            btnToggleTotalsDock.classList.toggle('hidden', !allowed);
+            btnToggleTotalsDock.hidden = !allowed;
+            btnToggleTotalsDock.setAttribute('aria-pressed', totalsDockUserVisible ? 'true' : 'false');
+            const label = totalsDockUserVisible ? 'Ocultar filtros' : 'Mostrar filtros';
+            btnToggleTotalsDock.setAttribute('aria-label', label);
+            btnToggleTotalsDock.title = label;
+        }
+        if (!totalsDockRight) return;
+        totalsDockRight.hidden = !show;
+        totalsDockRight.classList.toggle('hidden', !show);
+        if (!show) closeTotalsDockPanels();
+    }
+
+    function syncTotalsDockMarks() {
+        const periodoBtn = document.querySelector('.totals-dock-btn[data-dock-panel="periodo"]');
+        const recorteBtn = document.querySelector('.totals-dock-btn[data-dock-panel="recorte"]');
+        const agruparBtn = document.querySelector('.totals-dock-btn[data-dock-panel="agrupar"]');
+        periodoBtn?.classList.toggle('has-value', totalsScope !== 'year' || !isTotalsFullYearRange());
+        recorteBtn?.classList.toggle('has-value', chartExcludeMonths > 0);
+        agruparBtn?.classList.toggle('has-value', Boolean(group2?.value));
+        totalsDockBtnEjes?.classList.toggle('has-value', totalsDimensionSwapped);
+        totalsDockBtnEjes?.setAttribute('aria-pressed', totalsDimensionSwapped ? 'true' : 'false');
+        syncTotalsSegToggle(totalsTrimModeToggle, 'data-trim-mode', chartTrimMode);
+        syncTotalsSegToggle(totalsTrimSideToggle, 'data-trim-side', chartTrimSide);
+    }
+
+    function syncTotalsViewChecks() {
+        const table = totalsLayoutToggle?.querySelector('[data-totals-view="table"]');
+        const charts = totalsLayoutToggle?.querySelector('[data-totals-view="charts"]');
+        if (table) table.checked = totalsLayoutMode !== 'charts';
+        if (charts) charts.checked = totalsLayoutMode !== 'table';
+        const bar = totalsChartModeToggle?.querySelector('[data-totals-chart="bar"]');
+        const line = totalsChartModeToggle?.querySelector('[data-totals-chart="line"]');
+        if (bar) bar.checked = totalsChartMode !== 'line';
+        if (line) line.checked = totalsChartMode !== 'bar';
+    }
+
+    function onTotalsViewCheck(e) {
+        const table = totalsLayoutToggle?.querySelector('[data-totals-view="table"]');
+        const charts = totalsLayoutToggle?.querySelector('[data-totals-view="charts"]');
+        if (!table || !charts) return;
+        if (!table.checked && !charts.checked) {
+            e.target.checked = true;
+            return;
+        }
+        setTotalsLayoutMode(table.checked && charts.checked ? 'both' : table.checked ? 'table' : 'charts');
+    }
+
+    function onTotalsChartCheck(e) {
+        const bar = totalsChartModeToggle?.querySelector('[data-totals-chart="bar"]');
+        const line = totalsChartModeToggle?.querySelector('[data-totals-chart="line"]');
+        if (!bar || !line) return;
+        if (!bar.checked && !line.checked) {
+            e.target.checked = true;
+            return;
+        }
+        setTotalsChartMode(bar.checked && line.checked ? 'together' : bar.checked ? 'bar' : 'line');
     }
 
     function syncTotalsLayout() {
@@ -1271,11 +1451,14 @@ document.addEventListener('DOMContentLoaded', () => {
         totalsTableWrap?.classList.toggle('hidden', !showTable);
         if (!showTable) totalsMatrixSummary?.classList.add('hidden');
         totalsChartModeField?.classList.toggle('hidden', !showCharts);
-        totalsFloatGrafico?.classList.toggle('hidden', !showCharts);
+        totalsDockBtnGrafico?.classList.toggle('hidden', !showCharts);
         totalsMetricField?.classList.toggle('hidden', !showMetricBar);
-        syncTotalsSegToggle(totalsLayoutToggle, 'data-totals-layout', totalsLayoutMode);
-        syncTotalsSegToggle(totalsChartModeToggle, 'data-totals-chart', totalsChartMode);
-        syncTotalsFloatLabels();
+        if (!showCharts) {
+            const graficoPanel = document.getElementById('totals-dock-panel-grafico');
+            if (graficoPanel?.classList.contains('is-open')) closeTotalsDockPanels();
+        }
+        syncTotalsViewChecks();
+        syncTotalsDockMarks();
         if (showCharts) scheduleChartResize();
     }
 
@@ -1296,37 +1479,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (totalsChartMode === mode) return;
         totalsChartMode = mode;
         localStorage.setItem(TOTALS_CHART_MODE_KEY, mode);
-        syncTotalsSegToggle(totalsChartModeToggle, 'data-totals-chart', totalsChartMode);
+        syncTotalsViewChecks();
         refreshCharts();
         scheduleChartResize();
     }
 
     function syncTotalsReportLayout() {
         const reportMode = isTotalsReportMode();
-        const dims = getTotalsDimensions();
-
         if (!reportMode) {
             totalsDimensionSwapped = false;
-        }
-
-        totalsBody?.classList.toggle('totals-body--report', reportMode);
-        totalsDimensionToggleWrap?.classList.toggle('hidden', !reportMode);
-        pivotTable?.classList.toggle('totals-table--matrix', reportMode);
-
-        if (dimPrimaryLabel && dims.primary) {
-            dimPrimaryLabel.textContent = D.groupFieldLabel(dims.primary);
-        }
-        if (dimSecondaryLabel && dims.secondary) {
-            dimSecondaryLabel.textContent = D.groupFieldLabel(dims.secondary);
-        }
-        btnDimPrimary?.classList.toggle('active', !totalsDimensionSwapped);
-        btnDimSecondary?.classList.toggle('active', totalsDimensionSwapped);
-        btnDimPrimary?.setAttribute('aria-selected', totalsDimensionSwapped ? 'false' : 'true');
-        btnDimSecondary?.setAttribute('aria-selected', totalsDimensionSwapped ? 'true' : 'false');
-
-        if (!reportMode) {
             totalsMatrixSummary?.classList.add('hidden');
         }
+        totalsBody?.classList.toggle('totals-body--report', reportMode);
+        totalsDockBtnEjes?.classList.toggle('hidden', !reportMode);
+        pivotTable?.classList.toggle('totals-table--matrix', reportMode);
         syncTotalsLayout();
     }
 
@@ -1338,8 +1504,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function onTotalsGroupingChange() {
-        if (group2.value && group2.value === group1.value) group2.value = '';
+        if (group2?.value && group2.value === group1?.value) group2.value = '';
         totalsDimensionSwapped = false;
+        syncTotalsGroupSelects();
         syncTotalsReportLayout();
         refresh();
     }
@@ -1564,6 +1731,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             clearSingleSectionView();
         }
+        syncTotalsDockChrome();
     }
 
     function navSectionIndex(id) {
@@ -1705,6 +1873,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.toggle('active', btn.dataset.navTarget === targetId);
         });
         syncHeaderSectionTitle(targetId);
+        syncTotalsDockChrome();
     }
 
     function navigateToDashboardSection(targetId, options = {}) {
@@ -1719,7 +1888,10 @@ document.addEventListener('DOMContentLoaded', () => {
         setDashboardNavActive(targetId);
         expandAccordion(targetId);
         getDashboardSectionElement(targetId)?.scrollIntoView({ behavior, block: 'start' });
-        if (targetId === 'table') scheduleChartResize();
+        if (targetId === 'table') {
+            scheduleChartResize();
+            syncTotalsDockChrome();
+        }
         return Promise.resolve();
     }
 
@@ -1788,8 +1960,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (layoutMode === 'single') return;
                 const willCollapse = !section.classList.contains('collapsed');
                 setAccordionCollapsed(section, trigger, willCollapse, true);
-                if (id === 'table' && !willCollapse) {
-                    scheduleChartResize();
+                if (id === 'table') {
+                    if (!willCollapse) scheduleChartResize();
+                    syncTotalsDockChrome();
                 }
             });
         });
@@ -1838,7 +2011,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const trigger = section.querySelector('.dashboard-accordion-trigger');
         if (!trigger) return;
         setAccordionCollapsed(section, trigger, false, true);
-        if (id === 'table') scheduleChartResize();
+        if (id === 'table') {
+            scheduleChartResize();
+            syncTotalsDockChrome();
+        }
     }
 
     function prefersHorizontalBarChart(options = {}) {
@@ -2038,14 +2214,30 @@ document.addEventListener('DOMContentLoaded', () => {
         refresh();
     }
 
+    function setTotalsTrimMode(mode) {
+        if (mode !== 'omit' && mode !== 'keep') return;
+        if (chartTrimMode === mode) return;
+        chartTrimMode = mode;
+        persistTotalsTimePrefs();
+        refresh();
+    }
+
+    function setTotalsTrimSide(side) {
+        if (side !== 'first' && side !== 'last') return;
+        if (chartTrimSide === side) return;
+        chartTrimSide = side;
+        persistTotalsTimePrefs();
+        refresh();
+    }
+
     function totalsTimeHintHtml() {
         const parts = [];
         if (!isTotalsFullYearRange()) {
             parts.push(`${D.mesLabel(totalsMonthFrom, 'corto')}–${D.mesLabel(totalsMonthTo, 'corto')}`);
         }
         if (chartExcludeMonths) {
-            const labels = D.excludedMonthLabels(chartExcludeMonths);
-            if (labels.length) parts.push(`sin ${labels.join(', ').toLowerCase()}`);
+            const hint = D.monthTrimHint(getTotalsTrimOpts());
+            if (hint) parts.push(hint.toLowerCase());
         }
         if (!parts.length) return '';
         return `<span class="chart-title-note">(${escapeHtml(parts.join(' · '))})</span>`;
@@ -2057,8 +2249,8 @@ document.addEventListener('DOMContentLoaded', () => {
             bits.push(`${D.mesLabel(totalsMonthFrom, 'corto')}–${D.mesLabel(totalsMonthTo, 'corto')}`);
         }
         if (chartExcludeMonths) {
-            const labels = D.excludedMonthLabels(chartExcludeMonths);
-            if (labels.length) bits.push(`sin ${labels.join(', ')}`);
+            const hint = D.monthTrimHint(getTotalsTrimOpts());
+            if (hint) bits.push(hint);
         }
         return bits.join(' · ');
     }
@@ -3436,15 +3628,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!kpiDetailKey) return;
         const detail = buildKpiDetail(kpiDetailKey);
         if (kpiDetailLead) {
-            const n = detail.count;
-            const countLabel = `${n} publicador${n === 1 ? '' : 'es'}`;
-            kpiDetailLead.textContent = `${kpiDetailScopeLabel(kpiDetailKey)} · ${countLabel}`;
+            if (kpiDetailKey === 'cursos' && detail.cursosTotal != null) {
+                const n = detail.cursosTotal;
+                kpiDetailLead.textContent = `${kpiDetailScopeLabel(kpiDetailKey)} · ${formatNum(n)} curso${n === 1 ? '' : 's'}`;
+            } else {
+                const n = detail.count;
+                kpiDetailLead.textContent = `${kpiDetailScopeLabel(kpiDetailKey)} · ${n} publicador${n === 1 ? '' : 'es'}`;
+            }
         }
         if (kpiDetailBody) {
             const empty = kpiPrivilegeFilterActive() && !detail.rowsHtml && !detail.sections?.some(s => s.rowsHtml)
+                && !detail.withCourses?.rowsHtml && !detail.withoutCourses?.rowsHtml
                 ? 'Ningún publicador coincide con la intersección de los filtros.'
                 : detail.empty;
-            if (detail.sections?.length) {
+            if (detail.cursosTab) {
+                const tab = kpiDetailCursosTab === 'without' ? 'without' : 'with';
+                const list = tab === 'without' ? detail.withoutCourses : detail.withCourses;
+                const withN = detail.withCourses?.count ?? 0;
+                const withoutN = detail.withoutCourses?.count ?? 0;
+                const toggle = `<div class="totals-view-toggle kpi-detail-cursos-toggle" role="tablist" aria-label="Cursos bíblicos">
+                    <button type="button" class="totals-view-btn${tab === 'with' ? ' active' : ''}" data-kpi-cursos-tab="with" role="tab" aria-selected="${tab === 'with' ? 'true' : 'false'}">Con cursos (${withN})</button>
+                    <button type="button" class="totals-view-btn${tab === 'without' ? ' active' : ''}" data-kpi-cursos-tab="without" role="tab" aria-selected="${tab === 'without' ? 'true' : 'false'}">Sin cursos (${withoutN})</button>
+                </div>`;
+                kpiDetailBody.innerHTML = toggle + renderKpiDetailTable(
+                    list?.headers || [],
+                    list?.rowsHtml || '',
+                    list?.empty || empty
+                );
+            } else if (detail.sections?.length) {
                 const note = detail.note
                     ? `<p class="kpi-detail-note">${escapeHtml(detail.note)}</p>`
                     : '';
@@ -3541,27 +3752,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 })));
             const cursosTotal = withTotals.reduce((sum, item) => sum + (item.cursos || 0), 0);
             return {
-                count: withCourses.length,
+                count: withTotals.length,
+                cursosTotal,
+                cursosTab: true,
                 empty: 'No hay publicadores.',
-                note: mes
-                    ? `${formatNum(cursosTotal)} cursos en ${D.mesLabel(mes, 'completo')} · ${withCourses.length} publicador${withCourses.length === 1 ? '' : 'es'} con cursos.`
-                    : `${formatNum(cursosTotal)} cursos en el año · ${withCourses.length} publicador${withCourses.length === 1 ? '' : 'es'} con cursos.`,
-                sections: [
-                    {
-                        title: 'Con cursos',
-                        headers: [{ label: 'Nombre' }, { label: 'Perfil' }, { label: 'Cursos', numeric: true }],
-                        rowsHtml: withCourses.map(r => r.html).join(''),
-                        count: withCourses.length,
-                        empty: 'Nadie tuvo cursos en este periodo.',
-                    },
-                    {
-                        title: 'Sin cursos',
-                        headers: [{ label: 'Nombre' }, { label: 'Perfil' }],
-                        rowsHtml: withoutCourses.map(r => r.html).join(''),
-                        count: withoutCourses.length,
-                        empty: 'Todos tuvieron cursos.',
-                    },
-                ],
+                withCourses: {
+                    headers: [{ label: 'Nombre' }, { label: 'Perfil' }, { label: 'Cursos', numeric: true }],
+                    rowsHtml: withCourses.map(r => r.html).join(''),
+                    count: withCourses.length,
+                    empty: 'Nadie tuvo cursos bíblicos en este periodo.',
+                },
+                withoutCourses: {
+                    headers: [{ label: 'Nombre' }, { label: 'Perfil' }],
+                    rowsHtml: withoutCourses.map(r => r.html).join(''),
+                    count: withoutCourses.length,
+                    empty: 'Todos tuvieron cursos bíblicos.',
+                },
             };
         }
 
@@ -3719,6 +3925,15 @@ document.addEventListener('DOMContentLoaded', () => {
             kpiDetailPrivilegeFilters[slot] = sel.value || '';
             refreshKpiDetailTable();
         });
+        kpiDetailBody?.addEventListener('click', e => {
+            const btn = e.target.closest('[data-kpi-cursos-tab]');
+            if (!btn || !kpiDetailBody.contains(btn)) return;
+            const tab = btn.dataset.kpiCursosTab;
+            if (tab !== 'with' && tab !== 'without') return;
+            if (kpiDetailCursosTab === tab) return;
+            kpiDetailCursosTab = tab;
+            refreshKpiDetailTable();
+        });
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape' && kpiDetailModal?.classList.contains('is-open')) {
                 closeKpiDetail();
@@ -3729,6 +3944,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeKpiDetail() {
         kpiDetailKey = '';
         kpiDetailPrivilegeFilters = ['', ''];
+        kpiDetailCursosTab = 'with';
         if (kpiDetailFilters) {
             kpiDetailFilters.innerHTML = '';
             kpiDetailFilters.hidden = true;
@@ -3740,6 +3956,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = KPI_ITEMS.find(k => k.key === metricKey);
         if (!item || !flat.publicadores?.length) return;
         kpiDetailKey = metricKey;
+        kpiDetailCursosTab = 'with';
         if (kpiDetailTitle) kpiDetailTitle.textContent = item.label;
         renderKpiDetailFilters();
         refreshKpiDetailTable();
@@ -3795,29 +4012,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const m = kpis.metrics[key];
             let valueHtml;
             let hint = '';
-            if (key === 'cursos') {
-                const con = kpis.metrics.con_cursos || {};
-                let cursosVal;
-                let conVal;
-                if (kpiMode === 'max') {
-                    cursosVal = m.max;
-                    conVal = con.max;
-                    if (m.maxMes && m.maxMes !== '—') hint = m.maxMes;
-                } else if (kpiMode === 'avg') {
-                    cursosVal = m.avg;
-                    conVal = con.avg;
-                } else if (kpiMode === 'last') {
-                    cursosVal = m.last;
-                    conVal = con.last;
-                    if (lastHint) hint = lastHint;
-                } else {
-                    cursosVal = m.total;
-                    conVal = con.total;
-                }
-                const cursosText = kpiMode === 'avg' ? formatNum(cursosVal, 1) : formatNum(cursosVal);
-                const conText = kpiMode === 'avg' ? formatNum(conVal, 1) : formatNum(conVal);
-                valueHtml = `${cursosText}<span class="kpi-value-sep">/</span>${conText}`;
-            } else if (kpiMode === 'max') {
+            if (kpiMode === 'max') {
                 valueHtml = formatNum(m.max);
                 if (m.maxMes && m.maxMes !== '—') hint = m.maxMes;
             } else if (kpiMode === 'avg') {
@@ -3834,7 +4029,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 valueHtml = formatNum(m.total);
                 if (key === 'inactivos') hint = 'S-21';
             }
-            const valueClass = key === 'cursos' ? 'kpi-value kpi-value--split' : 'kpi-value';
+            const valueClass = 'kpi-value';
             return `<button type="button" class="kpi-card kpi-card--${key}" data-kpi-key="${escapeAttr(key)}" aria-haspopup="dialog" aria-controls="kpi-detail-modal" title="Ver detalle">
                 <span class="kpi-card-icon" aria-hidden="true">${Icons?.metricIcon(key) || ''}</span>
                 <span class="${valueClass}">${valueHtml}</span>
@@ -3851,7 +4046,7 @@ document.addEventListener('DOMContentLoaded', () => {
             totalsMonthTo
         );
         return new Set(
-            D.filterMensualByExcludedMonths(ranged, chartExcludeMonths).map(r => r.mes)
+            D.filterMensualByExcludedMonths(ranged, getTotalsTrimOpts()).map(r => r.mes)
         );
     }
 
