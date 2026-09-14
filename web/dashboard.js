@@ -9,9 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const TOTALS_TRIM_MODE_KEY = 'analisis_servicio_totals_trim_mode';
     const TOTALS_MONTH_FROM_KEY = 'analisis_servicio_totals_month_from';
     const TOTALS_MONTH_TO_KEY = 'analisis_servicio_totals_month_to';
-    const TOTALS_DOCK_LEFT_KEY = 'analisis_servicio_totals_dock_left';
     const TOTALS_DOCK_RIGHT_KEY = 'analisis_servicio_totals_dock_right';
-    const TOTALS_DOCK_VISIBLE_KEY = 'analisis_servicio_totals_dock_visible';
+    const TOOLS_DOCK_VISIBLE_KEY = 'analisis_servicio_section_dock_visible';
+    const SPARK_METRIC_KEY = 'analisis_servicio_spark_metric';
+    const GRUPOS_DOCK_KEY = 'analisis_servicio_grupos_dock';
+    const PUBLISHERS_DOCK_KEY = 'analisis_servicio_publishers_dock';
     const ACCORDION_STATE_KEY = 'analisis_servicio_accordion_state';
     const PERFIL_ALIASES_KEY = 'analisis_servicio_perfil_aliases';
     const CHART_PROFILES_KEY = 'analisis_servicio_chart_profiles';
@@ -155,7 +157,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let layoutMode = 'continuous';
     let singleActiveSection = 'kpi';
     let navSwapGen = 0;
-    let totalsDockUserVisible = localStorage.getItem(TOTALS_DOCK_VISIBLE_KEY) !== '0';
+    let totalsDockUserVisible = localStorage.getItem(TOOLS_DOCK_VISIBLE_KEY) !== '0';
+    let sparkMetric = localStorage.getItem(SPARK_METRIC_KEY) || 'horas';
+    let sparkCache = new Map();
+    const SPARK_METRICS = ['horas', 'cursos', 'participacion', 'precursor_auxiliar', 'none'];
+    const SECTION_DOCKS = {
+        table: ['totals-dock-right'],
+        grupos: ['grupos-dock'],
+        publishers: ['publishers-dock'],
+    };
+    const SPARK_METRIC_ICONS = {
+        none: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>',
+        horas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.2 1.8"/></svg>',
+        cursos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h5"/></svg>',
+        participacion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>',
+        precursor_auxiliar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="7" r="3.2"/><path d="M3.5 20.5v-.8c0-3 2.5-5.1 5.5-5.1 1.1 0 2.1.3 3 .8"/><circle cx="17.5" cy="16.5" r="4"/><path d="M17.5 14.6v2.1l1.4.8"/></svg>',
+    };
     const NAV_SECTION_ORDER = ['kpi', 'table', 'grupos', 'publishers'];
 
     const CHART_SUBGROUP_COLORS = [
@@ -175,6 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalsTrimModeToggle = document.getElementById('totals-trim-mode');
     const totalsTrimSideToggle = document.getElementById('totals-trim-side');
     const totalsDockRight = document.getElementById('totals-dock-right');
+    const gruposDock = document.getElementById('grupos-dock');
+    const publishersDock = document.getElementById('publishers-dock');
     const totalsDockBtnGrafico = document.getElementById('totals-dock-btn-grafico');
     const totalsDockBtnEjes = document.getElementById('totals-dock-btn-ejes');
     const btnToggleTotalsDock = document.getElementById('btn-toggle-totals-dock');
@@ -193,6 +212,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const publisherBackLabel = document.getElementById('publisher-back-label');
 
     const Icons = window.S21DashboardIcons;
+    window.S21DashboardSparklines = {
+        nameInnerHtml: (...args) => personNameWithSparkHtml(...args),
+        getMetric: () => sparkMetric,
+    };
 
     const KPI_ITEMS = [
         { key: 'publicadores', label: 'Publicadores' },
@@ -593,6 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (publisherBulkGrupo) {
             publisherBulkGrupo.addEventListener('change', () => {
                 publisherGroupFilter = publisherBulkGrupo.value;
+                updateFiltersSummary();
                 renderPublisherList();
             });
         }
@@ -696,6 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function rebuild() {
+        sparkCache.clear();
         if (!packages.length) {
             flat = { mensual: [], publicadores: [] };
             setStageOpen(dashboardContent, false);
@@ -787,6 +812,81 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function filterPublicadoresForCharts() {
         return D.filterRowsByOrigenes(flat.publicadores, getChartIncludedOrigenes());
+    }
+
+    function sparkMetricLabel(id) {
+        if (id === 'none') return 'Ocultar';
+        return PUBLISHER_DETAIL_METRICS.find(m => m.id === id)?.title
+            || D.chartMetricLabel?.(id)
+            || id;
+    }
+
+    function publisherSparkSvg(pub) {
+        try {
+            if (sparkMetric === 'none') return '';
+            if (!D?.publisherMetricSeries || !D?.sparklineSvg) return '';
+            const key = D.personKey(pub);
+            const cacheKey = `${sparkMetric}::${key}`;
+            if (sparkCache.has(cacheKey)) return sparkCache.get(cacheKey);
+            const binary = Boolean(D.isBinaryMetric?.(sparkMetric));
+            const values = D.publisherMetricSeries(flat.mensual, key, sparkMetric);
+            const svg = D.sparklineSvg(values, {
+                binary,
+                width: 132,
+                height: binary ? 14 : 36,
+            });
+            sparkCache.set(cacheKey, svg);
+            return svg;
+        } catch {
+            return '';
+        }
+    }
+
+    function personNameWithSparkHtml(pub, escapedName) {
+        const name = escapedName ?? escapeHtml(pub?.nombre || '—');
+        const icon = Icons?.personIconHtml?.(pub, { decorative: true }) || '';
+        if (sparkMetric === 'none') {
+            return `${icon}<span class="person-name-text">${name}</span>`;
+        }
+        const spark = publisherSparkSvg(pub);
+        const metric = sparkMetricLabel(sparkMetric);
+        const binary = Boolean(D.isBinaryMetric?.(sparkMetric));
+        const mainClass = binary ? 'person-name-main person-name-main--bits' : 'person-name-main';
+        const sparkClass = binary ? 'person-sparkline person-sparkline--below' : 'person-sparkline';
+        return `${icon}<span class="${mainClass}"><span class="person-name-text">${name}</span><span class="${sparkClass}" title="${escapeAttr(metric)}" aria-hidden="true">${spark}</span></span>`;
+    }
+
+    function syncSparkDockMarks() {
+        document.querySelectorAll('[data-spark-metric]').forEach(btn => {
+            const on = btn.dataset.sparkMetric === sparkMetric;
+            btn.classList.toggle('is-open', on);
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            if (btn.getAttribute('role') === 'option') {
+                btn.setAttribute('aria-selected', on ? 'true' : 'false');
+            }
+        });
+        document.querySelectorAll('.totals-dock-btn[data-dock-panel="metrica"]').forEach(btn => {
+            btn.classList.toggle('has-value', sparkMetric !== 'horas');
+        });
+    }
+
+    function refreshSparkViews() {
+        sparkCache.clear();
+        syncSparkDockMarks();
+        renderPublisherList();
+        if (selectedPublisherKey) renderPublisherDetail();
+        G?.render?.();
+        if (kpiDetailKey && kpiDetailModal?.classList.contains('is-open')) {
+            refreshKpiDetailTable();
+        }
+    }
+
+    function setSparkMetric(metricId) {
+        if (!SPARK_METRICS.includes(metricId) || metricId === sparkMetric) return;
+        sparkMetric = metricId;
+        localStorage.setItem(SPARK_METRIC_KEY, sparkMetric);
+        refreshSparkViews();
     }
 
     function syncPublisherOrigenFiltersFromChart(row) {
@@ -983,10 +1083,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderFilters() {
-        filtersBody.innerHTML = `<div class="filters-compact">${FILTER_LAYOUT.rows.map(row =>
-            `<div class="filters-row${row.length > 2 ? ' filters-row--triple' : ''}">${row.map(field =>
-                renderFilterCell(field)
-            ).join('')}</div>`
+        filtersBody.innerHTML = `<div class="filters-stack">${FILTER_FIELDS.map(field =>
+            renderFilterCell(field)
         ).join('')}</div>`;
 
         filtersBody.querySelectorAll('.filter-chip').forEach(btn => {
@@ -1156,6 +1254,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btnToggleFilters?.setAttribute('aria-expanded', 'true');
         if (filtersChevron) filtersChevron.textContent = '▾';
         localStorage.setItem(FILTERS_COLLAPSED_KEY, '0');
+        if (publishersDock && !publishersDock.hidden) {
+            publishersDock.classList.remove('is-collapsed');
+            openTotalsDockPanel('publishers-dock-panel-filtros');
+        }
     }
 
     function motionScrollBehavior() {
@@ -1165,6 +1267,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function navigateToPublishersFromDrill() {
         navigateToDashboardSection('publishers', { crossSection: true }).then(() => {
             expandAccordion('publishers');
+            syncTotalsDockChrome();
+            expandFiltersPanel();
             publisherSection?.scrollIntoView({ behavior: motionScrollBehavior(), block: 'start' });
         });
     }
@@ -1260,24 +1364,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return Promise.resolve();
     }
 
-    function closeTotalsDockPanels(exceptId) {
-        document.querySelectorAll('.totals-dock-panel').forEach(panel => {
+    function closeDockPanelsIn(dock, exceptId) {
+        const panels = dock
+            ? dock.querySelectorAll('.totals-dock-panel')
+            : document.querySelectorAll('.totals-dock-panel');
+        panels.forEach(panel => {
             if (exceptId && panel.id === exceptId) return;
-            const from = 'right';
+            const from = (dock || panel.closest('.totals-dock'))?.classList.contains('totals-dock--left')
+                ? 'left' : 'right';
             setDockPanelOpen(panel, false, from);
         });
-        document.querySelectorAll('.totals-dock-btn.is-open').forEach(btn => {
+        const btns = dock
+            ? dock.querySelectorAll('.totals-dock-btn.is-open[data-dock-panel]')
+            : document.querySelectorAll('.totals-dock-btn.is-open[data-dock-panel]');
+        btns.forEach(btn => {
             if (exceptId && btn.getAttribute('aria-controls') === exceptId) return;
             btn.classList.remove('is-open');
             btn.setAttribute('aria-expanded', 'false');
         });
     }
 
+    function closeTotalsDockPanels(exceptId) {
+        closeDockPanelsIn(null, exceptId);
+    }
+
     function openTotalsDockPanel(panelId) {
         const panel = document.getElementById(panelId);
         const btn = document.querySelector(`.totals-dock-btn[aria-controls="${panelId}"]`);
         if (!panel || !btn) return;
-        const from = 'right';
+        const dock = panel.closest('.totals-dock');
+        const from = dock?.classList.contains('totals-dock--left') ? 'left' : 'right';
         const willOpen = !panel.classList.contains('is-open');
         closeTotalsDockPanels(willOpen ? panelId : null);
         setDockPanelOpen(panel, willOpen, from);
@@ -1285,16 +1401,66 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
     }
 
-    function setTotalsDockCollapsed(side, collapsed) {
-        const dock = totalsDockRight;
+    function dockCollapseKey(id) {
+        if (id === 'totals-dock-right') return TOTALS_DOCK_RIGHT_KEY;
+        if (id === 'grupos-dock') return GRUPOS_DOCK_KEY;
+        if (id === 'publishers-dock') return PUBLISHERS_DOCK_KEY;
+        return null;
+    }
+
+    function injectSparkMetricTool(dock) {
+        if (!dock || dock.querySelector('[data-dock-panel="metrica"]')) return;
+        const collapse = dock.querySelector('.totals-dock-collapse');
+        const rail = dock.querySelector('.totals-dock-rail');
+        if (!rail || !collapse) return;
+        const panelId = `${dock.id}-panel-metrica`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'totals-dock-btn';
+        btn.dataset.dockPanel = 'metrica';
+        btn.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-controls', panelId);
+        btn.dataset.tip = 'Métrica';
+        btn.title = 'Métrica';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>';
+        collapse.before(btn);
+        const options = SPARK_METRICS.map(id =>
+            `<button type="button" class="spark-metric-option" data-spark-metric="${id}" role="option" aria-selected="false">${SPARK_METRIC_ICONS[id]}<span>${escapeHtml(sparkMetricLabel(id))}</span></button>`
+        ).join('');
+        dock.insertAdjacentHTML('beforeend', `<div id="${panelId}" class="totals-dock-panel motion-root hidden" hidden>
+            <div class="totals-dock-panel-card motion-card">
+                <div class="totals-dock-panel-head">
+                    <strong>Métrica</strong>
+                    <button type="button" class="totals-dock-panel-close" data-dock-close aria-label="Cerrar">×</button>
+                </div>
+                <div class="totals-dock-panel-body">
+                    <div class="spark-metric-list" role="listbox" aria-label="Métrica de tendencia">${options}</div>
+                </div>
+            </div>
+        </div>`);
+    }
+
+    function setDockCollapsed(dock, collapsed) {
         if (!dock) return;
         dock.classList.toggle('is-collapsed', collapsed);
-        localStorage.setItem(TOTALS_DOCK_RIGHT_KEY, collapsed ? '0' : '1');
-        if (collapsed) closeTotalsDockPanels();
+        const key = dockCollapseKey(dock.id);
+        if (key) localStorage.setItem(key, collapsed ? '0' : '1');
+        if (collapsed) closeDockPanelsIn(dock);
         scheduleChartResize();
     }
 
+    function setTotalsDockCollapsed(side, collapsed) {
+        setDockCollapsed(totalsDockRight, collapsed);
+    }
+
     function bindTotalsDocks() {
+        injectSparkMetricTool(gruposDock);
+        injectSparkMetricTool(publishersDock);
+        const filtersSlot = document.getElementById('publishers-dock-filters-slot');
+        if (filtersSlot && filtersPanel && filtersPanel.parentElement !== filtersSlot) {
+            filtersSlot.appendChild(filtersPanel);
+            filtersPanel.classList.remove('collapsed');
+        }
         document.querySelectorAll('.totals-dock-btn[data-dock-panel]').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
@@ -1309,13 +1475,24 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('[data-dock-toggle]').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
-                setTotalsDockCollapsed('right', !totalsDockRight?.classList.contains('is-collapsed'));
+                const dock = btn.closest('.totals-dock');
+                if (!dock) return;
+                setDockCollapsed(dock, !dock.classList.contains('is-collapsed'));
             });
         });
         document.querySelectorAll('[data-dock-close]').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
                 closeTotalsDockPanels();
+            });
+        });
+        document.querySelectorAll('.totals-dock-btn.kpi-mode-btn, .totals-dock-btn[data-grupos-view]').forEach(btn => {
+            btn.addEventListener('click', () => closeDockPanelsIn(btn.closest('.totals-dock')));
+        });
+        document.querySelectorAll('[data-spark-metric]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                setSparkMetric(btn.dataset.sparkMetric);
             });
         });
         document.addEventListener('pointerdown', e => {
@@ -1327,13 +1504,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeTotalsDockPanels();
             }, 0);
         });
-        if (localStorage.getItem(TOTALS_DOCK_RIGHT_KEY) === '0' || localStorage.getItem(TOTALS_DOCK_LEFT_KEY) === '0') {
-            totalsDockRight?.classList.add('is-collapsed');
-        }
+        document.querySelectorAll('.totals-dock[id]').forEach(dock => {
+            const key = dockCollapseKey(dock.id);
+            if (key && localStorage.getItem(key) === '0') dock.classList.add('is-collapsed');
+        });
         btnToggleTotalsDock?.addEventListener('click', e => {
             e.stopPropagation();
             setTotalsDockUserVisible(!totalsDockUserVisible);
         });
+        if (!SPARK_METRICS.includes(sparkMetric)) sparkMetric = 'horas';
+        syncSparkDockMarks();
         syncTotalsDockMarks();
         syncTotalsViewChecks();
         syncTotalsGroupSelects();
@@ -1343,10 +1523,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function isTotalsDockSelectActive() {
         const active = document.activeElement;
         if (!active) return false;
-        if (active.matches?.('select, option')) {
-            return Boolean(totalsDockRight?.contains(active) || active.closest?.('.totals-dock'));
-        }
-        return Boolean(totalsDockRight?.contains(active));
+        return Boolean(active.closest?.('.totals-dock'));
     }
 
     function syncTotalsGroupSelects() {
@@ -1361,37 +1538,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function currentToolsSection() {
+        if (!packages.length) return null;
+        if (dashboardContent?.hidden || dashboardContent?.classList.contains('hidden')) return null;
+        if (layoutMode === 'single') return singleActiveSection || 'kpi';
+        return getCurrentNavTarget() || 'kpi';
+    }
+
     function isTotalsSectionOpen() {
-        if (!packages.length) return false;
-        if (dashboardContent?.hidden || dashboardContent?.classList.contains('hidden')) return false;
-        if (layoutMode === 'single') return singleActiveSection === 'table';
-        const section = getDashboardSectionElement('table');
-        if (!section || section.classList.contains('collapsed')) return false;
-        return getCurrentNavTarget() === 'table';
+        return currentToolsSection() === 'table';
     }
 
     function setTotalsDockUserVisible(visible) {
         totalsDockUserVisible = Boolean(visible);
-        localStorage.setItem(TOTALS_DOCK_VISIBLE_KEY, totalsDockUserVisible ? '1' : '0');
+        localStorage.setItem(TOOLS_DOCK_VISIBLE_KEY, totalsDockUserVisible ? '1' : '0');
         if (!totalsDockUserVisible) closeTotalsDockPanels();
         syncTotalsDockChrome();
     }
 
     function syncTotalsDockChrome() {
-        const allowed = isTotalsSectionOpen();
-        const show = allowed && totalsDockUserVisible;
+        const section = currentToolsSection();
+        const hasSectionDock = Boolean(section && SECTION_DOCKS[section]);
+        const showTools = hasSectionDock && totalsDockUserVisible;
+        document.body.classList.toggle('tools-dock-hidden', !showTools);
         if (btnToggleTotalsDock) {
-            btnToggleTotalsDock.classList.toggle('hidden', !allowed);
-            btnToggleTotalsDock.hidden = !allowed;
+            btnToggleTotalsDock.classList.toggle('hidden', !hasSectionDock);
+            btnToggleTotalsDock.hidden = !hasSectionDock;
             btnToggleTotalsDock.setAttribute('aria-pressed', totalsDockUserVisible ? 'true' : 'false');
             const label = totalsDockUserVisible ? 'Ocultar filtros' : 'Mostrar filtros';
             btnToggleTotalsDock.setAttribute('aria-label', label);
             btnToggleTotalsDock.title = label;
         }
-        if (!totalsDockRight) return;
-        totalsDockRight.hidden = !show;
-        totalsDockRight.classList.toggle('hidden', !show);
-        if (!show) closeTotalsDockPanels();
+        const toolsId = !showTools ? null
+            : section === 'table' ? 'totals-dock-right'
+            : section === 'grupos' ? 'grupos-dock'
+            : section === 'publishers' ? 'publishers-dock'
+            : null;
+        document.querySelectorAll('.totals-dock.totals-dock--floating').forEach(dock => {
+            const on = dock.id === toolsId;
+            dock.hidden = !on;
+            dock.classList.toggle('hidden', !on);
+            if (!on) closeDockPanelsIn(dock);
+        });
     }
 
     function syncTotalsDockMarks() {
@@ -2159,10 +2347,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         filtersSummary.textContent = parts.length ? parts.join(' · ') : 'Sin restricciones';
+        const filtrosBtn = document.querySelector('#publishers-dock .totals-dock-btn[data-dock-panel="publishers-filtros"]');
+        filtrosBtn?.classList.toggle('has-value', parts.length > 0 || publisherGroupFilter !== '');
     }
 
     function initFiltersCollapsed() {
         if (!filtersPanel) return;
+        if (filtersPanel.closest('.totals-dock')) {
+            filtersPanel.classList.remove('collapsed');
+            btnToggleFilters?.setAttribute('aria-expanded', 'true');
+            if (filtersChevron) filtersChevron.textContent = '▾';
+            return;
+        }
         const stored = localStorage.getItem(FILTERS_COLLAPSED_KEY);
         const collapsed = stored !== '0';
         filtersPanel.classList.toggle('collapsed', collapsed);
@@ -2379,7 +2575,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const nac = showField(pub.fecha_nacimiento);
             const baut = showField(pub.fecha_bautismo);
             const mainRow = `<tr data-publisher-key="${escapeAttr(key)}" class="publisher-row${selected}${expanded ? ' is-expanded' : ''}">
-                <td class="pub-cell-name pub-cell-tap" title="${escapeAttr(pub.nombre)}" role="button" tabindex="0"><span class="person-name">${Icons?.personNameInnerHtml(pub, escapeHtml(pub.nombre)) || escapeHtml(pub.nombre)}</span></td>
+                <td class="pub-cell-name pub-cell-tap" title="${escapeAttr(pub.nombre)}" role="button" tabindex="0"><span class="person-name">${personNameWithSparkHtml(pub)}</span></td>
                 <td class="pub-cell-profile pub-cell-tap" title="${escapeAttr(displayPerfil(pub.origen))}" role="button" tabindex="0">${escapeHtml(displayPerfil(pub.origen))}</td>
                 <td class="pub-cell-grupo">${escapeHtml(pub.grupo || '—')}</td>
                 <td class="pub-cell-nac pub-date-col" aria-hidden="true">${escapeHtml(nac)}</td>
@@ -2669,7 +2865,7 @@ document.addEventListener('DOMContentLoaded', () => {
         publisherDetailContent.innerHTML = `
             <div class="publisher-profile">
                 <h3 class="publisher-detail-card-title">Tarjeta de publicador</h3>
-                <h4 class="publisher-name person-name">${Icons?.personNameInnerHtml(pub, escapeHtml(pub.nombre)) || escapeHtml(pub.nombre)}</h4>
+                <h4 class="publisher-name person-name">${personNameWithSparkHtml(pub)}</h4>
                 <div class="publisher-meta">
                     ${escapeHtml(displayPerfil(pub.origen))} · ${escapeHtml(pub.sexo)} · ${escapeHtml(pub.esperanza)}<br>
                     Nacimiento: ${escapeHtml(showField(pub.fecha_nacimiento))} · Bautismo: ${escapeHtml(showField(pub.fecha_bautismo))}
@@ -2801,15 +2997,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderPublisherDetailChart(monthly, metricId) {
         destroyPublisherDetailChart();
+        const wrap = publisherDetailContent?.querySelector('.publisher-chart-wrap');
         const canvas = publisherDetailContent?.querySelector('#publisher-detail-chart');
-        if (!canvas || !monthly.length) return;
+        if (!wrap || !monthly.length) return;
 
         const spec = publisherMetricSpec(metricId);
         syncPublisherChartTitle(metricId);
         const focusMes = detailFocusMes();
+
+        if (D.isBinaryMetric(metricId)) {
+            if (canvas) canvas.classList.add('hidden');
+            wrap.querySelector('.status-chart')?.remove();
+            wrap.insertAdjacentHTML('beforeend', binaryStatusChartHtml(monthly, metricId, focusMes));
+            return;
+        }
+
+        wrap.querySelector('.status-chart')?.remove();
+        if (!canvas) return;
+        canvas.classList.remove('hidden');
         const labels = monthly.map(r => r.mes_corto || D.mesLabel(r.mes, 'corto'));
         const data = monthly.map(r => publisherMetricValue(r, metricId));
-        const isBinary = metricId === 'participacion' || metricId === 'precursor_auxiliar';
         const c = chartPalette();
 
         publisherDetailChart = new Chart(canvas, {
@@ -2846,7 +3053,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             label(ctx) {
                                 const v = ctx.parsed.y;
                                 const name = spec.title || spec.label;
-                                if (isBinary) return `${name}: ${v ? 'Sí' : 'No'}`;
                                 return `${name}: ${Math.round(v).toLocaleString('es')}`;
                             },
                         },
@@ -2859,15 +3065,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     y: {
                         beginAtZero: true,
-                        max: isBinary ? 1 : undefined,
                         ticks: {
                             color: c.tick,
                             font: { size: 10 },
-                            stepSize: isBinary ? 1 : undefined,
-                            callback(v) {
-                                if (isBinary) return v ? 'Sí' : '—';
-                                return v;
-                            },
                         },
                         grid: { color: c.grid },
                     },
@@ -2876,11 +3076,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function binaryStatusChartHtml(monthly, metricId, focusMes) {
+        const check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        const fail = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        const cells = monthly.map(row => {
+            const on = publisherMetricValue(row, metricId) > 0;
+            const focus = focusMes && row.mes === focusMes;
+            const label = row.mes_corto || D.mesLabel(row.mes, 'corto');
+            return `<div class="status-cell${on ? ' is-on' : ' is-off'}${focus ? ' is-focus' : ''}" title="${escapeAttr(`${label}: ${on ? 'Sí' : 'No'}`)}">
+                <span class="status-mark" aria-hidden="true">${on ? check : fail}</span>
+                <span class="status-month">${escapeHtml(label)}</span>
+            </div>`;
+        }).join('');
+        return `<div class="status-chart" role="img" aria-label="${escapeAttr(publisherMetricChartTitle(metricId))}"><div class="status-chart-track">${cells}</div></div>`;
+    }
+
     function destroyPublisherDetailChart() {
         if (publisherDetailChart) {
             publisherDetailChart.destroy();
             publisherDetailChart = null;
         }
+        publisherDetailContent?.querySelector('.status-chart')?.remove();
     }
 
     function publisherExportGroups() {
@@ -3505,8 +3721,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function kpiDetailNameHtml(pub) {
-        const name = escapeHtml(pub.nombre || '—');
-        return `<span class="person-name">${Icons?.personNameInnerHtml(pub, name) || name}</span>`;
+        return `<span class="person-name">${personNameWithSparkHtml(pub)}</span>`;
     }
 
     function kpiDetailWhyHtml(item) {
@@ -3950,6 +4165,7 @@ document.addEventListener('DOMContentLoaded', () => {
             kpiDetailFilters.hidden = true;
         }
         window.S21Motion?.setOpen(kpiDetailModal, false, { from: 'scale' });
+        document.body.classList.remove('kpi-detail-open');
     }
 
     function openKpiDetail(metricKey) {
@@ -3961,6 +4177,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderKpiDetailFilters();
         refreshKpiDetailTable();
         window.S21Motion?.setOpen(kpiDetailModal, true, { from: 'scale' });
+        document.body.classList.add('kpi-detail-open');
     }
 
     function setKpiMode(mode) {
@@ -3969,6 +4186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         kpiModeBtns.forEach(btn => {
             const active = btn.dataset.kpiMode === mode;
             btn.classList.toggle('active', active);
+            btn.classList.toggle('is-open', active);
             btn.setAttribute('aria-selected', active ? 'true' : 'false');
         });
         renderKpis(kpisCache);

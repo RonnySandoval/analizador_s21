@@ -97,7 +97,7 @@
     <link rel="stylesheet" href="style.css?v=7" type="text/css">
     <link rel="stylesheet" href="theme-cyber.css?v=3" type="text/css">
     <link rel="stylesheet" href="theme-light.css?v=8" type="text/css">
-    <link rel="stylesheet" href="dashboard.css?v=120" type="text/css">
+    <link rel="stylesheet" href="dashboard.css?v=124" type="text/css">
     <script>
     (function () {
         if (location.protocol !== 'file:') return;
@@ -269,6 +269,74 @@
                                 </div>
                             </aside>
 
+<aside class="totals-dock totals-dock--right totals-dock--floating hidden" id="grupos-dock" hidden aria-label="Herramientas de grupos">
+    <button type="button" class="totals-dock-peek" data-dock-toggle aria-label="Mostrar herramientas" title="Mostrar herramientas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="totals-dock-rail">
+        <button type="button" class="totals-dock-btn" data-dock-panel="grupos-setup" aria-expanded="false" aria-controls="grupos-dock-panel-setup" data-tip="Grupos" title="Grupos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </button>
+        <button type="button" class="totals-dock-btn is-open" data-grupos-view="group" role="tab" aria-selected="true" data-tip="Por grupo" title="Por grupo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+        <button type="button" class="totals-dock-btn" data-grupos-view="profile" role="tab" aria-selected="false" data-tip="Por perfil" title="Por perfil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </button>
+        <button type="button" class="totals-dock-collapse" data-dock-toggle aria-label="Ocultar herramientas" title="Ocultar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+    </div>
+    <div id="grupos-dock-panel-setup" class="totals-dock-panel motion-root hidden" hidden>
+        <div class="totals-dock-panel-card motion-card">
+            <div class="totals-dock-panel-head">
+                <strong>Grupos</strong>
+                <button type="button" class="totals-dock-panel-close" data-dock-close aria-label="Cerrar">×</button>
+            </div>
+            <div class="totals-dock-panel-body">
+                <label class="grupos-count-field toolbar-field" for="grupos-count">
+                    <span>Cantidad de grupos</span>
+                    <input type="number" id="grupos-count" min="1" max="30" value="5" step="1">
+                </label>
+                <label class="grupos-persist-toggle inline-switch" for="grupos-persist-checkbox" title="Guardar asignación de grupos junto con la carga activa">
+                    <input type="checkbox" id="grupos-persist-checkbox">
+                    <span class="mini-slider" aria-hidden="true"></span>
+                    <span class="switch-label">Guardar grupos con esta carga</span>
+                </label>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<aside class="totals-dock totals-dock--right totals-dock--floating hidden" id="publishers-dock" hidden aria-label="Filtros de publicadores">
+    <button type="button" class="totals-dock-peek" data-dock-toggle aria-label="Mostrar herramientas" title="Mostrar herramientas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="totals-dock-rail">
+        <button type="button" class="totals-dock-btn" data-dock-panel="publishers-filtros" aria-expanded="false" aria-controls="publishers-dock-panel-filtros" data-tip="Filtros" title="Filtros">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        </button>
+        <button type="button" class="totals-dock-collapse" data-dock-toggle aria-label="Ocultar herramientas" title="Ocultar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+    </div>
+    <div id="publishers-dock-panel-filtros" class="totals-dock-panel totals-dock-panel--wide motion-root hidden" hidden>
+        <div class="totals-dock-panel-card motion-card">
+            <div class="totals-dock-panel-head">
+                <strong>Filtros</strong>
+                <button type="button" class="totals-dock-panel-close" data-dock-close aria-label="Cerrar">×</button>
+            </div>
+            <div class="totals-dock-panel-body">
+                <div class="toolbar-field">
+                    <label for="publisher-bulk-grupo">Grupo</label>
+                    <select id="publisher-bulk-grupo" class="publisher-bulk-grupo-select" title="Filtrar por grupo"></select>
+                </div>
+                <div id="publishers-dock-filters-slot"></div>
+            </div>
+        </div>
+    </div>
+</aside>
+
 
     <div class="container dashboard-container">
         <main class="main-card dashboard-main">
@@ -394,17 +462,6 @@
                     </button>
                     <div id="accordion-body-grupos" class="dashboard-accordion-body">
                         <div class="dashboard-accordion-inner">
-                            <div class="grupos-toolbar">
-                                <label class="grupos-count-field" for="grupos-count">
-                                    <span>Cantidad de grupos</span>
-                                    <input type="number" id="grupos-count" min="1" max="30" value="5" step="1">
-                                </label>
-                                <label class="grupos-persist-toggle inline-switch" for="grupos-persist-checkbox" title="Guardar asignación de grupos junto con la carga activa">
-                                    <input type="checkbox" id="grupos-persist-checkbox">
-                                    <span class="mini-slider" aria-hidden="true"></span>
-                                    <span class="switch-label">Guardar grupos con esta carga</span>
-                                </label>
-                            </div>
                             <div id="grupos-roles-panel" class="grupos-roles-panel"></div>
                             <div class="grupos-tabs" role="tablist" aria-label="Vista de asignación">
                                 <button type="button" class="grupos-tab-btn active" data-grupos-view="group" role="tab" aria-selected="true">Por grupo</button>
@@ -470,8 +527,6 @@
                         <div class="dashboard-accordion-inner">
                             <div class="publisher-toolbar">
                                 <input type="search" id="publisher-search" class="publisher-search" placeholder="Buscar por nombre o perfil…" autocomplete="off">
-                                <label for="publisher-bulk-grupo" class="sr-only">Filtrar por grupo</label>
-                                <select id="publisher-bulk-grupo" class="publisher-bulk-grupo-select" title="Filtrar por grupo"></select>
                             </div>
                             <div id="filters-panel" class="filters-panel filters-panel-detail collapsed">
                                 <div class="filters-bar">
@@ -890,15 +945,15 @@
     <script src="dashboard-export.js?v=3"></script>
     <script src="s21-base.js"></script>
     <script src="dashboard-motion.js?v=1"></script>
-    <script src="pwa.js?v=2"></script>
+    <script src="pwa.js?v=5"></script>
     <script src="dashboard-text-match.js?v=1"></script>
-    <script src="dashboard-data.js?v=39"></script>
+    <script src="dashboard-data.js?v=41"></script>
     <script src="dashboard-icons.js?v=7"></script>
     <script src="dashboard-storage.js?v=2"></script>
     <script src="dashboard-update.js?v=4"></script>
     <script src="dashboard-datos.js?v=15"></script>
-    <script src="dashboard-grupos.js?v=23"></script>
+    <script src="dashboard-grupos.js?v=25"></script>
     <script src="dashboard-wizard.js?v=11"></script>
-    <script src="dashboard.js?v=120"></script>
+    <script src="dashboard.js?v=124"></script>
 </body>
 </html>

@@ -351,6 +351,8 @@
     }
 
     function personNameInner(p) {
+        const Spark = window.S21DashboardSparklines;
+        if (Spark?.nameInnerHtml) return Spark.nameInnerHtml(p);
         const Icons = window.S21DashboardIcons;
         const name = escapeHtml(p.nombre);
         return Icons?.personNameInnerHtml(p, name) || `<span class="person-name-text">${name}</span>`;
@@ -394,6 +396,7 @@
         document.querySelectorAll('[data-grupos-view]').forEach(btn => {
             const active = btn.dataset.gruposView === assignView;
             btn.classList.toggle('active', active);
+            btn.classList.toggle('is-open', active);
             btn.setAttribute('aria-selected', active ? 'true' : 'false');
         });
     }
@@ -1064,7 +1067,7 @@
             setPersistGrupos(e.target.checked);
         });
 
-        root.querySelectorAll('[data-grupos-view]').forEach(btn => {
+        document.querySelectorAll('[data-grupos-view]').forEach(btn => {
             btn.addEventListener('click', () => {
                 assignView = btn.dataset.gruposView === 'profile' ? 'profile' : 'group';
                 if (assignView === 'profile') matrixProfilesExpanded = null;

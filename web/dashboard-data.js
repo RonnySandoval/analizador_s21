@@ -1256,6 +1256,64 @@ function getPublisherMonthlyRows(mensual, key) {
     });
 }
 
+function isBinaryMetric(metricId) {
+    return metricId === 'participacion' || metricId === 'precursor_auxiliar';
+}
+
+function publisherMetricSeries(mensual, key, metricId) {
+    return getPublisherMonthlyRows(mensual, key).map(row => {
+        switch (metricId) {
+            case 'cursos': return Number(row.cursos) || 0;
+            case 'participacion': return row.participacion ? 1 : 0;
+            case 'precursor_auxiliar': return row.precursor_auxiliar ? 1 : 0;
+            default: return Number(row.horas) || 0;
+        }
+    });
+}
+
+function sparklineSvg(values, options = {}) {
+    const w = Number(options.width) || 120;
+    const h = Number(options.height) || 28;
+    const binary = Boolean(options.binary);
+    const list = Array.isArray(values) && values.length ? values.map(v => Number(v) || 0) : [0];
+    if (binary) return sparklineBitsSvg(list, w, h);
+    return sparklineAreaSvg(list, w, h);
+}
+
+function sparklineAreaSvg(values, w, h) {
+    const n = values.length;
+    const max = Math.max(0, ...values);
+    const min = Math.min(0, ...values);
+    const span = max - min || 1;
+    const padY = 2;
+    const innerH = h - padY * 2;
+    const step = n > 1 ? (w - 2) / (n - 1) : 0;
+    const pts = values.map((v, i) => {
+        const x = 1 + i * step;
+        const y = padY + innerH - ((v - min) / span) * innerH;
+        return [x, y];
+    });
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+    const last = pts[pts.length - 1];
+    const first = pts[0];
+    const area = `${line} L${last[0].toFixed(1)} ${h} L${first[0].toFixed(1)} ${h} Z`;
+    return `<svg class="person-sparkline-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><path class="person-sparkline-area" d="${area}"/><path class="person-sparkline-line" d="${line}"/></svg>`;
+}
+
+function sparklineBitsSvg(values, w, h) {
+    const n = values.length;
+    const gap = 1.15;
+    const bw = Math.max(1.5, (w - gap * (n - 1)) / n);
+    const y = h * 0.28;
+    const bh = h * 0.44;
+    const cells = values.map((v, i) => {
+        const x = i * (bw + gap);
+        const on = v > 0;
+        return `<rect class="person-sparkline-bit${on ? ' is-on' : ' is-off'}" x="${x.toFixed(2)}" y="${y.toFixed(1)}" width="${bw.toFixed(2)}" height="${bh.toFixed(1)}" rx="1.2"/>`;
+    }).join('');
+    return `<svg class="person-sparkline-svg person-sparkline-svg--bits" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">${cells}</svg>`;
+}
+
 function sortPublishers(rows) {
     return [...rows].sort((a, b) => {
         const byName = String(a.nombre).localeCompare(String(b.nombre), 'es');
@@ -1430,6 +1488,9 @@ window.S21DashboardData = {
     excludedMonthLabels,
     monthTrimHint,
     getPublisherMonthlyRows,
+    isBinaryMetric,
+    publisherMetricSeries,
+    sparklineSvg,
     sumPublisherMonthly,
     sortPublishers,
     publishersToCsv,

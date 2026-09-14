@@ -1,6 +1,7 @@
 html.dashboard-root {
     font-size: calc(20px * var(--app-font-scale, 1));
     color-scheme: dark;
+    --person-spark-width: 6.6rem;
 }
 
 html.dashboard-root[data-theme="light"] {
@@ -1941,9 +1942,292 @@ body.dashboard-layout-single .dashboard-accordion.dashboard-section--solo .total
 }
 
 .totals-dock-btn.is-open,
-.totals-dock-btn.has-value {
+.totals-dock-btn.has-value,
+.totals-dock-btn.active {
     color: var(--primary);
     background: var(--surface-hover-strong, var(--surface-hover));
+}
+
+.totals-dock--left {
+    right: auto;
+    left: max(0.45rem, env(safe-area-inset-left, 0px), calc((100vw - 1100px) / 2 + 0.45rem));
+}
+
+.totals-dock--left .totals-dock-panel {
+    left: calc(100% + 0.3rem);
+    right: auto;
+}
+
+.totals-dock--left .totals-dock-btn.is-open::before,
+.totals-dock--left .totals-dock-btn.active::before {
+    left: 0.1rem;
+    right: auto;
+}
+
+.totals-dock--left .totals-dock-btn[data-tip]::after {
+    left: calc(100% + 0.4rem);
+    right: auto;
+}
+
+.totals-dock--left .totals-dock-btn.active::before {
+    content: '';
+    position: absolute;
+    top: 0.35rem;
+    bottom: 0.35rem;
+    width: 3px;
+    border-radius: 99px;
+    background: var(--primary);
+}
+
+.totals-dock-panel--wide {
+    width: min(22.5rem, calc(100vw - 4.25rem));
+}
+
+.totals-dock-panel--wide .filters-panel {
+    margin: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.totals-dock-panel--wide .filters-panel-detail .filters-toggle {
+    display: none;
+}
+
+.totals-dock-panel--wide .filters-bar {
+    padding: 0;
+    min-height: 0;
+}
+
+.totals-dock-panel--wide .filters-bar-actions {
+    width: 100%;
+    justify-content: space-between;
+}
+
+.totals-dock-panel--wide .filters-panel.collapsed .filters-body-fold {
+    grid-template-rows: 1fr;
+}
+
+.totals-dock-panel--wide .publisher-bulk-grupo-select {
+    width: 100%;
+}
+
+.totals-dock-panel--wide .totals-dock-panel-card {
+    max-height: min(72vh, 36rem);
+    display: flex;
+    flex-direction: column;
+}
+
+.totals-dock-panel--wide .totals-dock-panel-body {
+    overflow-y: auto;
+    max-height: min(64vh, 32rem);
+}
+
+.person-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.person-name:has(.person-name-main--bits) {
+    align-items: flex-start;
+}
+
+.person-name-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    min-height: 1.55rem;
+    padding: 0.05rem 0 0.12rem;
+    line-height: 1.15;
+}
+
+.person-name-main--bits {
+    min-height: 0;
+    padding-bottom: 0;
+    justify-content: flex-start;
+}
+
+.person-name-text {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.person-sparkline {
+    position: absolute;
+    left: 0;
+    right: auto;
+    top: 0.05rem;
+    bottom: 0;
+    display: block;
+    width: var(--person-spark-width);
+    min-width: var(--person-spark-width);
+    max-width: var(--person-spark-width);
+    height: auto;
+    flex: none;
+    color: var(--primary);
+    opacity: 0.78;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.person-sparkline--below {
+    position: static;
+    inset: auto;
+    height: 0.78rem;
+    min-height: 0.78rem;
+    opacity: 0.95;
+    margin-top: 0.12rem;
+    z-index: 1;
+}
+
+.person-sparkline--below .person-sparkline-svg {
+    height: 0.78rem;
+}
+
+.person-sparkline-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.person-sparkline-area {
+    fill: currentColor;
+    opacity: 0.28;
+}
+
+.person-sparkline-line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.85;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.person-sparkline-bit.is-on {
+    fill: var(--success);
+    opacity: 0.95;
+}
+
+.person-sparkline-bit.is-off {
+    fill: var(--text-muted);
+    opacity: 0.35;
+}
+
+html[data-theme="light"] .person-sparkline {
+    color: #0369a1;
+    opacity: 0.7;
+}
+
+html[data-theme="light"] .person-sparkline--below {
+    opacity: 0.92;
+}
+
+.data-table .pub-cell-name,
+.kpi-detail-table td:has(.person-sparkline) {
+    white-space: normal;
+    overflow: visible;
+}
+
+.status-chart {
+    width: 100%;
+    min-height: 140px;
+    display: flex;
+    align-items: center;
+}
+
+.status-chart-track {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0.28rem;
+    width: 100%;
+    padding: 0.35rem 0.15rem;
+}
+
+.status-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.28rem;
+    min-height: 4.4rem;
+    padding: 0.35rem 0.1rem 0.3rem;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: var(--surface-muted);
+}
+
+.status-cell.is-on {
+    background: rgba(0, 255, 157, 0.14);
+    background: color-mix(in srgb, var(--success) 16%, var(--surface-elevated));
+    border-color: color-mix(in srgb, var(--success) 45%, var(--card-border));
+}
+
+.status-cell.is-off {
+    background: rgba(255, 77, 109, 0.1);
+    background: color-mix(in srgb, var(--error) 10%, var(--surface-elevated));
+    border-color: color-mix(in srgb, var(--error) 28%, var(--card-border));
+}
+
+.status-cell.is-focus {
+    outline: 2px solid var(--warning);
+    outline-offset: 1px;
+}
+
+.status-mark {
+    display: inline-flex;
+    width: 1.15rem;
+    height: 1.15rem;
+    color: var(--text-muted);
+}
+
+.status-cell.is-on .status-mark {
+    color: var(--success);
+}
+
+.status-cell.is-off .status-mark {
+    color: var(--error);
+    opacity: 0.85;
+}
+
+.status-mark svg {
+    width: 100%;
+    height: 100%;
+}
+
+.status-month {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+    .status-chart {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .status-chart-track {
+        min-width: 34rem;
+    }
+}
+
+body:not(.tools-dock-hidden) .grupos-toolbar,
+body:not(.tools-dock-hidden) .grupos-tabs {
+    display: none;
+}
+
+.publisher-chart-wrap:has(.status-chart) #publisher-detail-chart {
+    display: none;
 }
 
 .totals-dock-btn.is-open::before {
@@ -2098,10 +2382,45 @@ html[data-theme="light"] .totals-dock-panel-card::before {
     z-index: 2;
 }
 
-.totals-check-list {
+.totals-check-list,
+.spark-metric-list {
     display: flex;
     flex-direction: column;
     gap: 0.28rem;
+}
+
+.spark-metric-option {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.38rem 0.45rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.86rem;
+    text-align: left;
+    cursor: pointer;
+    min-height: 2.45rem;
+}
+
+.spark-metric-option svg {
+    width: 1.15rem;
+    height: 1.15rem;
+    flex: none;
+}
+
+.spark-metric-option:hover {
+    background: var(--surface-hover);
+}
+
+.spark-metric-option.is-open,
+.spark-metric-option.active {
+    color: var(--primary);
+    background: var(--surface-hover-strong, var(--surface-hover));
 }
 
 .totals-check {
@@ -2702,15 +3021,22 @@ html[data-theme="light"] .totals-dock-panel-card::before {
 .filters-panel-detail,
 .filters-body,
 .filters-compact,
+.filters-stack,
 .filters-row {
     min-width: 0;
     max-width: 100%;
 }
 
-.filters-compact {
+.filters-compact,
+.filters-stack {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.4rem;
+}
+
+.totals-dock-panel .filters-stack .filter-group,
+.totals-dock-panel .filters-compact .filter-group {
+    width: 100%;
 }
 
 .filters-row {
@@ -5298,6 +5624,17 @@ html[data-theme="light"] .totals-dock-panel-card::before {
     touch-action: manipulation;
     min-width: 0;
     max-width: 100%;
+}
+
+.grupos-publisher-name-btn .person-name-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.grupos-publisher-name-btn .person-sparkline {
+    min-width: var(--person-spark-width);
+    width: var(--person-spark-width);
+    max-width: var(--person-spark-width);
 }
 
 .grupos-publisher-name-btn .person-name-text {
