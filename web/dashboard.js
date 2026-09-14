@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const TOTALS_DOCK_RIGHT_KEY = 'analisis_servicio_totals_dock_right';
     const TOOLS_DOCK_VISIBLE_KEY = 'analisis_servicio_section_dock_visible';
     const SPARK_METRIC_KEY = 'analisis_servicio_spark_metric';
+    const SPARK_VISIBLE_KEY = 'analisis_servicio_spark_visible';
     const GRUPOS_DOCK_KEY = 'analisis_servicio_grupos_dock';
     const PUBLISHERS_DOCK_KEY = 'analisis_servicio_publishers_dock';
     const ACCORDION_STATE_KEY = 'analisis_servicio_accordion_state';
@@ -127,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let kpiDetailKey = '';
     let kpiDetailPrivilegeFilters = ['', ''];
     let kpiDetailCursosTab = 'with';
+    let kpiDetailSort = { column: '', direction: 'asc' };
     let selectedPublisherKey = '';
     let chartExcludeMonths = 0;
     let chartTrimSide = 'last';
@@ -159,15 +161,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let navSwapGen = 0;
     let totalsDockUserVisible = localStorage.getItem(TOOLS_DOCK_VISIBLE_KEY) !== '0';
     let sparkMetric = localStorage.getItem(SPARK_METRIC_KEY) || 'horas';
+    let sparkVisible = localStorage.getItem(SPARK_VISIBLE_KEY) !== '0';
+    if (sparkMetric === 'none') {
+        sparkVisible = false;
+        sparkMetric = 'horas';
+        localStorage.setItem(SPARK_METRIC_KEY, sparkMetric);
+        localStorage.setItem(SPARK_VISIBLE_KEY, '0');
+    }
     let sparkCache = new Map();
-    const SPARK_METRICS = ['horas', 'cursos', 'participacion', 'precursor_auxiliar', 'none'];
+    const SPARK_METRICS = ['horas', 'cursos', 'participacion', 'precursor_auxiliar'];
     const SECTION_DOCKS = {
         table: ['totals-dock-right'],
         grupos: ['grupos-dock'],
         publishers: ['publishers-dock'],
     };
+    const SPARK_TOGGLE_ICONS = {
+        on: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+        off: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>',
+    };
     const SPARK_METRIC_ICONS = {
-        none: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>',
         horas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.2 1.8"/></svg>',
         cursos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h5"/></svg>',
         participacion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>',
@@ -215,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.S21DashboardSparklines = {
         nameInnerHtml: (...args) => personNameWithSparkHtml(...args),
         getMetric: () => sparkMetric,
+        isVisible: () => sparkVisible,
     };
 
     const KPI_ITEMS = [
@@ -823,7 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function publisherSparkSvg(pub) {
         try {
-            if (sparkMetric === 'none') return '';
+            if (!sparkVisible || sparkMetric === 'none') return '';
             if (!D?.publisherMetricSeries || !D?.sparklineSvg) return '';
             const key = D.personKey(pub);
             const cacheKey = `${sparkMetric}::${key}`;
@@ -845,7 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function personNameWithSparkHtml(pub, escapedName) {
         const name = escapedName ?? escapeHtml(pub?.nombre || '—');
         const icon = Icons?.personIconHtml?.(pub, { decorative: true }) || '';
-        if (sparkMetric === 'none') {
+        if (!sparkVisible || sparkMetric === 'none') {
             return `${icon}<span class="person-name-text">${name}</span>`;
         }
         const spark = publisherSparkSvg(pub);
@@ -854,6 +867,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const mainClass = binary ? 'person-name-main person-name-main--bits' : 'person-name-main';
         const sparkClass = binary ? 'person-sparkline person-sparkline--below' : 'person-sparkline';
         return `${icon}<span class="${mainClass}"><span class="person-name-text">${name}</span><span class="${sparkClass}" title="${escapeAttr(metric)}" aria-hidden="true">${spark}</span></span>`;
+    }
+
+    function syncSparkVisibilityButtons() {
+        const label = sparkVisible ? 'Ocultar tendencia' : 'Mostrar tendencia';
+        document.querySelectorAll('[data-spark-visible-toggle]').forEach(btn => {
+            btn.classList.toggle('is-open', sparkVisible);
+            btn.setAttribute('aria-pressed', sparkVisible ? 'true' : 'false');
+            btn.setAttribute('aria-label', label);
+            btn.title = label;
+            btn.innerHTML = sparkVisible ? SPARK_TOGGLE_ICONS.on : SPARK_TOGGLE_ICONS.off;
+        });
     }
 
     function syncSparkDockMarks() {
@@ -867,8 +891,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         document.querySelectorAll('.totals-dock-btn[data-dock-panel="metrica"]').forEach(btn => {
-            btn.classList.toggle('has-value', sparkMetric !== 'horas');
+            btn.classList.toggle('has-value', sparkVisible && sparkMetric !== 'horas');
         });
+        syncSparkVisibilityButtons();
     }
 
     function refreshSparkViews() {
@@ -882,10 +907,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function setSparkVisible(visible) {
+        const next = Boolean(visible);
+        if (next === sparkVisible) return;
+        sparkVisible = next;
+        localStorage.setItem(SPARK_VISIBLE_KEY, sparkVisible ? '1' : '0');
+        refreshSparkViews();
+    }
+
     function setSparkMetric(metricId) {
-        if (!SPARK_METRICS.includes(metricId) || metricId === sparkMetric) return;
+        if (!SPARK_METRICS.includes(metricId)) return;
+        const metricChanged = metricId !== sparkMetric;
+        const wasHidden = !sparkVisible;
+        if (!metricChanged && !wasHidden) return;
         sparkMetric = metricId;
+        sparkVisible = true;
         localStorage.setItem(SPARK_METRIC_KEY, sparkMetric);
+        localStorage.setItem(SPARK_VISIBLE_KEY, '1');
         refreshSparkViews();
     }
 
@@ -1424,6 +1462,15 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.title = 'Métrica';
         btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>';
         collapse.before(btn);
+        const visBtn = document.createElement('button');
+        visBtn.type = 'button';
+        visBtn.className = 'totals-dock-btn';
+        visBtn.dataset.sparkVisibleToggle = '1';
+        visBtn.setAttribute('aria-pressed', sparkVisible ? 'true' : 'false');
+        visBtn.dataset.tip = 'Tendencia';
+        visBtn.title = sparkVisible ? 'Ocultar tendencia' : 'Mostrar tendencia';
+        visBtn.innerHTML = sparkVisible ? SPARK_TOGGLE_ICONS.on : SPARK_TOGGLE_ICONS.off;
+        collapse.before(visBtn);
         const options = SPARK_METRICS.map(id =>
             `<button type="button" class="spark-metric-option" data-spark-metric="${id}" role="option" aria-selected="false">${SPARK_METRIC_ICONS[id]}<span>${escapeHtml(sparkMetricLabel(id))}</span></button>`
         ).join('');
@@ -1493,6 +1540,12 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
                 setSparkMetric(btn.dataset.sparkMetric);
+            });
+        });
+        document.querySelectorAll('[data-spark-visible-toggle]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                setSparkVisible(!sparkVisible);
             });
         });
         document.addEventListener('pointerdown', e => {
@@ -3896,23 +3949,64 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<p class="kpi-detail-empty">${escapeHtml(emptyText)}</p>`;
         }
         return `<div class="kpi-detail-table-wrap"><table class="kpi-detail-table">
-            <thead><tr>${headers.map(h =>
-                `<th${h.numeric ? ' class="num"' : ''} scope="col">${escapeHtml(h.label)}</th>`
-            ).join('')}</tr></thead>
+            <thead><tr>${headers.map(h => {
+                const id = h.id || h.label;
+                const active = kpiDetailSort.column === id;
+                const sortClass = active
+                    ? (kpiDetailSort.direction === 'asc' ? 'sort-asc' : 'sort-desc')
+                    : '';
+                const ariaSort = !active
+                    ? 'none'
+                    : (kpiDetailSort.direction === 'asc' ? 'ascending' : 'descending');
+                const nextHint = active && kpiDetailSort.direction === 'asc' ? 'Z-A' : 'A-Z';
+                const numClass = h.numeric ? ' num' : '';
+                return `<th class="sortable${numClass} ${sortClass}" data-col="${escapeAttr(id)}" scope="col" aria-sort="${ariaSort}" title="Ordenar ${nextHint}">
+                    <span class="th-label">${escapeHtml(h.label)}</span><span class="sort-icon" aria-hidden="true"></span>
+                </th>`;
+            }).join('')}</tr></thead>
             <tbody>${rowsHtml}</tbody>
         </table></div>`;
     }
 
-    function sortKpiDetailRows(rows, numericKey) {
+    function compareKpiDetailSortValues(a, b, col) {
+        if (col.numeric || col.id === 'status') {
+            return (Number(a.value) || 0) - (Number(b.value) || 0);
+        }
+        if (col.id === 'origen') {
+            return String(a.origen || '').localeCompare(String(b.origen || ''), 'es', { sensitivity: 'base' });
+        }
+        if (col.id === 'detalle') {
+            return String(a.detalle || '').localeCompare(String(b.detalle || ''), 'es', { sensitivity: 'base' });
+        }
+        return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { sensitivity: 'base' });
+    }
+
+    function sortKpiDetailRows(rows, headers = [], numericKey) {
+        const col = headers.find(h => h.id === kpiDetailSort.column);
+        const dir = kpiDetailSort.direction === 'desc' ? -1 : 1;
         return [...rows].sort((a, b) => {
-            if (numericKey) {
+            if (col) {
+                const cmp = compareKpiDetailSortValues(a, b, col);
+                if (cmp) return cmp * dir;
+            } else if (numericKey) {
                 const diff = (Number(b[numericKey]) || 0) - (Number(a[numericKey]) || 0);
                 if (diff) return diff;
             }
-            const byName = String(a.nombre).localeCompare(String(b.nombre), 'es');
+            const byName = String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
             if (byName) return byName;
             return String(a.origen || '').localeCompare(String(b.origen || ''), 'es');
         });
+    }
+
+    function onKpiDetailSortColumn(columnId) {
+        if (!columnId) return;
+        if (kpiDetailSort.column === columnId) {
+            kpiDetailSort.direction = kpiDetailSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            kpiDetailSort.column = columnId;
+            kpiDetailSort.direction = 'asc';
+        }
+        refreshKpiDetailTable();
     }
 
     function buildKpiDetail(metricKey) {
@@ -3926,6 +4020,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const withTotals = pubs.map(pub => ({ pub, ...publisherMonthTotals(pub, mes) }));
 
         if (metricKey === 'publicadores') {
+            const headers = [
+                { id: 'nombre', label: 'Nombre' },
+                { id: 'origen', label: 'Perfil' },
+            ];
             const rows = sortKpiDetailRows(pubs.map(pub => ({
                 nombre: pub.nombre,
                 origen: pub.origen,
@@ -3933,9 +4031,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${kpiDetailNameHtml(pub)}</td>
                     <td>${escapeHtml(displayPerfil(pub.origen))}</td>
                 </tr>`,
-            })));
+            })), headers);
             return {
-                headers: [{ label: 'Nombre' }, { label: 'Perfil' }],
+                headers,
                 rowsHtml: rows.map(r => r.html).join(''),
                 count: rows.length,
                 empty: 'No hay publicadores.',
@@ -3943,6 +4041,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (metricKey === 'cursos') {
+            const withHeaders = [
+                { id: 'nombre', label: 'Nombre' },
+                { id: 'origen', label: 'Perfil' },
+                { id: 'value', label: 'Cursos', numeric: true },
+            ];
+            const withoutHeaders = [
+                { id: 'nombre', label: 'Nombre' },
+                { id: 'origen', label: 'Perfil' },
+            ];
             const withCourses = sortKpiDetailRows(withTotals
                 .filter(item => item.cursos > 0)
                 .map(({ pub, cursos }) => ({
@@ -3954,7 +4061,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${escapeHtml(displayPerfil(pub.origen))}</td>
                         <td class="num">${formatNum(cursos)}</td>
                     </tr>`,
-                })), 'value');
+                })), withHeaders, 'value');
             const withoutCourses = sortKpiDetailRows(withTotals
                 .filter(item => item.cursos <= 0)
                 .map(({ pub }) => ({
@@ -3964,7 +4071,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${kpiDetailNameHtml(pub)}</td>
                         <td>${escapeHtml(displayPerfil(pub.origen))}</td>
                     </tr>`,
-                })));
+                })), withoutHeaders);
             const cursosTotal = withTotals.reduce((sum, item) => sum + (item.cursos || 0), 0);
             return {
                 count: withTotals.length,
@@ -3972,13 +4079,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 cursosTab: true,
                 empty: 'No hay publicadores.',
                 withCourses: {
-                    headers: [{ label: 'Nombre' }, { label: 'Perfil' }, { label: 'Cursos', numeric: true }],
+                    headers: withHeaders,
                     rowsHtml: withCourses.map(r => r.html).join(''),
                     count: withCourses.length,
                     empty: 'Nadie tuvo cursos bíblicos en este periodo.',
                 },
                 withoutCourses: {
-                    headers: [{ label: 'Nombre' }, { label: 'Perfil' }],
+                    headers: withoutHeaders,
                     rowsHtml: withoutCourses.map(r => r.html).join(''),
                     count: withoutCourses.length,
                     empty: 'Todos tuvieron cursos bíblicos.',
@@ -3987,6 +4094,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (metricKey === 'horas') {
+            const headers = [
+                { id: 'nombre', label: 'Nombre' },
+                { id: 'value', label: 'Horas', numeric: true },
+            ];
             const rows = sortKpiDetailRows(withTotals.map(({ pub, horas }) => ({
                 nombre: pub.nombre,
                 origen: pub.origen,
@@ -3995,9 +4106,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${kpiDetailNameHtml(pub)}</td>
                     <td class="num">${formatNum(horas)}</td>
                 </tr>`,
-            })), 'value');
+            })), headers, 'value');
             return {
-                headers: [{ label: 'Nombre' }, { label: 'Horas', numeric: true }],
+                headers,
                 rowsHtml: rows.map(r => r.html).join(''),
                 count: rows.length,
                 empty: 'No hay publicadores.',
@@ -4005,6 +4116,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (metricKey === 'participacion') {
+            const headers = [
+                { id: 'nombre', label: 'Nombre' },
+                { id: 'origen', label: 'Perfil' },
+                { id: 'status', label: 'Participó' },
+            ];
             const rows = sortKpiDetailRows(withTotals.map(({ pub, participacion }) => {
                 const yes = mes ? participacion > 0 : participacion > 0;
                 return {
@@ -4017,9 +4133,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td class="${yes ? 'kpi-detail-yes' : 'kpi-detail-no'}">${yes ? 'Sí' : 'No'}</td>
                     </tr>`,
                 };
-            }), 'value');
+            }), headers, 'value');
             return {
-                headers: [{ label: 'Nombre' }, { label: 'Perfil' }, { label: 'Participó' }],
+                headers,
                 rowsHtml: rows.map(r => r.html).join(''),
                 count: rows.length,
                 empty: 'No hay publicadores.',
@@ -4027,6 +4143,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (metricKey === 'precursor_aux') {
+            const headers = mes
+                ? [{ id: 'nombre', label: 'Nombre' }]
+                : [
+                    { id: 'nombre', label: 'Nombre' },
+                    { id: 'value', label: 'Meses', numeric: true },
+                ];
             const rows = sortKpiDetailRows(withTotals
                 .filter(item => item.precursor_auxiliar > 0)
                 .map(({ pub, precursor_auxiliar }) => ({
@@ -4039,11 +4161,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td>${kpiDetailNameHtml(pub)}</td>
                             <td class="num">${formatNum(precursor_auxiliar)}</td>
                         </tr>`,
-                })), 'value');
+                })), headers, 'value');
             return {
-                headers: mes
-                    ? [{ label: 'Nombre' }]
-                    : [{ label: 'Nombre' }, { label: 'Meses', numeric: true }],
+                headers,
                 rowsHtml: rows.map(r => r.html).join(''),
                 count: rows.length,
                 empty: 'Ningún publicador sirvió de precursor auxiliar en este periodo.',
@@ -4059,30 +4179,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="kpi-detail-why">${kpiDetailWhyHtml(item)}</td>
             </tr>`;
             const headers = [
-                { label: 'Nombre' },
-                { label: 'Perfil' },
-                { label: 'Detalle' },
+                { id: 'nombre', label: 'Nombre' },
+                { id: 'origen', label: 'Perfil' },
+                { id: 'detalle', label: 'Detalle' },
             ];
+            const toRow = item => ({
+                nombre: item.pub.nombre,
+                origen: item.pub.origen,
+                detalle: String(item.reasonShort || item.reason || ''),
+                html: rowHtml(item),
+            });
             const inactivos = sortKpiDetailRows(
-                classified.filter(item => item.status === 'inactivo').map(item => ({
-                    nombre: item.pub.nombre,
-                    origen: item.pub.origen,
-                    html: rowHtml(item),
-                }))
+                classified.filter(item => item.status === 'inactivo').map(toRow),
+                headers
             );
             const irregulares = sortKpiDetailRows(
-                classified.filter(item => item.status === 'irregular').map(item => ({
-                    nombre: item.pub.nombre,
-                    origen: item.pub.origen,
-                    html: rowHtml(item),
-                }))
+                classified.filter(item => item.status === 'irregular').map(toRow),
+                headers
             );
             const carpeta = sortKpiDetailRows(
-                classified.filter(item => item.inFolder && item.status === 'ok').map(item => ({
-                    nombre: item.pub.nombre,
-                    origen: item.pub.origen,
-                    html: rowHtml(item),
-                }))
+                classified.filter(item => item.inFolder && item.status === 'ok').map(toRow),
+                headers
             );
             const sections = [
                 {
@@ -4141,6 +4258,11 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshKpiDetailTable();
         });
         kpiDetailBody?.addEventListener('click', e => {
+            const th = e.target.closest('th.sortable');
+            if (th && kpiDetailBody.contains(th)) {
+                onKpiDetailSortColumn(th.dataset.col);
+                return;
+            }
             const btn = e.target.closest('[data-kpi-cursos-tab]');
             if (!btn || !kpiDetailBody.contains(btn)) return;
             const tab = btn.dataset.kpiCursosTab;
@@ -4160,6 +4282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         kpiDetailKey = '';
         kpiDetailPrivilegeFilters = ['', ''];
         kpiDetailCursosTab = 'with';
+        kpiDetailSort = { column: '', direction: 'asc' };
         if (kpiDetailFilters) {
             kpiDetailFilters.innerHTML = '';
             kpiDetailFilters.hidden = true;
@@ -4173,8 +4296,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!item || !flat.publicadores?.length) return;
         kpiDetailKey = metricKey;
         kpiDetailCursosTab = 'with';
+        kpiDetailSort = { column: '', direction: 'asc' };
         if (kpiDetailTitle) kpiDetailTitle.textContent = item.label;
         renderKpiDetailFilters();
+        syncSparkVisibilityButtons();
         refreshKpiDetailTable();
         window.S21Motion?.setOpen(kpiDetailModal, true, { from: 'scale' });
         document.body.classList.add('kpi-detail-open');

@@ -97,7 +97,7 @@
     <link rel="stylesheet" href="style.css?v=7" type="text/css">
     <link rel="stylesheet" href="theme-cyber.css?v=3" type="text/css">
     <link rel="stylesheet" href="theme-light.css?v=8" type="text/css">
-    <link rel="stylesheet" href="dashboard.css?v=124" type="text/css">
+    <link rel="stylesheet" href="dashboard.css?v=125" type="text/css">
     <script>
     (function () {
         if (location.protocol !== 'file:') return;
@@ -908,7 +908,12 @@
     <div id="kpi-detail-modal" class="datos-modal motion-root hidden" role="dialog" aria-modal="true" aria-labelledby="kpi-detail-title" hidden>
         <div class="datos-modal-backdrop motion-backdrop" data-kpi-detail-close tabindex="-1"></div>
         <div class="datos-modal-card motion-card kpi-detail-card">
-            <h3 id="kpi-detail-title" class="datos-modal-title">Indicador</h3>
+            <div class="kpi-detail-card-head">
+                <h3 id="kpi-detail-title" class="datos-modal-title">Indicador</h3>
+                <button type="button" class="kpi-spark-toggle" data-spark-visible-toggle aria-pressed="true" aria-label="Ocultar tendencia" title="Ocultar tendencia">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+            </div>
             <p id="kpi-detail-lead" class="kpi-detail-lead"></p>
             <div id="kpi-detail-filters" class="kpi-detail-filters" hidden></div>
             <div id="kpi-detail-body" class="kpi-detail-body"></div>
@@ -945,7 +950,7 @@
     <script src="dashboard-export.js?v=3"></script>
     <script src="s21-base.js"></script>
     <script src="dashboard-motion.js?v=1"></script>
-    <script src="pwa.js?v=5"></script>
+    <script src="pwa.js?v=6"></script>
     <script src="dashboard-text-match.js?v=1"></script>
     <script src="dashboard-data.js?v=41"></script>
     <script src="dashboard-icons.js?v=7"></script>
@@ -954,6 +959,6 @@
     <script src="dashboard-datos.js?v=15"></script>
     <script src="dashboard-grupos.js?v=25"></script>
     <script src="dashboard-wizard.js?v=11"></script>
-    <script src="dashboard.js?v=124"></script>
+    <script src="dashboard.js?v=125"></script>
 </body>
 </html>

@@ -1381,11 +1381,56 @@ body.dashboard-layout-single .dashboard-accordion[data-accordion-id].motion-root
     flex-direction: column;
 }
 
-.datos-modal-card.kpi-detail-card .datos-modal-title,
+.datos-modal-card.kpi-detail-card .kpi-detail-card-head,
 .datos-modal-card.kpi-detail-card .kpi-detail-lead,
 .datos-modal-card.kpi-detail-card .kpi-detail-filters,
 .datos-modal-card.kpi-detail-card .datos-modal-actions {
     flex-shrink: 0;
+}
+
+.kpi-detail-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+}
+
+.kpi-detail-card-head .datos-modal-title {
+    flex: 1;
+    margin: 0;
+    min-width: 0;
+}
+
+.kpi-spark-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    background: var(--surface-elevated);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease);
+}
+
+.kpi-spark-toggle svg {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.kpi-spark-toggle:hover,
+.kpi-spark-toggle.is-open {
+    color: var(--primary);
+    background: var(--surface-hover);
+}
+
+.kpi-spark-toggle:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .kpi-detail-note {
@@ -1507,6 +1552,44 @@ body.dashboard-layout-single .dashboard-accordion[data-accordion-id].motion-root
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+.kpi-detail-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    padding-right: 1.35rem;
+}
+
+.kpi-detail-table th.sortable:hover {
+    color: var(--text-main);
+    background: var(--surface-input-hover, var(--surface-hover));
+}
+
+.kpi-detail-table th .sort-icon {
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.65rem;
+    opacity: 0.35;
+}
+
+.kpi-detail-table th.sortable.sort-asc .sort-icon,
+.kpi-detail-table th.sortable.sort-desc .sort-icon {
+    opacity: 1;
+    color: var(--primary);
+}
+
+.kpi-detail-table th.sortable.sort-asc .sort-icon::after {
+    content: '▲';
+}
+
+.kpi-detail-table th.sortable.sort-desc .sort-icon::after {
+    content: '▼';
+}
+
+.kpi-detail-table th.sortable:not(.sort-asc):not(.sort-desc) .sort-icon::after {
+    content: '⇅';
 }
 
 .kpi-detail-table tbody tr:nth-child(even) td {
