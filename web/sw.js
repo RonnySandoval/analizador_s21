@@ -1,4 +1,4 @@
-const CACHE_NAME = 's21-analizador-v1.4.52';
+const CACHE_NAME = 's21-analizador-v1.4.54';
 const STATIC_ASSETS = [
     'dashboard.html',
     'index.html',
@@ -16,6 +16,7 @@ const STATIC_ASSETS = [
     'dashboard-datos.js',
     'dashboard-grupos.js',
     'dashboard-wizard.js',
+    'dashboard-restaurar.js',
     'dashboard-export.js',
     'dashboard-text-match.js',
     'dashboard.js',
@@ -68,8 +69,9 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
+    // No interceptar la API: POST grandes (PDF en base64) fallan si el SW
+    // reenvía la request con respondWith(fetch(...)).
     if (url.pathname.includes('/api/')) {
-        event.respondWith(fetch(event.request));
         return;
     }
     if (event.request.method !== 'GET') {

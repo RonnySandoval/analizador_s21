@@ -1,5 +1,5 @@
 (function () {
-    const VERSION = '1.4.52';
+    const VERSION = '1.4.54';
     let deferredPrompt = null;
     const bar = document.getElementById('pwa-install-bar');
     const btnInstall = document.getElementById('btn-pwa-install');
@@ -43,7 +43,7 @@
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register(window.s21Url('sw.js?v=1.4.52')).catch(() => {});
+            navigator.serviceWorker.register(window.s21Url('sw.js?v=1.4.54')).catch(() => {});
         });
     }
 

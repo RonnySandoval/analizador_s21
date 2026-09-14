@@ -51,9 +51,30 @@ La interfaz funciona offline para assets estáticos; el análisis PDF requiere e
 |------|-------------|
 | `server.py` | Servidor HTTP + API |
 | `test1.py` | Motor de análisis PDF → JSON/CSV |
+| `restaurar_formularios.py` | CLI: limpia registro mensual de S-21 (sin UI) |
 | `web/dashboard.html` | Dashboard principal |
 | `web/dashboard-wizard.js` | Asistente de carga y analizador |
 | `resultados/` | Salida JSON (local, no versionada) |
+
+### Restaurar formularios S-21 (CLI)
+
+Limpia el **cuerpo del registro** (horas, cursos, participación, etc.) y conserva por defecto nombre, fechas, bautismo y privilegios. No borra los archivos.
+
+```bash
+# Ver qué haría (recomendado primero)
+python restaurar_formularios.py --dry-run "C:\ruta\Publicadores"
+
+# Escribir copias limpias en otra carpeta
+python restaurar_formularios.py --out-dir ".\s21_limpios" "C:\ruta\Publicadores"
+
+# Sobrescribir originales (con copia .bak.pdf) y poner año 2027
+python restaurar_formularios.py --in-place --backup --replace-year 2027 "C:\ruta\Grupo1"
+```
+
+Grupos: `registro`, `totales`, `identidad`, `sexo`, `esperanza`, `privilegios`, `año`.  
+Algunos PDF tienen permisos o campos de solo lectura; el script lo indica en el resumen.
+
+En la app (servidor local): Ajustes → **Restaurar formularios** (también en Nueva carga). Marque qué borrar o reemplazar, elija carpetas y ejecute.
 
 ## Publicar en GitHub
 

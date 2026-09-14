@@ -14,6 +14,7 @@ DEFAULT_DASHBOARD_DIR = BASE_DIR / "resultados"
 
 sys.path.insert(0, str(BASE_DIR))
 import test1
+import restaurar_formularios as restaurar_s21
 
 DEFAULT_PORT = 8000
 
@@ -287,6 +288,44 @@ class S21Handler(http.server.SimpleHTTPRequestHandler):
                 response_payload = {"success": True, "result": res}
                 status_code = 200
 
+            except Exception as e:
+                response_payload = {"success": False, "error": str(e)}
+                status_code = 400
+
+            self._send_json(response_payload, status_code)
+            return
+
+        if parsed.path == '/api/restaurar':
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            try:
+                data = json.loads(body.decode('utf-8'))
+                grupos = data.get('grupos', [])
+                clear_groups = data.get('clear_groups')
+                if clear_groups is None:
+                    clear_arg = str(data.get('clear') or 'registro,totales')
+                    clear_groups = [p.strip() for p in clear_arg.split(',') if p.strip()]
+                replace_year = data.get('replace_year')
+                if replace_year is not None and str(replace_year).strip() != '':
+                    replace_year = int(replace_year)
+                else:
+                    replace_year = None
+                dry_run = bool(data.get('dry_run', False))
+
+                if not grupos:
+                    raise ValueError("No se recibieron carpetas con archivos PDF")
+                total_pdfs = sum(len(g.get('archivos', [])) for g in grupos)
+                if total_pdfs == 0:
+                    raise ValueError("Las carpetas seleccionadas no contienen PDFs")
+
+                res = restaurar_s21.procesar_grupos_subidos(
+                    grupos,
+                    clear_groups=clear_groups,
+                    replace_year=replace_year,
+                    dry_run=dry_run,
+                )
+                response_payload = {"success": True, "result": res}
+                status_code = 200
             except Exception as e:
                 response_payload = {"success": False, "error": str(e)}
                 status_code = 400

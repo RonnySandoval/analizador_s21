@@ -97,7 +97,7 @@
     <link rel="stylesheet" href="style.css?v=7" type="text/css">
     <link rel="stylesheet" href="theme-cyber.css?v=3" type="text/css">
     <link rel="stylesheet" href="theme-light.css?v=8" type="text/css">
-    <link rel="stylesheet" href="dashboard.css?v=125" type="text/css">
+    <link rel="stylesheet" href="dashboard.css?v=126" type="text/css">
     <script>
     (function () {
         if (location.protocol !== 'file:') return;
@@ -612,6 +612,7 @@
                         <div class="datos-section-actions datos-accordion-actions datos-load-entry">
                             <button type="button" id="btn-datos-analyze" class="btn-primary">Analizar</button>
                             <button type="button" id="btn-datos-load-json" class="btn-secondary">Cargar JSON</button>
+                            <button type="button" id="btn-datos-restaurar" class="btn-ghost">Restaurar formularios</button>
                         </div>
                         <p id="dataset-duplicate-hint" class="dataset-duplicate-hint hidden"></p>
                         <div id="dataset-history-list" class="dataset-history-list"></div>
@@ -643,6 +644,7 @@
                             <div class="wizard-actions">
                                 <button type="button" id="btn-wizard-analyze" class="btn-primary">Analizar PDF</button>
                                 <button type="button" id="btn-wizard-load" class="btn-secondary">Cargar JSON</button>
+                                <button type="button" id="btn-wizard-restaurar" class="btn-ghost">Restaurar formularios</button>
                             </div>
                         </div>
                         <div class="wizard-step motion-root hidden" data-step="pdfs">
@@ -936,6 +938,71 @@
         </div>
     </div>
 
+    <div id="restaurar-modal" class="datos-modal motion-root hidden" role="dialog" aria-modal="true" aria-labelledby="restaurar-title" hidden>
+        <div class="datos-modal-backdrop motion-backdrop" data-restaurar-close tabindex="-1"></div>
+        <div class="datos-modal-card motion-card restaurar-modal-card">
+            <h3 id="restaurar-title" class="datos-modal-title">Restaurar formularios</h3>
+            <p class="restaurar-lead">Limpia celdas del registro en las S-21. No borra los archivos PDF. Requiere el servidor Python.</p>
+
+            <div class="restaurar-section">
+                <span class="restaurar-section-label">Carpetas PDF</span>
+                <div class="folder-panel wizard-folder-panel">
+                    <ul id="restaurar-folder-list" class="folder-list"></ul>
+                    <p id="restaurar-folder-empty" class="folder-empty">Ninguna carpeta</p>
+                    <input type="file" id="restaurar-fallback-folder" webkitdirectory multiple hidden>
+                    <div class="origin-actions origin-actions-row">
+                        <button type="button" id="btn-restaurar-add-folder" class="btn-secondary btn-compact">Agregar</button>
+                        <button type="button" id="btn-restaurar-remove-folder" class="btn-ghost btn-compact">Quitar</button>
+                        <button type="button" id="btn-restaurar-clear-folders" class="btn-ghost btn-compact">Limpiar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="restaurar-section">
+                <span class="restaurar-section-label">Campos a borrar</span>
+                <div id="restaurar-groups" class="restaurar-groups"></div>
+            </div>
+
+            <div class="restaurar-section">
+                <span class="restaurar-section-label">Reemplazar</span>
+                <label class="restaurar-group-row">
+                    <input type="checkbox" id="restaurar-replace-year-on">
+                    <span class="restaurar-group-text">
+                        <strong>Año de servicio</strong>
+                        <span class="restaurar-group-hint">Escribe este valor en los campos de año</span>
+                    </span>
+                </label>
+                <div class="restaurar-year-field">
+                    <label for="restaurar-replace-year">Año</label>
+                    <input type="number" id="restaurar-replace-year" min="2010" max="2040" step="1" disabled>
+                </div>
+            </div>
+
+            <div class="restaurar-section">
+                <span class="restaurar-section-label">Salida</span>
+                <div class="pill-group pill-group-vertical">
+                    <label class="pill-option pill-radio"><input type="radio" name="restaurar_mode" value="out" checked><span>Guardar en carpeta nueva</span></label>
+                    <label class="pill-option pill-radio"><input type="radio" name="restaurar_mode" value="inplace"><span>Sobrescribir originales (con .bak.pdf)</span></label>
+                </div>
+                <label class="restaurar-group-row restaurar-dry-row">
+                    <input type="checkbox" id="restaurar-dry-run" checked>
+                    <span class="restaurar-group-text">
+                        <strong>Solo simular</strong>
+                        <span class="restaurar-group-hint">No escribe PDF; útil para probar primero</span>
+                    </span>
+                </label>
+            </div>
+
+            <p id="restaurar-status" class="restaurar-status hidden"></p>
+            <div id="restaurar-spinner" class="restaurar-spinner hidden" aria-hidden="true"></div>
+
+            <div class="datos-modal-actions">
+                <button type="button" class="btn-ghost" data-restaurar-close>Cancelar</button>
+                <button type="button" id="btn-restaurar-run" class="btn-primary">Ejecutar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="pwa-install-bar" class="pwa-install-bar motion-root hidden" role="region" aria-label="Instalar aplicación" hidden>
         <span><strong>Instalar app</strong> — acceso rápido desde móvil o escritorio</span>
         <div class="wizard-actions">
@@ -950,7 +1017,7 @@
     <script src="dashboard-export.js?v=3"></script>
     <script src="s21-base.js"></script>
     <script src="dashboard-motion.js?v=1"></script>
-    <script src="pwa.js?v=6"></script>
+    <script src="pwa.js?v=8"></script>
     <script src="dashboard-text-match.js?v=1"></script>
     <script src="dashboard-data.js?v=41"></script>
     <script src="dashboard-icons.js?v=7"></script>
@@ -959,6 +1026,7 @@
     <script src="dashboard-datos.js?v=15"></script>
     <script src="dashboard-grupos.js?v=25"></script>
     <script src="dashboard-wizard.js?v=11"></script>
+    <script src="dashboard-restaurar.js?v=3"></script>
     <script src="dashboard.js?v=125"></script>
 </body>
 </html>
