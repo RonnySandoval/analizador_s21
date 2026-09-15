@@ -311,6 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initControls();
     } catch (error) {
         console.error('No se pudieron iniciar los controles de Totales', error);
+        populateMetricSelect();
     }
     let chromeReady = false;
     try {
@@ -481,7 +482,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function populateMetricSelect() {
+        const metrics = D?.S21_CHART_METRICS;
+        if (!metricSelect || !Array.isArray(metrics) || !metrics.length) return;
+        const prev = metricSelect.value;
+        metricSelect.innerHTML = metrics.map(m =>
+            `<option value="${escapeAttr(m.id)}">${escapeHtml(m.label)}</option>`
+        ).join('');
+        metricSelect.value = metrics.some(m => m.id === prev) ? prev : metrics[0].id;
+    }
+
     function initControls() {
+        populateMetricSelect();
         if (!D || !group1 || !group2) return;
         group1.innerHTML = D.S21_TOTALS_GROUP_FIELDS.map(f =>
             `<option value="${f.id}">${f.label}</option>`
@@ -506,12 +518,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         fillTotalsMonthSelect(totalsMonthFromSelect, totalsMonthFrom);
         fillTotalsMonthSelect(totalsMonthToSelect, totalsMonthTo);
-
-        if (metricSelect) {
-            metricSelect.innerHTML = D.S21_CHART_METRICS.map(m =>
-                `<option value="${m.id}">${m.label}</option>`
-            ).join('');
-        }
 
         if (totalsExcludeSelect) {
             totalsExcludeSelect.innerHTML = Array.from({ length: 12 }, (_, n) =>
@@ -682,26 +688,18 @@ document.addEventListener('DOMContentLoaded', () => {
         window.matchMedia('(min-width: 769px)').addEventListener('change', syncPublisherMetricLayout);
 
         let lastBarHorizontal = prefersHorizontalBarChart({ stacked: isBarChartStacked() });
-        let resizeFrame = 0;
-        let resizeSettle = 0;
         window.addEventListener('resize', () => {
             const horizontal = prefersHorizontalBarChart({ stacked: isBarChartStacked() });
             if (horizontal !== lastBarHorizontal) {
                 lastBarHorizontal = horizontal;
                 if (aggregated.length) refresh();
+                return;
             }
-            if (!resizeFrame) {
-                resizeFrame = requestAnimationFrame(() => {
-                    resizeFrame = 0;
-                    resizeDashboardCharts();
-                });
-            }
-            window.clearTimeout(resizeSettle);
-            resizeSettle = window.setTimeout(resizeDashboardCharts, 80);
+            scheduleChartResize();
         });
 
         window.addEventListener('s21-prefs-changed', () => {
-            requestAnimationFrame(resizeDashboardCharts);
+            scheduleChartResize();
             if (packages.length) {
                 refreshCharts();
                 if (selectedPublisherKey) renderPublisherDetail();
@@ -813,6 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
         syncFilterModeUI();
         renderFilters();
         renderFileList();
+        populateMetricSelect();
         setStageOpen(emptyState, false);
         setStageOpen(dashboardContent, true);
         hideLoadStatus();
@@ -1056,6 +1055,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'Inact./irreg.': 'Inact.',
     };
 
+    const CHART_AXIS_CHAR_PX = 5.4;
+
     function shortenChartLabel(text, maxLen = 10) {
         const s = String(text ?? '').trim();
         if (!s || s === '—') return '—';
@@ -1064,45 +1065,89 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${s.slice(0, Math.max(1, maxLen - 1))}…`;
     }
 
-    function displayGroupValueChart(field, value, itemCount = 0) {
-        const maxLen = itemCount > 10 ? 6 : itemCount > 6 ? 8 : 12;
-        if (field === 'origen') return shortenChartLabel(displayPerfil(value), maxLen);
-        if (field === 'mes') return D.mesLabel(value, 'corto');
-        return shortenChartLabel(displayGroupValue(field, value), maxLen);
+    function fitChartAxisLabel(text, slotPx) {
+        const s = String(text ?? '').trim();
+        if (!s || s === '—') return '—';
+        if (!slotPx || slotPx >= s.length * CHART_AXIS_CHAR_PX + 2) return s;
+        const maxChars = Math.max(3, Math.floor((slotPx - 2) / CHART_AXIS_CHAR_PX));
+        return shortenChartLabel(s, maxChars);
     }
 
-    function formatAggRowLabelChart(row, itemCount = 0) {
-        if (!row?.keys?.length) return shortenChartLabel(row?.label || '', 10);
-        return row.keys.map(k => displayGroupValueChart(k.field, k.value, itemCount)).join(' · ');
+    function chartAxisTickCallback(value, index, ticks) {
+        try {
+            const chart = this.chart;
+            const labels = chart?.data?.labels;
+            const label = String(
+                labels && index >= 0 && index < labels.length
+                    ? labels[index]
+                    : (this.getLabelForValue?.(value) ?? value ?? '')
+            );
+            const area = chart?.chartArea;
+            const onCategoryX = this.axis !== 'y';
+            const areaSize = area
+                ? (onCategoryX ? (area.right - area.left) : (area.bottom - area.top))
+                : 0;
+            const count = Math.max(ticks?.length || labels?.length || 1, 1);
+            const slotPx = areaSize > 0 ? areaSize / count : 0;
+            return fitChartAxisLabel(label, slotPx);
+        } catch (_) {
+            return '';
+        }
     }
 
     const TABLE_HEADER_LINES = {
-        Participación: ['Partic.', 'ipación'],
-        'Prec. aux.': ['Prec.', 'aux.'],
-        Publicadores: ['Public.', 'adores'],
-        'Inact./irreg.': ['Inact.', 'irreg.'],
-        'Siervo ministerial': ['Siervo', 'minist.'],
-        'Precursor regular': ['Prec.', 'regular'],
-        'Precursor especial': ['Prec.', 'especial'],
-        'Precursor auxiliar': ['Prec.', 'aux.'],
+        participación: ['Partic.', 'ipación'],
+        'prec. aux.': ['Prec.', 'aux.'],
+        publicadores: ['Public.', 'adores'],
+        'inact./irreg.': ['Inact.', 'irreg.'],
+        'siervo ministerial': ['Siervo', 'minist.'],
+        'precursor regular': ['Prec.', 'regular'],
+        'precursor especial': ['Prec.', 'especial'],
+        'precursor auxiliar': ['Prec.', 'aux.'],
+        'no bautizado': ['No', 'bautizado'],
+        'no bautizados': ['No', 'bautizados'],
+        publicador: ['Public.', 'ador'],
+        publicadora: ['Public.', 'adora'],
     };
 
-    function formatTableHeaderHtml(label) {
-        const text = String(label ?? '');
-        const lines = TABLE_HEADER_LINES[text];
-        if (lines) return lines.map(escapeHtml).join('<br>');
-        const space = text.indexOf(' ');
-        if (space > 0 && text.length > 10) {
-            return `${escapeHtml(text.slice(0, space))}<br>${escapeHtml(text.slice(space + 1))}`;
+    function splitLabelLines(label) {
+        const text = String(label ?? '').trim();
+        if (!text || text === '—') return ['—'];
+        const preset = TABLE_HEADER_LINES[text.toLowerCase()];
+        if (preset) return preset;
+        const words = text.split(/\s+/).filter(Boolean);
+        if (words.length >= 3 && text.length > 10) {
+            const mid = Math.ceil(words.length / 2);
+            return [words.slice(0, mid).join(' '), words.slice(mid).join(' ')];
         }
-        return escapeHtml(text);
+        if (words.length === 2 && text.length > 8) return words;
+        return [text];
     }
 
-    function formatMatrixHeadCell(field, value) {
-        if (field === 'mes') return escapeHtml(D.mesLabel(value, 'corto'));
-        const text = displayGroupValue(field, value);
-        if (text.length > 14) return escapeHtml(`${text.slice(0, 13)}…`);
+    function formatTableHeaderHtml(label) {
+        return splitLabelLines(label).map(escapeHtml).join('<br>');
+    }
+
+    function shouldCompactTableHeaders(columnCount) {
+        return columnCount > 7;
+    }
+
+    function formatTableColumnHeader(label, columnCount) {
+        const text = String(label ?? '');
+        if (!shouldCompactTableHeaders(columnCount) && text.length <= 16 && !text.includes(' ')) {
+            return escapeHtml(text);
+        }
+        if (!shouldCompactTableHeaders(columnCount) && text.length <= 18 && !TABLE_HEADER_LINES[text.toLowerCase()]) {
+            return escapeHtml(text);
+        }
         return formatTableHeaderHtml(text);
+    }
+
+    function formatMatrixAxisLabel(field, value, compact = false) {
+        if (field === 'mes') return escapeHtml(D.mesLabel(value, 'corto'));
+        const full = displayGroupValue(field, value);
+        if (!compact && full.length <= 16) return escapeHtml(full);
+        return formatTableHeaderHtml(full);
     }
 
     function formatAggRowLabel(row) {
@@ -2036,7 +2081,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const top = sorted.slice(0, 16);
             return {
                 mode: 'simple',
-                labels: top.map(r => formatAggRowLabelChart(r, top.length)),
+                labels: top.map(r => formatAggRowLabel(r)),
                 datasets: [{
                     label: chartLabel,
                     data: top.map(r => D.chartMetricValue(r, metricId)),
@@ -2073,7 +2118,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tone = colors[i % colors.length];
             const isTop = i === secondaryValues.length - 1;
             return {
-                label: displayGroupValueChart(secondaryField, secVal, secondaryValues.length),
+                label: displayGroupValue(secondaryField, secVal),
                 data: topPrimary.map(primVal => {
                     const row = rowLookup.get(`${primVal}\0${secVal}`);
                     return row ? D.chartMetricValue(row, metricId) : 0;
@@ -2089,7 +2134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return {
             mode: 'stacked',
-            labels: topPrimary.map(v => displayGroupValueChart(primaryField, v, topPrimary.length)),
+            labels: topPrimary.map(v => displayGroupValue(primaryField, v)),
             datasets,
             primaryValues: topPrimary,
             rowLookup,
@@ -2252,8 +2297,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return setSectionMotionOpen(incoming, true, { from: incomingFrom }).then(() => {
             if (gen !== navSwapGen) return;
             if (sectionId === 'table') scheduleChartResize();
-        }).finally(() => {
-            if (sectionId === 'table') requestAnimationFrame(() => scheduleChartResize());
         });
     }
 
@@ -2479,22 +2522,38 @@ document.addEventListener('DOMContentLoaded', () => {
         return window.matchMedia('(max-width: 640px)').matches;
     }
 
+    let chartResizeRaf = 0;
+    let chartResizeTimer = 0;
+    let chartResizing = false;
+
     function scheduleChartResize() {
-        requestAnimationFrame(resizeDashboardCharts);
-        setTimeout(resizeDashboardCharts, 420);
+        if (chartResizeRaf) cancelAnimationFrame(chartResizeRaf);
+        chartResizeRaf = requestAnimationFrame(() => {
+            chartResizeRaf = 0;
+            resizeDashboardCharts();
+        });
+        clearTimeout(chartResizeTimer);
+        chartResizeTimer = window.setTimeout(resizeDashboardCharts, 200);
     }
 
     function resizeDashboardCharts() {
-        refreshChartScrollWidths();
-        barChart?.resize();
-        lineChart?.resize();
-        publisherDetailChart?.resize();
+        if (chartResizing) return;
+        chartResizing = true;
+        try {
+            refreshChartScrollWidths();
+            barChart?.resize();
+            lineChart?.resize();
+            publisherDetailChart?.resize();
+        } finally {
+            chartResizing = false;
+        }
     }
 
     function syncChartScrollWidth(_scrollEl, innerEl) {
         if (!innerEl) return;
         innerEl.style.width = '100%';
-        innerEl.style.minWidth = '100%';
+        innerEl.style.minWidth = '0';
+        innerEl.style.maxWidth = '100%';
     }
 
     function syncBarChartDimensions(scrollEl, innerEl, itemCount, clusterSize = 1, stacked = false) {
@@ -2639,7 +2698,12 @@ document.addEventListener('DOMContentLoaded', () => {
         syncTotalsReportLayout();
         renderTable(aggregated, groupFields);
         syncTotalsLayout();
-        renderCharts(aggregated, scopedMensual, metricSelect.value, groupFields);
+        try {
+            renderCharts(aggregated, scopedMensual, metricSelect.value, groupFields);
+        } catch (err) {
+            console.error('No se pudieron renderizar los gráficos de Totales', err);
+            destroyCharts();
+        }
         refreshPublishersSection();
     }
 
@@ -4187,11 +4251,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const colValues = D.sortGroupValues(colField, rows.map(r => r.keys[colIdxKey]?.value));
         const rowLabel = D.groupFieldLabel(rowField);
         const colLabel = D.groupFieldLabel(colField);
+        const matrixCompact = Math.max(colValues.length, rowValues.length) > 7;
+        pivotTable?.classList.toggle('totals-table--sparse-cols', colValues.length <= 8 && rowValues.length <= 8);
+        pivotTable?.classList.toggle('totals-table--dense-cols', colValues.length > 9 || rowValues.length > 9);
 
         pivotHead.innerHTML = `<tr>
-            <th scope="col" class="totals-matrix-corner">${escapeHtml(rowLabel)}<br>\\ ${escapeHtml(colLabel)}</th>
+            <th scope="col" class="totals-matrix-corner">${matrixCompact ? formatTableHeaderHtml(rowLabel) : escapeHtml(rowLabel)}<br>\\ ${matrixCompact ? formatTableHeaderHtml(colLabel) : escapeHtml(colLabel)}</th>
             ${colValues.map(colVal =>
-                `<th scope="col" class="totals-matrix-col-head">${formatMatrixHeadCell(colField, colVal)}</th>`
+                `<th scope="col" class="totals-matrix-col-head">${formatMatrixAxisLabel(colField, colVal, matrixCompact)}</th>`
             ).join('')}
         </tr>`;
 
@@ -4209,7 +4276,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<td class="num drillable${zeroClass}" data-col-id="${metricId}" data-matrix-key="${key}" data-label="${escapeAttr(label)}" title="Filtrar detalle">${text}</td>`;
             }).join('');
             return `<tr data-matrix-row="${rowIdx}">
-                <th scope="row" class="totals-matrix-row-head">${escapeHtml(displayGroupValue(rowField, rowVal))}</th>
+                <th scope="row" class="totals-matrix-row-head">${formatMatrixAxisLabel(rowField, rowVal, matrixCompact)}</th>
                 ${cells}
             </tr>`;
         }).join('');
@@ -4252,6 +4319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tableRowsCache = sortRows(rows, tableColumns);
         const sorted = tableRowsCache;
 
+        pivotTable?.classList.remove('totals-table--sparse-cols', 'totals-table--dense-cols');
         pivotHead.innerHTML = `<tr>${tableColumns.map(col => {
             const sortClass = sortState.column === col.id
                 ? (sortState.direction === 'asc' ? 'sort-asc' : 'sort-desc')
@@ -4260,7 +4328,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? (Icons?.metricIcon(col.id) || '')
                 : '';
             return `<th class="sortable ${sortClass}" data-col="${col.id}" scope="col">
-                <span class="th-label">${metricMark}<span>${formatTableHeaderHtml(col.label)}</span></span><span class="sort-icon" aria-hidden="true"></span>
+                <span class="th-label">${metricMark}<span>${formatTableColumnHeader(col.label, tableColumns.length)}</span></span><span class="sort-icon" aria-hidden="true"></span>
             </th>`;
         }).join('')}</tr>`;
 
@@ -5024,6 +5092,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const chartLabel = D.chartMetricLabel(metricId);
 
         destroyCharts();
+        if (typeof Chart === 'undefined') return;
 
         if (!hideBar) {
             const barChartData = buildGroupedBarChartData(barRows, fields, metricId, fields);
@@ -5059,8 +5128,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     plugins: stacked ? [createStackTotalsPlugin(metricId)] : [],
                 });
-                refreshChartScrollWidths();
-                requestAnimationFrame(refreshChartScrollWidths);
+                scheduleChartResize();
             }
         } else {
             chartBarRowsCache = [];
@@ -5110,8 +5178,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
             },
         });
-        refreshChartScrollWidths();
-        requestAnimationFrame(refreshChartScrollWidths);
+        scheduleChartResize();
     }
 
     function chartPalette() {
@@ -5246,9 +5313,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         ...stackPatch,
                         ticks: {
                             ...base.scales.x.ticks,
-                            maxRotation: dense ? 45 : 0,
-                            minRotation: dense ? 35 : 0,
-                            autoSkip: categoryCount > 14,
+                            maxRotation: 0,
+                            minRotation: 0,
+                            autoSkip: categoryCount > 16,
+                            callback: chartAxisTickCallback,
                         },
                     },
                     y: {
@@ -5292,7 +5360,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 y: {
                     stacked,
-                    ticks: { color: c.tick, font: { size: 10 }, autoSkip: false },
+                    ticks: {
+                        color: c.tick,
+                        font: { size: 10 },
+                        autoSkip: false,
+                        callback: chartAxisTickCallback,
+                    },
                     grid: { display: false },
                 },
             },
@@ -5331,10 +5404,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 x: {
                     ticks: {
                         color: c.tick,
-                        maxRotation: dense ? 45 : 0,
-                        minRotation: dense ? 35 : 0,
+                        maxRotation: 0,
+                        minRotation: 0,
                         font: { size: dense ? 9 : 10 },
-                        autoSkip: categoryCount > 14,
+                        autoSkip: categoryCount > 16,
+                        callback: chartAxisTickCallback,
                     },
                     grid: { color: c.grid },
                 },

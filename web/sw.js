@@ -1,4 +1,4 @@
-const CACHE_NAME = 's21-analizador-v1.4.64';
+const CACHE_NAME = 's21-analizador-v1.4.68';
 const STATIC_ASSETS = [
     'dashboard.html',
     'index.html',

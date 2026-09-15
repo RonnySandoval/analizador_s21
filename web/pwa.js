@@ -43,7 +43,7 @@
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register(window.s21Url('sw.js?v=1.4.64')).catch(() => {});
+            navigator.serviceWorker.register(window.s21Url('sw.js?v=1.4.68')).catch(() => {});
         });
     }
 
