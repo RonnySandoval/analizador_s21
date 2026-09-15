@@ -29,7 +29,8 @@ description: UX and visual design rules for the S-21 analizador dashboard (typog
 - Cargas guardadas (historial, activar/abrir, eliminar)
 - Wizard de carga (PDF / JSON)
 - Alias de perfiles (cuando hay carga activa)
-- Ayuda (`<details>`): WhatsApp, servidor local vs móvil
+- **Copia de seguridad** (ZIP, carpeta, Gmail opcional) — `docs/backup-s21.md`
+- Ayuda (`<details>`): WhatsApp, servidor local vs móvil, copias
 - Borrar datos locales (discreto, modal con confirmación)
 
 ### Apariencia (sun icon)
@@ -68,6 +69,7 @@ Dark mode keeps existing cyber palette; do not change dark token defaults unless
 - On new load: always ask **Añadir al historial** vs **Reemplazar carga activa**
 - Switching datasets must not require re-attaching files
 - Active dataset must always be openable via **Abrir** or card click
+- **Copia de seguridad** (ZIP / carpeta / Gmail): Ajustes → acordeón dedicado; ver `docs/backup-s21.md`
 
 ## Pre-merge checklist
 

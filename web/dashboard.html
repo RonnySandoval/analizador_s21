@@ -97,7 +97,7 @@
     <link rel="stylesheet" href="style.css?v=7" type="text/css">
     <link rel="stylesheet" href="theme-cyber.css?v=3" type="text/css">
     <link rel="stylesheet" href="theme-light.css?v=8" type="text/css">
-    <link rel="stylesheet" href="dashboard.css?v=139" type="text/css">
+    <link rel="stylesheet" href="dashboard.css?v=140" type="text/css">
     <script>
     (function () {
         if (location.protocol !== 'file:') return;
@@ -111,7 +111,7 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="dashboard-preferences.js?v=8"></script>
+    <script src="dashboard-preferences.js?v=9"></script>
 </head>
 <body class="dashboard-body">
     <header id="dashboard-app-header" class="dashboard-app-header" role="banner">
@@ -807,6 +807,47 @@
                     </div>
                 </details>
 
+                <details id="datos-backup-wrap" class="datos-accordion">
+                    <summary class="datos-accordion-summary">
+                        <span class="datos-accordion-title">Copia de seguridad</span>
+                    </summary>
+                    <div class="datos-accordion-body">
+                        <p id="backup-status-line" class="datos-muted">Aún no hay copia de seguridad</p>
+                        <div class="datos-section-actions datos-accordion-actions">
+                            <button type="button" id="btn-backup-download" class="btn-primary btn-compact">Descargar ZIP</button>
+                            <button type="button" id="btn-backup-restore" class="btn-secondary btn-compact">Restaurar…</button>
+                            <button type="button" id="btn-backup-folder-save" class="btn-secondary btn-compact">Guardar ahora</button>
+                        </div>
+                        <p id="backup-folder-label" class="datos-muted">Sin carpeta vinculada</p>
+                        <div class="datos-section-actions datos-accordion-actions">
+                            <button type="button" id="btn-backup-folder-link" class="btn-ghost btn-compact">Vincular carpeta</button>
+                            <button type="button" id="btn-backup-folder-unlink" class="btn-ghost btn-compact">Quitar carpeta</button>
+                        </div>
+                        <div class="backup-google-block">
+                            <p class="datos-section-lead">Cuenta Google (Gmail)</p>
+                            <p id="backup-google-status" class="datos-muted">Comprobando…</p>
+                            <div class="datos-section-actions datos-accordion-actions">
+                                <button type="button" id="btn-backup-google-connect" class="btn-secondary btn-compact">Conectar Google</button>
+                                <button type="button" id="btn-backup-google-disconnect" class="btn-ghost btn-compact hidden" hidden>Desconectar</button>
+                            </div>
+                            <div id="backup-google-actions" class="datos-section-actions datos-accordion-actions hidden" hidden>
+                                <button type="button" id="btn-backup-gmail-upload" class="btn-primary btn-compact">Crear copia en Gmail</button>
+                                <button type="button" id="btn-backup-gmail-list" class="btn-secondary btn-compact">Ver copias</button>
+                            </div>
+                            <div id="backup-gmail-list" class="backup-gmail-list"></div>
+                        </div>
+                        <details class="datos-help-inner">
+                            <summary>Privacidad y uso</summary>
+                            <div class="datos-help-copy">
+                                <p>La copia incluye todas las cargas guardadas, grupos y alias. Contiene datos de la congregación: no la comparta ni la suba a repositorios públicos.</p>
+                                <p>ZIP y carpeta funcionan sin Google. Gmail guarda el ZIP como mensaje en su buzón (requiere Client ID OAuth).</p>
+                                <p>Esto no es lo mismo que «Restaurar formularios» (PDF).</p>
+                            </div>
+                        </details>
+                        <input type="file" id="backup-file-input" accept=".zip,.json,application/zip,application/json" hidden>
+                    </div>
+                </details>
+
                 <details class="datos-accordion">
                     <summary class="datos-accordion-summary">
                         <span class="datos-accordion-title">Ayuda</span>
@@ -814,6 +855,7 @@
                     <div class="datos-accordion-body datos-help-copy">
                         <p>En PC, con el servidor local, puede analizar PDF. En móvil o GitHub Pages solo cargue JSON ya exportados; los datos quedan en este dispositivo.</p>
                         <p>WhatsApp: no abra el archivo con Word. Envíe un <strong>.zip</strong> o renómbrelo a <strong>.txt</strong>, guarde el adjunto y use <strong>Cargar JSON</strong>.</p>
+                        <p>Para no perder cargas entre dispositivos, use <strong>Copia de seguridad</strong> (ZIP o Gmail).</p>
                     </div>
                 </details>
 
@@ -890,6 +932,44 @@
                 <button type="button" id="datos-clear-cancel" class="btn-ghost">Cancelar</button>
                 <button type="button" id="datos-clear-confirm" class="btn-primary datos-clear-confirm-btn">Borrar</button>
             </div>
+        </div>
+    </div>
+
+    <div id="backup-restore-modal" class="datos-modal motion-root hidden" role="dialog" aria-modal="true" aria-labelledby="backup-restore-title" hidden>
+        <div class="datos-modal-backdrop motion-backdrop" data-backup-restore-close tabindex="-1"></div>
+        <div class="datos-modal-card motion-card">
+            <h3 id="backup-restore-title" class="datos-modal-title">Restaurar copia</h3>
+            <div class="datos-modal-body">
+                <p><strong>Reemplazar</strong> borra todas las cargas de este dispositivo y pone las de la copia.</p>
+                <p><strong>Fusionar</strong> añade o actualiza cargas por id (máx. 15). No borra las que no estén en el archivo.</p>
+            </div>
+            <div class="datos-modal-actions">
+                <button type="button" id="backup-restore-cancel" class="btn-ghost" data-backup-restore-close>Cancelar</button>
+                <button type="button" id="backup-restore-merge" class="btn-secondary">Fusionar</button>
+                <button type="button" id="backup-restore-replace" class="btn-primary">Reemplazar todo</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="backup-gmail-restore-modal" class="datos-modal motion-root hidden" role="dialog" aria-modal="true" aria-labelledby="backup-gmail-restore-title" hidden>
+        <div class="datos-modal-backdrop motion-backdrop" data-gmail-restore-close tabindex="-1"></div>
+        <div class="datos-modal-card motion-card">
+            <h3 id="backup-gmail-restore-title" class="datos-modal-title">¿Restaurar esta copia?</h3>
+            <div class="datos-modal-body">
+                <p>Se <strong>reemplazarán todas las cargas</strong> de este dispositivo con las de la copia en Gmail. Si falla, se intentará recuperar el estado anterior.</p>
+            </div>
+            <div class="datos-modal-actions">
+                <button type="button" id="backup-gmail-restore-cancel" class="btn-ghost" data-gmail-restore-close>Cancelar</button>
+                <button type="button" id="backup-gmail-restore-confirm" class="btn-primary">Restaurar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="backup-reminder-banner" class="backup-reminder-banner motion-root hidden" role="status" hidden>
+        <p id="backup-reminder-text">Hay cambios sin copia de seguridad.</p>
+        <div class="backup-reminder-actions">
+            <button type="button" id="btn-backup-banner-save" class="btn-primary btn-compact">Guardar copia ahora</button>
+            <button type="button" id="btn-backup-banner-dismiss" class="btn-ghost btn-compact">Ahora no</button>
         </div>
     </div>
 
@@ -1028,12 +1108,33 @@
     <script src="dashboard-text-match.js?v=1"></script>
     <script src="dashboard-data.js?v=41"></script>
     <script src="dashboard-icons.js?v=7"></script>
-    <script src="dashboard-storage.js?v=2"></script>
+    <script src="dashboard-storage.js?v=3"></script>
+    <script src="backup/types.js?v=1"></script>
+    <script src="backup/checksum.js?v=1"></script>
+    <script src="backup/device.js?v=1"></script>
+    <script src="backup/manifest.js?v=1"></script>
+    <script src="backup/limits.js?v=1"></script>
+    <script src="backup/package.js?v=1"></script>
+    <script src="backup/validator.js?v=1"></script>
+    <script src="backup/verify.js?v=1"></script>
+    <script src="backup/snapshot.js?v=1"></script>
+    <script src="backup/restorer.js?v=1"></script>
+    <script src="backup/provider.js?v=1"></script>
+    <script src="dashboard-data-process.js?v=1"></script>
+    <script src="dashboard-backup.js?v=1"></script>
+    <script src="google/bundledClientId.js?v=1"></script>
+    <script src="google/GoogleAuth.js?v=2"></script>
+    <script src="google/GmailClient.js?v=1"></script>
+    <script src="google/mime.js?v=1"></script>
+    <script src="google/GmailBackupProvider.js?v=1"></script>
+    <script src="backup/cloudBackup.js?v=2"></script>
+    <script src="dashboard-backup-google-ui.js?v=1"></script>
+    <script src="dashboard-auto-backup.js?v=1"></script>
     <script src="dashboard-update.js?v=4"></script>
-    <script src="dashboard-datos.js?v=16"></script>
-    <script src="dashboard-grupos.js?v=25"></script>
+    <script src="dashboard-datos.js?v=17"></script>
+    <script src="dashboard-grupos.js?v=26"></script>
     <script src="dashboard-wizard.js?v=11"></script>
     <script src="dashboard-restaurar.js?v=3"></script>
-    <script src="dashboard.js?v=139"></script>
+    <script src="dashboard.js?v=140"></script>
 </body>
 </html>

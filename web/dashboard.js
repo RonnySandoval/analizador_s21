@@ -322,6 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initLayoutMode();
         initFiltersCollapsed();
         initDatosModule();
+        initBackupModule();
         initWizard();
         initGruposModule();
         restoreDashboardCache();
@@ -332,6 +333,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('No se pudo iniciar la navegación', navError);
             }
         }
+    }
+
+    function initBackupModule() {
+        const Backup = window.S21DashboardBackup;
+        if (!Backup) return;
+
+        async function applyRestoredDataset(ds) {
+            if (ds?.packages?.length) {
+                await applyPackages(ds.packages, {
+                    label: ds.meta?.label || ds.name,
+                    folderLabel: ds.meta?.folderLabel,
+                    añoMeta: ds.meta?.añoMeta,
+                    datasetId: ds.id,
+                    skipSavePrompt: true,
+                });
+                window.S21DashboardWizard?.showLoaded?.();
+            } else {
+                clearAll(false);
+            }
+        }
+
+        Backup.init({
+            onRestored: applyRestoredDataset,
+            onRestoredEmpty: () => clearAll(false),
+        });
+        window.S21BackupGoogleUi?.init?.();
+        window.S21AutoBackup?.start?.();
+
+        window.addEventListener('s21-backup-restored', async (e) => {
+            await applyRestoredDataset(e.detail?.dataset || null);
+        });
     }
 
     function initDatosModule() {

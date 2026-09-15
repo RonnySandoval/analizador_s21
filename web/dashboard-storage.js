@@ -81,11 +81,20 @@
         return item;
     }
 
+    async function touchChanged() {
+        try {
+            await setMeta('lastChangedAt', Date.now());
+        } catch {
+            /* ignore */
+        }
+    }
+
     async function putDataset(dataset) {
         const db = await openDb();
         const tx = db.transaction(STORE_DATASETS, 'readwrite');
         tx.objectStore(STORE_DATASETS).put(dataset);
         await txComplete(db, tx);
+        await touchChanged();
     }
 
     async function deleteDataset(id) {
@@ -93,6 +102,7 @@
         const tx = db.transaction(STORE_DATASETS, 'readwrite');
         tx.objectStore(STORE_DATASETS).delete(id);
         await txComplete(db, tx);
+        await touchChanged();
     }
 
     async function getActiveDatasetId() {
@@ -164,6 +174,9 @@
         getActiveDataset,
         migrateLegacyCache,
         enforceMaxDatasets,
+        getMeta,
+        setMeta,
+        touchChanged,
         // compat aliases used during transition
         saveDashboardCache: async (packages, meta) => {
             console.warn('saveDashboardCache deprecated; use dataset API via S21DashboardDatos');
@@ -177,6 +190,7 @@
             const datasets = await listDatasets();
             await Promise.all(datasets.map(d => deleteDataset(d.id)));
             await setActiveDatasetId(null);
+            await touchChanged();
         },
     };
 })();

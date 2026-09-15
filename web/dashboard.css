@@ -8476,3 +8476,157 @@ body.datos-panel-open {
 .settings-tab-panel.motion-root.is-closing {
     z-index: 1;
 }
+
+/* —— Backup —— */
+.backup-google-block {
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.25));
+}
+
+.backup-gmail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.65rem;
+}
+
+.backup-gmail-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    background: var(--surface-muted);
+    border: 1px solid transparent;
+    border-radius: 8px;
+}
+
+.backup-gmail-card.is-current {
+    border-color: var(--accent, #00e5ff);
+}
+
+.backup-gmail-card-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.backup-gmail-meta {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.backup-current-badge {
+    display: inline-block;
+    margin-top: 0.2rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--accent, #00e5ff);
+}
+
+.datos-help-inner {
+    margin-top: 0.75rem;
+}
+
+.datos-help-inner > summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.backup-reminder-banner {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    z-index: 650;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    padding: 0.75rem 0.9rem;
+    background: var(--surface-elevated);
+    color: var(--text-main);
+    border: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.3));
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+
+.backup-reminder-banner p {
+    margin: 0;
+    flex: 1 1 12rem;
+    font-size: 0.9rem;
+}
+
+.backup-reminder-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.s21-process-overlay {
+    z-index: 800;
+}
+
+.s21-process-card {
+    max-width: 22rem;
+    width: 100%;
+}
+
+.s21-process-bar-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-pill, rgba(148, 163, 184, 0.25));
+    overflow: hidden;
+    margin: 0.75rem 0 1rem;
+}
+
+.s21-process-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent, #00e5ff);
+    transition: width 220ms var(--motion-ease, ease);
+}
+
+.s21-process-steps {
+    margin: 0;
+    padding: 0 0 0 1.1rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.s21-process-steps li.is-active {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.s21-process-steps li.is-done {
+    color: var(--text-muted);
+    text-decoration: line-through;
+    opacity: 0.75;
+}
+
+.s21-process-outcome {
+    text-align: center;
+    padding: 0.5rem 0 0.25rem;
+}
+
+.s21-process-outcome-icon {
+    font-size: 2rem;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    color: var(--accent, #10b981);
+}
+
+.s21-process-outcome-icon.is-error {
+    color: var(--error, #ef4444);
+}
+
+.s21-process-outcome-msg {
+    margin: 0 0 1rem;
+    color: var(--text-main);
+}
+

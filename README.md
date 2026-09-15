@@ -93,7 +93,15 @@ git push -u origin main
 
 ## Privacidad
 
-No suba a repos públicos carpetas con datos de congregación (`resultados/`, CSV/JSON locales). El `.gitignore` las excluye por defecto.
+No suba a repos públicos carpetas con datos de congregación (`resultados/`, CSV/JSON locales, ni archivos `s21-backup-*.zip`). El `.gitignore` las excluye por defecto.
+
+### Copia de seguridad (app)
+
+En el dashboard: **Ajustes → Copia de seguridad**.
+
+- **Descargar ZIP** / **Restaurar**: traslada cargas, grupos y preferencias entre dispositivos.
+- **Carpeta** (Chrome/Edge): copia automática al reabrir la app si hay cambios.
+- **Gmail** (opcional): requiere `web/google-oauth.json` con un OAuth Client ID. Detalle en [docs/backup-s21.md](docs/backup-s21.md).
 
 ## Licencia
 

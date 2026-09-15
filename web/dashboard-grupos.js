@@ -43,6 +43,11 @@
 
     function saveConfig() {
         localStorage.setItem(GRUPOS_KEY, JSON.stringify(config));
+        try {
+            window.S21DashboardStorage?.touchChanged?.();
+        } catch {
+            /* ignore */
+        }
         if (persistGruposEnabled) {
             ctx?.onPersistConfig?.(getConfigSnapshot());
         }

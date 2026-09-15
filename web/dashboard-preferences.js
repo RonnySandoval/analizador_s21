@@ -27,6 +27,11 @@
     function savePrefs(next) {
         prefs = next;
         localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+        try {
+            window.S21DashboardStorage?.touchChanged?.();
+        } catch {
+            /* ignore */
+        }
     }
 
     function applyPrefs(next) {
