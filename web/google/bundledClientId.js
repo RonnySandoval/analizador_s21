@@ -1,5 +1,5 @@
 /**
- * Placeholder: replace with your OAuth web Client ID, or provide web/google-oauth.json
- * { "clientId": "....apps.googleusercontent.com" }
+ * OAuth web Client ID for GitHub Pages / PWA (public; not a secret).
+ * Local override: web/google-oauth.json (gitignored).
  */
-window.S21GoogleBundledClientId = '';
+window.S21GoogleBundledClientId = '345875738834-8ksubrcfq35hsrbiea900oblo0sf9cfq.apps.googleusercontent.com';
