@@ -97,7 +97,7 @@
     <link rel="stylesheet" href="style.css?v=7" type="text/css">
     <link rel="stylesheet" href="theme-cyber.css?v=3" type="text/css">
     <link rel="stylesheet" href="theme-light.css?v=8" type="text/css">
-    <link rel="stylesheet" href="dashboard.css?v=126" type="text/css">
+    <link rel="stylesheet" href="dashboard.css?v=136" type="text/css">
     <script>
     (function () {
         if (location.protocol !== 'file:') return;
@@ -111,7 +111,7 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="dashboard-preferences.js?v=7"></script>
+    <script src="dashboard-preferences.js?v=8"></script>
 </head>
 <body class="dashboard-body">
     <header id="dashboard-app-header" class="dashboard-app-header" role="banner">
@@ -129,13 +129,6 @@
             <div class="dashboard-app-header-actions">
                 <button type="button" id="btn-toggle-totals-dock" class="dashboard-header-btn hidden" aria-label="Ocultar filtros" aria-pressed="true" aria-controls="totals-dock-right" title="Ocultar filtros" hidden>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
-                </button>
-                <button type="button" id="btn-toggle-layout-mode" class="dashboard-header-btn" aria-label="Vista por sección" aria-pressed="false" title="Vista por sección">
-                    <svg class="dashboard-layout-icon dashboard-layout-icon--to-single" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="5" width="12" height="14" rx="2"/></svg>
-                    <svg class="dashboard-layout-icon dashboard-layout-icon--to-continuous hidden" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="5" rx="1"/><rect x="4" y="10" width="16" height="5" rx="1"/><rect x="4" y="16" width="16" height="4" rx="1"/></svg>
-                </button>
-                <button type="button" id="btn-open-apariencia-panel" class="dashboard-header-btn" aria-label="Apariencia" title="Apariencia">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
                 </button>
                 <button type="button" id="btn-open-datos-panel" class="dashboard-header-btn" aria-label="Ajustes" title="Ajustes">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -316,6 +309,12 @@
         <button type="button" class="totals-dock-btn" data-dock-panel="publishers-filtros" aria-expanded="false" aria-controls="publishers-dock-panel-filtros" data-tip="Filtros" title="Filtros">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
         </button>
+        <button type="button" class="totals-dock-btn active" data-publisher-view="list" role="tab" aria-selected="true" data-tip="Listado" title="Listado">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
+        <button type="button" class="totals-dock-btn" data-publisher-view="month" role="tab" aria-selected="false" data-tip="Por mes" title="Por mes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </button>
         <button type="button" class="totals-dock-collapse" data-dock-toggle aria-label="Ocultar herramientas" title="Ocultar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
@@ -327,10 +326,6 @@
                 <button type="button" class="totals-dock-panel-close" data-dock-close aria-label="Cerrar">×</button>
             </div>
             <div class="totals-dock-panel-body">
-                <div class="toolbar-field">
-                    <label for="publisher-bulk-grupo">Grupo</label>
-                    <select id="publisher-bulk-grupo" class="publisher-bulk-grupo-select" title="Filtrar por grupo"></select>
-                </div>
                 <div id="publishers-dock-filters-slot"></div>
             </div>
         </div>
@@ -397,7 +392,6 @@
                         </div>
                     </div>
                     </div>
-                    <span class="dashboard-section-sub">Totales por año o por mes · exporte CSV, imagen o PDF</span>
                     </div>
                     <div id="accordion-body-table" class="dashboard-accordion-body">
                         <div class="dashboard-accordion-inner">
@@ -491,36 +485,39 @@
 
                 <section id="publisher-section" class="dashboard-section dashboard-section--publishers publisher-section dashboard-accordion motion-root" data-accordion-id="publishers" data-section-label="Publicadores">
                     <div class="publisher-section-head">
-                        <button type="button" class="dashboard-accordion-trigger" aria-expanded="true" aria-controls="accordion-body-publishers">
-                            <span class="dashboard-accordion-trigger-main">
-                                <span class="dashboard-section-title">Detalle por publicador</span>
-                                <span class="dashboard-section-sub">Listado y tarjeta de cada publicador</span>
-                            </span>
-                            <span class="dashboard-accordion-chevron" aria-hidden="true"></span>
-                        </button>
-                        <div class="publisher-section-meta">
-                            <div class="export-menu" data-export-menu>
-                                <button type="button" class="btn-secondary btn-compact export-menu-toggle" aria-expanded="false" aria-haspopup="menu" aria-controls="publishers-export-menu">
-                                    <svg class="export-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                    <span>Exportar</span>
-                                    <svg class="export-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                                </button>
-                                <div id="publishers-export-menu" class="export-menu-list" role="menu">
-                                    <button type="button" id="btn-export-publishers-csv" class="export-menu-item" role="menuitem">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2M14 13h2M8 17h2M14 17h2"/></svg>
-                                        <span>CSV</span>
+                        <div class="publisher-section-head-top">
+                            <button type="button" class="dashboard-accordion-trigger" aria-expanded="true" aria-controls="accordion-body-publishers">
+                                <span class="dashboard-accordion-trigger-main">
+                                    <span class="dashboard-section-title">Detalle por publicador</span>
+                                    <span class="dashboard-section-sub">Listado y tarjeta de cada publicador</span>
+                                </span>
+                                <span class="dashboard-accordion-chevron" aria-hidden="true"></span>
+                            </button>
+                            <div class="publisher-section-meta">
+                                <div class="export-menu" data-export-menu>
+                                    <button type="button" class="btn-secondary btn-compact export-menu-toggle export-menu-toggle--icon" aria-expanded="false" aria-haspopup="menu" aria-controls="publishers-export-menu" aria-label="Exportar" title="Exportar">
+                                        <svg class="export-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                     </button>
-                                    <button type="button" id="btn-export-publishers-png" class="export-menu-item" role="menuitem" title="Imagen PNG — ideal para WhatsApp">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
-                                        <span>Imagen</span>
-                                    </button>
-                                    <button type="button" id="btn-export-publishers-pdf" class="export-menu-item" role="menuitem">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6M9 17h6"/></svg>
-                                        <span>PDF</span>
-                                    </button>
+                                    <div id="publishers-export-menu" class="export-menu-list" role="menu">
+                                        <button type="button" id="btn-export-publishers-csv" class="export-menu-item" role="menuitem">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2M14 13h2M8 17h2M14 17h2"/></svg>
+                                            <span>CSV</span>
+                                        </button>
+                                        <button type="button" id="btn-export-publishers-png" class="export-menu-item" role="menuitem" title="Imagen PNG — ideal para WhatsApp">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                                            <span>Imagen</span>
+                                        </button>
+                                        <button type="button" id="btn-export-publishers-pdf" class="export-menu-item" role="menuitem">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6M9 17h6"/></svg>
+                                            <span>PDF</span>
+                                        </button>
+                                    </div>
                                 </div>
+                                <span id="publisher-count" class="dashboard-accordion-badge publisher-count" aria-live="polite" title="Publicadores visibles">
+                                    <svg class="publisher-count-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    <span id="publisher-count-num">0</span>
+                                </span>
                             </div>
-                            <span id="publisher-count" class="dashboard-accordion-badge publisher-count"></span>
                         </div>
                     </div>
                     <div id="accordion-body-publishers" class="dashboard-accordion-body">
@@ -578,6 +575,7 @@
                                     </div>
                                 </div>
                             </div>
+                            <div id="publisher-month-view" class="publisher-month-view hidden" hidden></div>
                         </div>
                     </div>
                 </section>
@@ -604,6 +602,11 @@
             <div class="datos-panel-body">
                 <div class="settings-tab-stage">
                 <div id="settings-panel-datos" class="settings-tab-panel motion-root is-open" role="tabpanel" aria-labelledby="settings-tab-datos">
+                <button type="button" id="btn-datos-go-apariencia" class="datos-apariencia-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                    <span>Apariencia</span>
+                    <span class="datos-apariencia-link-chevron" aria-hidden="true">›</span>
+                </button>
                 <details id="datos-history-wrap" class="datos-accordion" open>
                     <summary class="datos-accordion-summary">
                         <span class="datos-accordion-title">Cargas</span>
@@ -618,14 +621,18 @@
                         <div id="dataset-history-list" class="dataset-history-list"></div>
                         <div id="load-loaded" class="load-loaded motion-root hidden" hidden>
                             <div id="drop-zone" class="load-panel has-sources">
-                                <div id="data-sources-bar" class="data-sources-bar">
-                                    <div class="data-sources-bar-main">
-                                        <span class="data-sources-title">Alias de perfiles</span>
-                                        <p id="perfil-aliases-hint" class="perfil-aliases-hint"></p>
+                                <details id="datos-aliases-wrap" class="datos-aliases-accordion">
+                                    <summary class="datos-aliases-summary">
+                                        <span class="datos-aliases-title">Alias de perfiles</span>
+                                    </summary>
+                                    <div class="datos-aliases-body">
+                                        <div id="data-sources-bar" class="data-sources-bar datos-aliases-bar">
+                                            <p id="perfil-aliases-hint" class="perfil-aliases-hint"></p>
+                                            <button type="button" id="btn-reset-perfil-aliases" class="btn-ghost btn-compact">Restaurar</button>
+                                        </div>
+                                        <ul id="file-list" class="file-list"></ul>
                                     </div>
-                                    <button type="button" id="btn-reset-perfil-aliases" class="btn-ghost btn-compact">Restaurar</button>
-                                </div>
-                                <ul id="file-list" class="file-list"></ul>
+                                </details>
                             </div>
                         </div>
                     </div>
@@ -1017,16 +1024,16 @@
     <script src="dashboard-export.js?v=3"></script>
     <script src="s21-base.js"></script>
     <script src="dashboard-motion.js?v=1"></script>
-    <script src="pwa.js?v=8"></script>
+    <script src="pwa.js?v=18"></script>
     <script src="dashboard-text-match.js?v=1"></script>
     <script src="dashboard-data.js?v=41"></script>
     <script src="dashboard-icons.js?v=7"></script>
     <script src="dashboard-storage.js?v=2"></script>
     <script src="dashboard-update.js?v=4"></script>
-    <script src="dashboard-datos.js?v=15"></script>
+    <script src="dashboard-datos.js?v=16"></script>
     <script src="dashboard-grupos.js?v=25"></script>
     <script src="dashboard-wizard.js?v=11"></script>
     <script src="dashboard-restaurar.js?v=3"></script>
-    <script src="dashboard.js?v=125"></script>
+    <script src="dashboard.js?v=135"></script>
 </body>
 </html>

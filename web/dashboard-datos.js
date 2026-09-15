@@ -173,6 +173,9 @@
             setSettingsTab('datos');
             openPanel();
         });
+        $('btn-datos-go-apariencia')?.addEventListener('click', () => {
+            setSettingsTab('apariencia');
+        });
         $('btn-open-apariencia-panel')?.addEventListener('click', () => {
             setSettingsTab('apariencia');
             openPanel();

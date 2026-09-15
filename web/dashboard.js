@@ -38,11 +38,28 @@ document.addEventListener('DOMContentLoaded', () => {
         grupo: 'Grupo',
         sexo: 'Sexo',
         esperanza: 'Esper.',
-        anciano: 'Anc.',
-        siervo_ministerial: 'S. min.',
-        precursor_regular: 'P.reg',
-        precursor_especial: 'P.esp',
-        misionero: 'Mis.',
+        anciano: 'Anciano',
+        siervo_ministerial: 'Siervo min.',
+        precursor_regular: 'P. regular',
+        precursor_especial: 'P. especial',
+        misionero: 'Misionero',
+    };
+
+    const FILTER_SWITCH_FIELDS = new Set([
+        'anciano',
+        'siervo_ministerial',
+        'precursor_regular',
+        'precursor_especial',
+        'misionero',
+    ]);
+
+    const FILTER_EXCLUSIVE_FIELDS = new Set(['sexo', 'esperanza']);
+
+    const FILTER_VALUE_SHORT = {
+        'Otras ovejas': 'Otras',
+        'Ungidos': 'Ungidos',
+        'Hombre': 'Hombre',
+        'Mujer': 'Mujer',
     };
 
     const dropZone = document.getElementById('drop-zone');
@@ -90,6 +107,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const publisherCount = document.getElementById('publisher-count');
     const publisherListBody = document.getElementById('publisher-list-body');
     const publisherListHead = document.getElementById('publisher-list-head');
+    const publisherLayout = document.querySelector('.publisher-layout');
+    const publisherMonthView = document.getElementById('publisher-month-view');
     const publisherDetailEmpty = document.getElementById('publisher-detail-empty');
     const publisherDetailContent = document.getElementById('publisher-detail-content');
     const btnExportPublishersCsv = document.getElementById('btn-export-publishers-csv');
@@ -120,6 +139,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFuente = '';
     let sortState = { column: 'horas', direction: 'desc' };
     let publisherSortState = { column: 'nombre', direction: 'asc' };
+    let publisherViewMode = 'list';
+    let publisherMonthSortState = { column: 'nombre', direction: 'asc' };
+    let publisherMonthFocus = '';
+    let publisherMonthNameFlexPct = 58;
+    const PUBLISHER_MONTH_METRIC_PX = 48;
+    const PUBLISHER_MONTH_METRIC_IDS = ['horas', 'cursos', 'participacion', 'precursor_auxiliar'];
+    const PUBLISHER_MONTH_COMMENT_ICON = '<svg class="metric-icon metric-icon--comentarios" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+    const PUBLISHER_MONTH_CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+    const PUBLISHER_MONTH_FAIL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    let publisherMonthResizeObserver = null;
     let tableColumns = [];
     let filteredMensualCache = [];
     let filteredPubCache = [];
@@ -142,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let chartProfileInclude = {};
     let publisherSearchQuery = '';
     let publisherGroupFilter = '';
+    let publisherPerfilFiltersOpen = false;
     let pendingExport = null;
     let detailMonthlyFilter = null;
     let tableRowsCache = [];
@@ -156,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let publisherDetailReturn = null;
     let publisherDetailPaintGen = 0;
     let publisherDetailMotionMode = 'instant';
-    let layoutMode = 'continuous';
+    let layoutMode = 'single';
     let singleActiveSection = 'kpi';
     let navSwapGen = 0;
     let totalsDockUserVisible = localStorage.getItem(TOOLS_DOCK_VISIBLE_KEY) !== '0';
@@ -266,6 +296,15 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'cursos', label: 'Cursos', title: 'Cursos' },
         { id: 'participacion', label: 'Part.', title: 'Participación' },
         { id: 'precursor_auxiliar', label: 'P. aux.', title: 'Precursor auxiliar' },
+    ];
+
+    const PUBLISHER_MONTH_COLUMNS = [
+        { id: 'nombre', label: 'Nombre', type: 'text', getValue: row => row.nombre },
+        { id: 'horas', label: 'Horas', type: 'number', getValue: row => row.horas },
+        { id: 'cursos', label: 'Cursos', type: 'number', getValue: row => row.cursos },
+        { id: 'participacion', label: 'Part.', type: 'number', getValue: row => row.participacion },
+        { id: 'precursor_auxiliar', label: 'P. aux.', type: 'number', getValue: row => row.precursor_auxiliar },
+        { id: 'comentarios', label: 'Comentarios', type: 'text', getValue: row => row.notas || '' },
     ];
 
     try {
@@ -424,19 +463,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPublisherBulkGrupoSelect() {
-        if (!publisherBulkGrupo || !G) return;
+        /* Grupo se filtra desde el panel de filtros (toggles numéricos). */
+        if (!G) return;
         const count = G.getConfig().groupCount;
         const selected = publisherGroupFilter;
-        publisherBulkGrupo.innerHTML = '<option value="">Todos los grupos</option>' +
-            '<option value="0">Sin grupo</option>' +
-            Array.from({ length: count }, (_, i) => {
-                const n = i + 1;
-                return `<option value="${n}">Grupo ${n}</option>`;
-            }).join('');
         const valid = selected === '' || selected === '0'
             || (Number(selected) >= 1 && Number(selected) <= count);
         publisherGroupFilter = valid ? selected : '';
-        publisherBulkGrupo.value = publisherGroupFilter;
+        if (publisherBulkGrupo) {
+            publisherBulkGrupo.innerHTML = '<option value="">Todos los grupos</option>' +
+                '<option value="0">Sin grupo</option>' +
+                Array.from({ length: count }, (_, i) => {
+                    const n = i + 1;
+                    return `<option value="${n}">Grupo ${n}</option>`;
+                }).join('');
+            publisherBulkGrupo.value = publisherGroupFilter;
+        }
     }
 
     function initControls() {
@@ -623,16 +665,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (publisherSearch) {
             publisherSearch.addEventListener('input', () => {
                 publisherSearchQuery = publisherSearch.value.trim();
-                renderPublisherList();
+                refreshPublisherViews();
             });
         }
         if (publisherBulkGrupo) {
             publisherBulkGrupo.addEventListener('change', () => {
                 publisherGroupFilter = publisherBulkGrupo.value;
                 updateFiltersSummary();
-                renderPublisherList();
+                refreshPublisherViews();
             });
         }
+        document.querySelectorAll('#publishers-dock [data-publisher-view]').forEach(btn => {
+            btn.addEventListener('click', () => setPublisherViewMode(btn.dataset.publisherView));
+        });
 
         window.matchMedia('(min-width: 769px)').addEventListener('change', syncPublisherMetricLayout);
 
@@ -742,6 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
             destroyPublisherDetailChart();
             selectedPublisherKey = '';
             if (publisherListBody) publisherListBody.innerHTML = '';
+            if (publisherMonthView) publisherMonthView.innerHTML = '';
             if (publisherDetailContent) {
                 publisherDetailContent.innerHTML = '';
             }
@@ -1000,6 +1046,65 @@ document.addEventListener('DOMContentLoaded', () => {
         return value ?? '—';
     }
 
+    const CHART_LABEL_SHORT = {
+        Participación: 'Part.',
+        'Precursor auxiliar': 'P. aux.',
+        'Siervo ministerial': 'Siervo m.',
+        'Precursor regular': 'P. reg.',
+        'Precursor especial': 'P. esp.',
+        Publicadores: 'Publ.',
+        'Inact./irreg.': 'Inact.',
+    };
+
+    function shortenChartLabel(text, maxLen = 10) {
+        const s = String(text ?? '').trim();
+        if (!s || s === '—') return '—';
+        if (CHART_LABEL_SHORT[s]) return CHART_LABEL_SHORT[s];
+        if (s.length <= maxLen) return s;
+        return `${s.slice(0, Math.max(1, maxLen - 1))}…`;
+    }
+
+    function displayGroupValueChart(field, value, itemCount = 0) {
+        const maxLen = itemCount > 10 ? 6 : itemCount > 6 ? 8 : 12;
+        if (field === 'origen') return shortenChartLabel(displayPerfil(value), maxLen);
+        if (field === 'mes') return D.mesLabel(value, 'corto');
+        return shortenChartLabel(displayGroupValue(field, value), maxLen);
+    }
+
+    function formatAggRowLabelChart(row, itemCount = 0) {
+        if (!row?.keys?.length) return shortenChartLabel(row?.label || '', 10);
+        return row.keys.map(k => displayGroupValueChart(k.field, k.value, itemCount)).join(' · ');
+    }
+
+    const TABLE_HEADER_LINES = {
+        Participación: ['Partic.', 'ipación'],
+        'Prec. aux.': ['Prec.', 'aux.'],
+        Publicadores: ['Public.', 'adores'],
+        'Inact./irreg.': ['Inact.', 'irreg.'],
+        'Siervo ministerial': ['Siervo', 'minist.'],
+        'Precursor regular': ['Prec.', 'regular'],
+        'Precursor especial': ['Prec.', 'especial'],
+        'Precursor auxiliar': ['Prec.', 'aux.'],
+    };
+
+    function formatTableHeaderHtml(label) {
+        const text = String(label ?? '');
+        const lines = TABLE_HEADER_LINES[text];
+        if (lines) return lines.map(escapeHtml).join('<br>');
+        const space = text.indexOf(' ');
+        if (space > 0 && text.length > 10) {
+            return `${escapeHtml(text.slice(0, space))}<br>${escapeHtml(text.slice(space + 1))}`;
+        }
+        return escapeHtml(text);
+    }
+
+    function formatMatrixHeadCell(field, value) {
+        if (field === 'mes') return escapeHtml(D.mesLabel(value, 'corto'));
+        const text = displayGroupValue(field, value);
+        if (text.length > 14) return escapeHtml(`${text.slice(0, 13)}…`);
+        return formatTableHeaderHtml(text);
+    }
+
     function formatAggRowLabel(row) {
         if (!row?.keys?.length) return row?.label || '';
         return row.keys.map(k => displayGroupValue(k.field, k.value)).join(' · ');
@@ -1095,49 +1200,166 @@ document.addEventListener('DOMContentLoaded', () => {
         return D.S21_GROUP_FIELDS.find(g => g.id === field)?.label || field;
     }
 
-    function renderFilterCell(field) {
-        const label = filterFieldLabel(field);
-        const shortLabel = filterFieldLabel(field, true);
-        const values = field === 'grupo'
+    function filterChipClass(field, active) {
+        return `${active ? 'on' : ''}${filterMode === 'exclude' && active ? ' is-exclude' : ''}`.trim();
+    }
+
+    function filterValueLabel(field, value) {
+        if (field === 'origen') return displayPerfil(value);
+        if (field === 'grupo') {
+            if (value === '—' || value === '0') return '—';
+            const n = String(value).match(/\d+/);
+            return n ? n[0] : String(value);
+        }
+        return FILTER_VALUE_SHORT[value] || String(value);
+    }
+
+    function grupoFilterOptions() {
+        const count = G?.getConfig?.()?.groupCount || 0;
+        const opts = [];
+        for (let i = 1; i <= count; i += 1) {
+            opts.push({ value: `Grupo ${i}`, label: String(i) });
+        }
+        opts.push({ value: '—', label: '—' });
+        return opts;
+    }
+
+    function fieldFilterValues(field) {
+        if (field === 'grupo') return grupoFilterOptions().map(o => o.value);
+        if (FILTER_SWITCH_FIELDS.has(field)) return ['Sí'];
+        return field === 'origen'
             ? D.uniqueValues(flat.publicadores, field)
             : D.uniqueValues(flat.mensual, field);
+    }
+
+    function isFilterValueActive(field, value) {
+        return Boolean(filters[field]?.includes(value));
+    }
+
+    function isSwitchFilterOn(field) {
+        return isFilterValueActive(field, 'Sí');
+    }
+
+    function setFilterValues(field, values) {
+        filters[field] = Array.isArray(values) ? values : [];
+    }
+
+    function toggleMultiFilterValue(field, value) {
         if (!filters[field]) filters[field] = [];
-        const activeCount = filters[field].length;
-        const chips = values.map(v => {
-            const active = filters[field].includes(v);
-            return `<button type="button" class="filter-chip ${active ? 'on' : ''}${filterMode === 'exclude' && active ? ' filter-chip-exclude' : ''}"
-                data-field="${field}" data-value="${escapeAttr(v)}" title="${escapeAttr(v)}">${escapeHtml(field === 'origen' ? displayPerfil(v) : v)}</button>`;
+        const idx = filters[field].indexOf(value);
+        if (idx >= 0) filters[field].splice(idx, 1);
+        else filters[field].push(value);
+    }
+
+    function toggleExclusiveFilterValue(field, value) {
+        if (!filters[field]) filters[field] = [];
+        if (filters[field].length === 1 && filters[field][0] === value) {
+            filters[field] = [];
+        } else {
+            filters[field] = [value];
+        }
+    }
+
+    function toggleSwitchFilter(field) {
+        setFilterValues(field, isSwitchFilterOn(field) ? [] : ['Sí']);
+    }
+
+    function renderFusedSeg(field, values, options = {}) {
+        const exclusive = Boolean(options.exclusive);
+        const aria = options.ariaLabel || filterFieldLabel(field);
+        const grid = Boolean(options.grid);
+        const buttons = values.map(v => {
+            const active = isFilterValueActive(field, v);
+            const label = options.labelFn ? options.labelFn(v) : filterValueLabel(field, v);
+            return `<button type="button" class="pub-filter-seg-btn ${filterChipClass(field, active)}"
+                data-field="${field}" data-value="${escapeAttr(v)}" data-filter-kind="${exclusive ? 'exclusive' : 'multi'}"
+                title="${escapeAttr(String(v))}" aria-pressed="${active ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
         }).join('');
-        return `<details class="filter-group"${activeCount ? ' open' : ''}>
-            <summary class="filter-group-summary" title="${escapeAttr(label)}">
-                <span class="filter-group-label">
-                    <span class="filter-label-full">${escapeHtml(label)}</span>
-                    <span class="filter-label-short" aria-hidden="true">${escapeHtml(shortLabel)}</span>
-                </span>
-                ${activeCount ? `<span class="filter-group-count">${activeCount}</span>` : ''}
-            </summary>
-            <div class="filter-group-chips">${chips || '<span class="filter-group-empty">Sin valores</span>'}</div>
-        </details>`;
+        const segClass = grid
+            ? 'pub-filter-seg pub-filter-seg--fused pub-filter-seg--grid'
+            : 'pub-filter-seg pub-filter-seg--fused';
+        return `<div class="${segClass}" role="group" aria-label="${escapeAttr(aria)}">${buttons || '<span class="filter-group-empty">Sin valores</span>'}</div>`;
+    }
+
+    function renderSwitchBtn(field) {
+        const active = isSwitchFilterOn(field);
+        const label = FILTER_SHORT_LABELS[field] || filterFieldLabel(field);
+        return `<button type="button" class="pub-filter-switch ${active ? 'on' : ''}${filterMode === 'exclude' && active ? ' is-exclude' : ''}"
+            data-field="${field}" data-filter-kind="switch" aria-pressed="${active ? 'true' : 'false'}"
+            title="${escapeAttr(filterFieldLabel(field))}">${escapeHtml(label)}</button>`;
     }
 
     function renderFilters() {
-        filtersBody.innerHTML = `<div class="filters-stack">${FILTER_FIELDS.map(field =>
-            renderFilterCell(field)
-        ).join('')}</div>`;
+        if (!filtersBody) return;
+        for (const field of FILTER_FIELDS) {
+            if (!filters[field]) filters[field] = [];
+        }
 
-        filtersBody.querySelectorAll('.filter-chip').forEach(btn => {
+        const perfilValues = fieldFilterValues('origen');
+        const sexoValues = fieldFilterValues('sexo').filter(v => v && v !== '—');
+        const esperanzaValues = fieldFilterValues('esperanza').filter(v => v && v !== '—');
+        const grupoOpts = grupoFilterOptions();
+        const perfilActive = filters.origen?.length || 0;
+        const perfilOpen = publisherPerfilFiltersOpen;
+
+        filtersBody.innerHTML = `<div class="pub-filters-grid">
+            <div class="pub-filter-perfil${perfilOpen ? ' is-open' : ''}">
+                <button type="button" class="pub-filter-perfil-toggle" data-perfil-toggle
+                    aria-expanded="${perfilOpen ? 'true' : 'false'}">
+                    <span class="pub-filter-perfil-toggle-main">
+                        <span class="pub-filter-label pub-filter-label--inline">Perfil</span>
+                        ${perfilActive ? `<span class="pub-filter-perfil-count">${perfilActive}</span>` : ''}
+                    </span>
+                    <span class="pub-filter-perfil-chevron" aria-hidden="true">${perfilOpen ? '▾' : '▸'}</span>
+                </button>
+                <div class="pub-filter-perfil-body${perfilOpen ? ' is-open' : ''}" ${perfilOpen ? '' : 'hidden'}>
+                    ${renderFusedSeg('origen', perfilValues, {
+                        ariaLabel: 'Perfil',
+                        grid: true,
+                        labelFn: v => displayPerfil(v),
+                    })}
+                </div>
+            </div>
+            <div class="pub-filter-row">
+                <span class="pub-filter-label">Grupo</span>
+                ${renderFusedSeg('grupo', grupoOpts.map(o => o.value), {
+                    ariaLabel: 'Grupo',
+                    labelFn: v => grupoOpts.find(o => o.value === v)?.label || filterValueLabel('grupo', v),
+                })}
+            </div>
+            <div class="pub-filter-row pub-filter-row--solo">
+                ${renderFusedSeg('sexo', sexoValues, { exclusive: true, ariaLabel: 'Sexo' })}
+            </div>
+            <div class="pub-filter-row pub-filter-row--solo">
+                ${renderFusedSeg('esperanza', esperanzaValues, { exclusive: true, ariaLabel: 'Esperanza' })}
+            </div>
+            <div class="pub-filter-row pub-filter-row--pair">
+                ${renderSwitchBtn('anciano')}
+                ${renderSwitchBtn('siervo_ministerial')}
+            </div>
+            <div class="pub-filter-row pub-filter-row--triple">
+                ${renderSwitchBtn('precursor_regular')}
+                ${renderSwitchBtn('precursor_especial')}
+                ${renderSwitchBtn('misionero')}
+            </div>
+        </div>`;
+
+        filtersBody.querySelector('[data-perfil-toggle]')?.addEventListener('click', () => {
+            publisherPerfilFiltersOpen = !publisherPerfilFiltersOpen;
+            renderFilters();
+        });
+
+        filtersBody.querySelectorAll('[data-filter-kind]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const field = btn.dataset.field;
+                const kind = btn.dataset.filterKind;
                 const val = btn.dataset.value;
-                const idx = filters[field].indexOf(val);
-                if (idx >= 0) {
-                    filters[field].splice(idx, 1);
-                    btn.classList.remove('on');
-                } else {
-                    filters[field].push(val);
-                    btn.classList.add('on');
-                }
-                updateFiltersSummary();
+                if (kind === 'switch') toggleSwitchFilter(field);
+                else if (kind === 'exclusive') toggleExclusiveFilterValue(field, val);
+                else toggleMultiFilterValue(field, val);
+                if (field === 'grupo') publisherGroupFilter = '';
+                if (field === 'origen') publisherPerfilFiltersOpen = true;
+                renderFilters();
                 refreshPublishersSection();
             });
         });
@@ -1267,6 +1489,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function clearPublisherFilters() {
         filters = buildDefaultFilters();
+        publisherGroupFilter = '';
+        if (publisherBulkGrupo) publisherBulkGrupo.value = '';
         clearDetailLinkFilter();
         renderFilters();
         refreshPublishersSection();
@@ -1533,7 +1757,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeTotalsDockPanels();
             });
         });
-        document.querySelectorAll('.totals-dock-btn.kpi-mode-btn, .totals-dock-btn[data-grupos-view]').forEach(btn => {
+        document.querySelectorAll('.totals-dock-btn.kpi-mode-btn, .totals-dock-btn[data-grupos-view], .totals-dock-btn[data-publisher-view]').forEach(btn => {
             btn.addEventListener('click', () => closeDockPanelsIn(btn.closest('.totals-dock')));
         });
         document.querySelectorAll('[data-spark-metric]').forEach(btn => {
@@ -1812,7 +2036,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const top = sorted.slice(0, 16);
             return {
                 mode: 'simple',
-                labels: top.map(r => formatAggRowLabel(r)),
+                labels: top.map(r => formatAggRowLabelChart(r, top.length)),
                 datasets: [{
                     label: chartLabel,
                     data: top.map(r => D.chartMetricValue(r, metricId)),
@@ -1849,7 +2073,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tone = colors[i % colors.length];
             const isTop = i === secondaryValues.length - 1;
             return {
-                label: displayGroupValue(secondaryField, secVal),
+                label: displayGroupValueChart(secondaryField, secVal, secondaryValues.length),
                 data: topPrimary.map(primVal => {
                     const row = rowLookup.get(`${primVal}\0${secVal}`);
                     return row ? D.chartMetricValue(row, metricId) : 0;
@@ -1865,7 +2089,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return {
             mode: 'stacked',
-            labels: topPrimary.map(v => displayGroupValue(primaryField, v)),
+            labels: topPrimary.map(v => displayGroupValueChart(primaryField, v, topPrimary.length)),
             datasets,
             primaryValues: topPrimary,
             rowLookup,
@@ -1934,44 +2158,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initLayoutMode() {
-        const prefs = window.S21DashboardPreferences?.loadPrefs?.() || {};
-        layoutMode = prefs.layoutMode === 'single' ? 'single' : 'continuous';
+        layoutMode = 'single';
         singleActiveSection = getCurrentNavTarget() || 'kpi';
         applyLayoutMode();
-        btnToggleLayoutMode?.addEventListener('click', () => {
-            if (layoutMode === 'continuous') {
-                singleActiveSection = getCurrentNavTarget() || singleActiveSection;
-            }
-            window.S21DashboardPreferences?.toggleLayoutMode?.();
-        });
-        window.addEventListener('s21-prefs-changed', e => {
-            const next = e.detail?.layoutMode === 'single' ? 'single' : 'continuous';
-            if (next === layoutMode) return;
-            layoutMode = next;
+        window.S21DashboardPreferences?.setLayoutMode?.('single');
+        window.addEventListener('s21-prefs-changed', () => {
+            if (layoutMode === 'single') return;
+            layoutMode = 'single';
             applyLayoutMode();
         });
     }
 
     function syncLayoutModeButton() {
-        if (!btnToggleLayoutMode) return;
-        const single = layoutMode === 'single';
-        btnToggleLayoutMode.setAttribute('aria-pressed', single ? 'true' : 'false');
-        btnToggleLayoutMode.setAttribute('aria-label', single ? 'Vista continua' : 'Vista por sección');
-        btnToggleLayoutMode.title = single ? 'Vista continua' : 'Vista por sección';
-        btnToggleLayoutMode.querySelector('.dashboard-layout-icon--to-single')
-            ?.classList.toggle('hidden', single);
-        btnToggleLayoutMode.querySelector('.dashboard-layout-icon--to-continuous')
-            ?.classList.toggle('hidden', !single);
+        /* Vista continua retirada: la app usa solo vista por sección. */
     }
 
     function applyLayoutMode() {
-        document.body.classList.toggle('dashboard-layout-single', layoutMode === 'single');
-        syncLayoutModeButton();
-        if (layoutMode === 'single') {
-            applySingleSectionView(singleActiveSection);
-        } else {
-            clearSingleSectionView();
-        }
+        layoutMode = 'single';
+        document.body.classList.add('dashboard-layout-single');
+        document.documentElement.dataset.dashboardLayout = 'single';
+        applySingleSectionView(singleActiveSection);
         syncTotalsDockChrome();
     }
 
@@ -2285,23 +2491,10 @@ document.addEventListener('DOMContentLoaded', () => {
         publisherDetailChart?.resize();
     }
 
-    function syncChartScrollWidth(scrollEl, innerEl, itemCount, pxPerItem) {
-        if (!scrollEl || !innerEl || !itemCount) {
-            if (innerEl) {
-                innerEl.style.width = '100%';
-                innerEl.style.minWidth = '100%';
-            }
-            return;
-        }
-        const viewport = scrollEl.clientWidth || scrollEl.parentElement?.clientWidth || 0;
-        const contentWidth = itemCount * pxPerItem;
-        if (!viewport || contentWidth <= viewport) {
-            innerEl.style.width = '100%';
-            innerEl.style.minWidth = '100%';
-            return;
-        }
-        innerEl.style.width = `${contentWidth}px`;
-        innerEl.style.minWidth = `${contentWidth}px`;
+    function syncChartScrollWidth(_scrollEl, innerEl) {
+        if (!innerEl) return;
+        innerEl.style.width = '100%';
+        innerEl.style.minWidth = '100%';
     }
 
     function syncBarChartDimensions(scrollEl, innerEl, itemCount, clusterSize = 1, stacked = false) {
@@ -2327,8 +2520,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         innerEl.style.height = stacked ? '260px' : (grouped ? '240px' : '210px');
         innerEl.style.minHeight = stacked ? '260px' : (grouped ? '240px' : '210px');
-        const pxPerCategory = stacked ? 64 : (grouped ? Math.max(72, 28 + clusterSize * 14) : 56);
-        syncChartScrollWidth(scrollEl, innerEl, itemCount, pxPerCategory);
+        syncChartScrollWidth(scrollEl, innerEl);
     }
 
     function refreshChartScrollWidths() {
@@ -2343,9 +2535,7 @@ document.addEventListener('DOMContentLoaded', () => {
         );
         syncChartScrollWidth(
             document.getElementById('chart-line-scroll'),
-            document.getElementById('chart-line-wrap'),
-            lineChart?.data?.labels?.length || 0,
-            42
+            document.getElementById('chart-line-wrap')
         );
     }
 
@@ -2394,8 +2584,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const prefix = filterMode === 'exclude' ? 'Excl. ' : '';
         for (const field of FILTER_FIELDS) {
             const selected = filters[field] || [];
-            if (selected.length) {
-                const label = D.S21_GROUP_FIELDS.find(g => g.id === field)?.label || field;
+            if (!selected.length) continue;
+            const label = FILTER_SHORT_LABELS[field] || D.S21_GROUP_FIELDS.find(g => g.id === field)?.label || field;
+            if (FILTER_SWITCH_FIELDS.has(field)) {
+                parts.push(`${prefix}${label}`);
+            } else if (FILTER_EXCLUSIVE_FIELDS.has(field)) {
+                parts.push(`${prefix}${filterValueLabel(field, selected[0])}`);
+            } else if (field === 'grupo') {
+                parts.push(`${prefix}G ${selected.map(v => filterValueLabel(field, v)).join(',')}`);
+            } else {
                 parts.push(`${prefix}${label} (${selected.length})`);
             }
         }
@@ -2534,6 +2731,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPublishersSection() {
+        syncPublisherViewModeUi();
+        if (publisherViewMode === 'month') {
+            renderPublisherMonthView();
+            return;
+        }
         if (!publisherListBody) return;
 
         const pubs = D.sortPublishers(filteredPubCache);
@@ -2545,6 +2747,367 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderPublisherList();
         renderPublisherDetail();
+    }
+
+    function refreshPublisherViews() {
+        if (publisherViewMode === 'month') {
+            renderPublisherMonthView();
+            return;
+        }
+        renderPublisherList();
+    }
+
+    function setPublisherViewMode(mode) {
+        if (mode !== 'list' && mode !== 'month') return;
+        if (publisherViewMode === mode) return;
+        publisherViewMode = mode;
+        if (mode === 'month') {
+            publisherDetailReturn = null;
+            selectedPublisherKey = '';
+            renderPublisherDetail();
+        }
+        renderPublishersSection();
+    }
+
+    function syncPublisherViewModeUi() {
+        document.querySelectorAll('#publishers-dock [data-publisher-view]').forEach(btn => {
+            const active = btn.dataset.publisherView === publisherViewMode;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        const isMonth = publisherViewMode === 'month';
+        if (publisherLayout) {
+            publisherLayout.classList.toggle('hidden', isMonth);
+            publisherLayout.hidden = isMonth;
+        }
+        if (publisherMonthView) {
+            publisherMonthView.classList.toggle('hidden', !isMonth);
+            publisherMonthView.hidden = !isMonth;
+        }
+    }
+
+    function ensurePublisherMonthFocus() {
+        if (D.S21_MESES.includes(publisherMonthFocus)) return publisherMonthFocus;
+        const focus = detailFocusMes();
+        if (focus && D.S21_MESES.includes(focus)) {
+            publisherMonthFocus = focus;
+            return publisherMonthFocus;
+        }
+        publisherMonthFocus = D.S21_MESES[0];
+        return publisherMonthFocus;
+    }
+
+    function setPublisherMonthFocus(mes) {
+        if (!D.S21_MESES.includes(mes) || publisherMonthFocus === mes) return;
+        publisherMonthFocus = mes;
+        renderPublisherMonthView();
+    }
+
+    function publisherMonthMetricsTotalPx() {
+        return PUBLISHER_MONTH_METRIC_PX * PUBLISHER_MONTH_METRIC_IDS.length;
+    }
+
+    function publisherMonthFlexShare() {
+        const name = Math.max(32, Math.min(78, Number(publisherMonthNameFlexPct) || 58));
+        return { name, comment: 100 - name };
+    }
+
+    function applyPublisherMonthColWidths(table) {
+        if (!table) return;
+        const wrap = table.closest('.publisher-month-table-wrap');
+        const tableW = Math.max(
+            0,
+            wrap?.clientWidth || table.getBoundingClientRect().width || table.parentElement?.clientWidth || 0
+        );
+        if (tableW < 80) return;
+
+        const metricsTotal = publisherMonthMetricsTotalPx();
+        const flexW = Math.max(120, tableW - metricsTotal);
+        const share = publisherMonthFlexShare();
+        const namePx = Math.round((flexW * share.name) / 100);
+        const commentPx = Math.max(60, flexW - namePx);
+
+        table.style.width = `${tableW}px`;
+        table.querySelectorAll('col[data-col]').forEach(col => {
+            const id = col.dataset.col;
+            if (id === 'nombre') col.style.width = `${namePx}px`;
+            else if (id === 'comentarios') col.style.width = `${commentPx}px`;
+            else col.style.width = `${PUBLISHER_MONTH_METRIC_PX}px`;
+        });
+        table.querySelectorAll('th[data-col]').forEach(th => {
+            const id = th.dataset.col;
+            if (id === 'nombre') th.style.width = `${namePx}px`;
+            else if (id === 'comentarios') th.style.width = `${commentPx}px`;
+            else th.style.width = `${PUBLISHER_MONTH_METRIC_PX}px`;
+        });
+    }
+
+    function publisherMonthHeadHtml(col) {
+        const sortClass = publisherMonthSortState.column === col.id
+            ? (publisherMonthSortState.direction === 'asc' ? 'sort-asc' : 'sort-desc')
+            : '';
+        let mark = '';
+        if (col.id === 'nombre') {
+            mark = Icons?.metricIcon('publicadores') || '';
+        } else if (col.id === 'comentarios') {
+            mark = PUBLISHER_MONTH_COMMENT_ICON;
+        } else {
+            mark = Icons?.metricIcon(col.id) || '';
+        }
+        const isMetric = PUBLISHER_MONTH_METRIC_IDS.includes(col.id);
+        const resizer = (col.id === 'nombre' || col.id === 'comentarios')
+            ? `<span class="pub-month-col-resizer" data-resize-side="${col.id}" title="Redimensionar columnas"></span>`
+            : '';
+        return `<th class="sortable publisher-month-th${isMetric ? ' is-metric' : ''} ${sortClass}" data-col="${col.id}" scope="col" title="${escapeAttr(col.label)}" aria-label="${escapeAttr(col.label)}">
+            <span class="th-label">${mark}</span><span class="sort-icon" aria-hidden="true"></span>${resizer}
+        </th>`;
+    }
+
+    function publisherMonthBinaryHtml(on, options = {}) {
+        const miss = Boolean(options.missWhenOff) && !on;
+        const stateClass = on ? 'is-on' : (miss ? 'is-miss' : 'is-off');
+        const label = on ? 'Sí' : 'No';
+        return `<td class="num pub-month-binary">
+            <span class="status-mark ${stateClass}" aria-label="${label}" title="${label}">${on ? PUBLISHER_MONTH_CHECK_ICON : PUBLISHER_MONTH_FAIL_ICON}</span>
+        </td>`;
+    }
+
+    function publisherMonthCommentHtml(notas) {
+        const full = String(notas ?? '').trim();
+        if (!full) {
+            return `<td class="comment comment-empty">—</td>`;
+        }
+        return `<td class="comment pub-month-comment">
+            <span class="pub-month-comment-text">${escapeHtml(full)}</span>
+            <button type="button" class="pub-month-comment-more hidden" hidden>Ver más</button>
+        </td>`;
+    }
+
+    function publisherMonthCellHtml(colId, row) {
+        if (colId === 'nombre') {
+            return `<td class="pub-cell-name pub-cell-tap" title="${escapeAttr(row.nombre)}" role="button" tabindex="0"><span class="person-name pub-month-name">${escapeHtml(row.nombre)}</span></td>`;
+        }
+        if (colId === 'horas' || colId === 'cursos') {
+            const empty = !row.hasReport && !Number(row[colId]);
+            return `<td class="num pub-month-metric${empty ? ' pub-month-empty' : ''}">${empty ? '—' : formatNum(row[colId])}</td>`;
+        }
+        if (colId === 'participacion') {
+            return publisherMonthBinaryHtml(Boolean(row.participacion), { missWhenOff: true });
+        }
+        if (colId === 'precursor_auxiliar') {
+            return publisherMonthBinaryHtml(Boolean(row.precursor_auxiliar));
+        }
+        if (colId === 'comentarios') {
+            return publisherMonthCommentHtml(row.notas);
+        }
+        return `<td>—</td>`;
+    }
+
+    function syncPublisherMonthCommentOverflow(root) {
+        root?.querySelectorAll('.pub-month-comment').forEach(cell => {
+            const text = cell.querySelector('.pub-month-comment-text');
+            const btn = cell.querySelector('.pub-month-comment-more');
+            if (!text || !btn) return;
+            if (cell.classList.contains('is-expanded')) {
+                btn.hidden = false;
+                btn.classList.remove('hidden');
+                btn.textContent = 'Ver menos';
+                return;
+            }
+            const overflows = text.scrollWidth > text.clientWidth + 1;
+            btn.hidden = !overflows;
+            btn.classList.toggle('hidden', !overflows);
+            btn.textContent = 'Ver más';
+        });
+    }
+
+    function bindPublisherMonthCommentToggles(root) {
+        root?.querySelectorAll('.pub-month-comment-more').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const cell = btn.closest('.pub-month-comment');
+                const text = cell?.querySelector('.pub-month-comment-text');
+                if (!cell || !text) return;
+                const expanded = cell.classList.toggle('is-expanded');
+                btn.textContent = expanded ? 'Ver menos' : 'Ver más';
+                if (!expanded) {
+                    requestAnimationFrame(() => syncPublisherMonthCommentOverflow(root));
+                }
+            });
+        });
+    }
+
+    function bindPublisherMonthColResize(root) {
+        const table = root?.querySelector('.publisher-month-table');
+        const wrap = root?.querySelector('.publisher-month-table-wrap');
+        if (!table || !wrap) return;
+        let suppressSortClick = false;
+
+        applyPublisherMonthColWidths(table);
+
+        if (publisherMonthResizeObserver) {
+            publisherMonthResizeObserver.disconnect();
+            publisherMonthResizeObserver = null;
+        }
+        if (typeof ResizeObserver !== 'undefined') {
+            publisherMonthResizeObserver = new ResizeObserver(() => {
+                applyPublisherMonthColWidths(table);
+                syncPublisherMonthCommentOverflow(root);
+            });
+            publisherMonthResizeObserver.observe(wrap);
+        }
+
+        table.querySelectorAll('.pub-month-col-resizer').forEach(handle => {
+            handle.addEventListener('pointerdown', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                const pointerId = e.pointerId;
+                try { handle.setPointerCapture(pointerId); } catch (_) { /* ignore */ }
+
+                applyPublisherMonthColWidths(table);
+                const startX = e.clientX;
+                const nameCol = table.querySelector('col[data-col="nombre"]');
+                const commentCol = table.querySelector('col[data-col="comentarios"]');
+                const nameW = parseFloat(nameCol?.style.width) || table.querySelector('th[data-col="nombre"]')?.getBoundingClientRect().width || 0;
+                const commentW = parseFloat(commentCol?.style.width) || table.querySelector('th[data-col="comentarios"]')?.getBoundingClientRect().width || 0;
+                const flexW = Math.max(120, nameW + commentW);
+                const side = handle.dataset.resizeSide;
+                let moved = false;
+
+                const onMove = ev => {
+                    const dx = ev.clientX - startX;
+                    if (Math.abs(dx) > 2) moved = true;
+                    const signed = side === 'comentarios' ? -dx : dx;
+                    const nextNamePx = Math.max(flexW * 0.32, Math.min(flexW * 0.78, nameW + signed));
+                    publisherMonthNameFlexPct = (nextNamePx / flexW) * 100;
+                    applyPublisherMonthColWidths(table);
+                    syncPublisherMonthCommentOverflow(root);
+                };
+                const onUp = () => {
+                    handle.removeEventListener('pointermove', onMove);
+                    handle.removeEventListener('pointerup', onUp);
+                    handle.removeEventListener('pointercancel', onUp);
+                    try { handle.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
+                    document.body.classList.remove('is-col-resizing');
+                    if (moved) {
+                        suppressSortClick = true;
+                        requestAnimationFrame(() => { suppressSortClick = false; });
+                    }
+                };
+                document.body.classList.add('is-col-resizing');
+                handle.addEventListener('pointermove', onMove);
+                handle.addEventListener('pointerup', onUp);
+                handle.addEventListener('pointercancel', onUp);
+            });
+        });
+
+        table.querySelectorAll('th.sortable').forEach(th => {
+            th.addEventListener('click', e => {
+                if (suppressSortClick || e.target.closest?.('.pub-month-col-resizer')) return;
+                onPublisherMonthSortColumn(th.dataset.col);
+            });
+        });
+    }
+
+    function onPublisherMonthSortColumn(columnId) {
+        if (publisherMonthSortState.column === columnId) {
+            publisherMonthSortState.direction = publisherMonthSortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            publisherMonthSortState.column = columnId;
+            publisherMonthSortState.direction = 'asc';
+        }
+        renderPublisherMonthView();
+    }
+
+    function renderPublisherMonthView() {
+        if (!publisherMonthView) return;
+
+        const pubs = publishersForMonthDisplay();
+        updatePublisherVisibleCount(pubs);
+        const mes = ensurePublisherMonthFocus();
+
+        if (!pubs.length) {
+            publisherMonthView.innerHTML = `<p class="publisher-list-empty">Sin publicadores con los filtros actuales.</p>`;
+            return;
+        }
+
+        const mensual = filteredMensualCache.length ? filteredMensualCache : flat.mensual;
+        const monthIndex = new Map();
+        for (const row of mensual) {
+            if (!row?.mes) continue;
+            monthIndex.set(`${D.personKey(row)}|${row.mes}`, row);
+        }
+
+        let rows = pubs.map(pub => {
+            const key = D.personKey(pub);
+            const m = monthIndex.get(`${key}|${mes}`);
+            return {
+                key,
+                nombre: pub.nombre,
+                horas: Number(m?.horas) || 0,
+                cursos: Number(m?.cursos) || 0,
+                participacion: m?.participacion ? 1 : 0,
+                precursor_auxiliar: m?.precursor_auxiliar ? 1 : 0,
+                notas: m?.notas || '',
+                hasReport: Boolean(D.monthHasReport?.(m)),
+            };
+        });
+        rows = sortPublisherMonthRows(rows);
+
+        const monthTabs = D.S21_MESES.map(m => {
+            const active = m === mes;
+            const label = D.mesLabel(m, 'corto');
+            return `<button type="button" class="publisher-month-tab${active ? ' active' : ''}" data-mes="${escapeAttr(m)}" role="tab" aria-selected="${active ? 'true' : 'false'}" title="${escapeAttr(D.mesLabel(m, 'completo'))}">${escapeHtml(label)}</button>`;
+        }).join('');
+
+        const colgroup = PUBLISHER_MONTH_COLUMNS.map(col =>
+            `<col data-col="${col.id}">`
+        ).join('');
+
+        const head = PUBLISHER_MONTH_COLUMNS.map(col => publisherMonthHeadHtml(col)).join('');
+        const body = rows.map(row =>
+            `<tr data-publisher-key="${escapeAttr(row.key)}" class="publisher-month-row${row.hasReport ? '' : ' is-empty'}">
+                ${PUBLISHER_MONTH_COLUMNS.map(col => publisherMonthCellHtml(col.id, row)).join('')}
+            </tr>`
+        ).join('');
+
+        publisherMonthView.innerHTML = `<section class="publisher-month-block" data-mes="${escapeAttr(mes)}">
+            <div class="publisher-month-tabs" role="tablist" aria-label="Mes">${monthTabs}</div>
+            <div class="table-wrap table-wrap--responsive publisher-month-table-wrap">
+                <table class="data-table publisher-month-table">
+                    <colgroup>${colgroup}</colgroup>
+                    <thead><tr>${head}</tr></thead>
+                    <tbody>${body}</tbody>
+                </table>
+            </div>
+        </section>`;
+
+        publisherMonthView.querySelectorAll('.publisher-month-tab').forEach(btn => {
+            btn.addEventListener('click', () => setPublisherMonthFocus(btn.dataset.mes));
+        });
+        bindPublisherMonthCommentToggles(publisherMonthView);
+        bindPublisherMonthColResize(publisherMonthView);
+        requestAnimationFrame(() => {
+            const table = publisherMonthView.querySelector('.publisher-month-table');
+            applyPublisherMonthColWidths(table);
+            syncPublisherMonthCommentOverflow(publisherMonthView);
+        });
+        publisherMonthView.querySelectorAll('.pub-cell-tap').forEach(cell => {
+            const open = () => {
+                const tr = cell.closest('tr[data-publisher-key]');
+                if (tr) openPublisherFromList(tr.dataset.publisherKey, { fromMonth: true });
+            };
+            cell.addEventListener('click', e => {
+                e.stopPropagation();
+                open();
+            });
+            cell.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    open();
+                }
+            });
+        });
     }
 
     function filterPublishersForList(pubs) {
@@ -2568,9 +3131,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return sortPublisherRows(rows);
     }
 
+    function publishersForMonthDisplay() {
+        let rows = filterPublishersForList(filteredPubCache);
+        if (D.uniquePublishers) rows = D.uniquePublishers(rows);
+        return D.sortPublishers ? D.sortPublishers(rows) : rows;
+    }
+
     function updatePublisherVisibleCount(pubs) {
         if (!publisherCount) return;
-        publisherCount.textContent = `${pubs.length} publicador${pubs.length === 1 ? '' : 'es'}`;
+        const n = pubs.length;
+        const numEl = document.getElementById('publisher-count-num');
+        if (numEl) numEl.textContent = String(n);
+        else publisherCount.textContent = String(n);
+        publisherCount.title = `${n} publicador${n === 1 ? '' : 'es'}`;
+        publisherCount.setAttribute('aria-label', `${n} publicador${n === 1 ? '' : 'es'}`);
     }
 
     function sortPublisherRows(rows) {
@@ -2584,6 +3158,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return (Number(va) - Number(vb)) * dir;
             }
             return String(va).localeCompare(String(vb), 'es') * dir;
+        });
+    }
+
+    function sortPublisherMonthRows(rows) {
+        const col = PUBLISHER_MONTH_COLUMNS.find(c => c.id === publisherMonthSortState.column);
+        if (!col) return rows;
+        const dir = publisherMonthSortState.direction === 'asc' ? 1 : -1;
+        return [...rows].sort((a, b) => {
+            const va = col.getValue(a);
+            const vb = col.getValue(b);
+            if (col.type === 'number') {
+                return (Number(va) - Number(vb)) * dir;
+            }
+            return String(va || '').localeCompare(String(vb || ''), 'es') * dir;
         });
     }
 
@@ -2775,7 +3363,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (publisherBulkGrupo) publisherBulkGrupo.value = '';
             detailMonthlyFilter = null;
             updateDetailFilterBanner();
-        } else if (options.fromList) {
+        } else if (options.fromList || options.fromMonth) {
+            if (options.fromMonth) {
+                publisherViewMode = 'list';
+                syncPublisherViewModeUi();
+            }
             publisherDetailReturn = {
                 origin: 'publishers',
                 state: capturePublisherListNavigationState(),
@@ -3597,9 +4189,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const colLabel = D.groupFieldLabel(colField);
 
         pivotHead.innerHTML = `<tr>
-            <th scope="col" class="totals-matrix-corner">${escapeHtml(rowLabel)} \\ ${escapeHtml(colLabel)}</th>
+            <th scope="col" class="totals-matrix-corner">${escapeHtml(rowLabel)}<br>\\ ${escapeHtml(colLabel)}</th>
             ${colValues.map(colVal =>
-                `<th scope="col" class="totals-matrix-col-head">${escapeHtml(displayGroupValue(colField, colVal))}</th>`
+                `<th scope="col" class="totals-matrix-col-head">${formatMatrixHeadCell(colField, colVal)}</th>`
             ).join('')}
         </tr>`;
 
@@ -3668,7 +4260,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? (Icons?.metricIcon(col.id) || '')
                 : '';
             return `<th class="sortable ${sortClass}" data-col="${col.id}" scope="col">
-                <span class="th-label">${metricMark}<span>${escapeHtml(col.label)}</span></span><span class="sort-icon" aria-hidden="true"></span>
+                <span class="th-label">${metricMark}<span>${formatTableHeaderHtml(col.label)}</span></span><span class="sort-icon" aria-hidden="true"></span>
             </th>`;
         }).join('')}</tr>`;
 
@@ -4462,7 +5054,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         datasets: barChartData.datasets,
                     },
                     options: {
-                        ...chartBarOptions(metricId, stacked),
+                        ...chartBarOptions(metricId, stacked, barChartData.labels.length),
                         onClick: (_evt, elements) => handleBarChartClick(elements),
                     },
                     plugins: stacked ? [createStackTotalsPlugin(metricId)] : [],
@@ -4510,7 +5102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }],
             },
             options: {
-                ...chartLineOptions(metricId, trend, focusMes),
+                ...chartLineOptions(metricId, trend, focusMes, lineLabels.length),
                 onClick: (_evt, elements) => {
                     if (!elements.length) return;
                     const point = chartLineTrendCache[elements[0].index];
@@ -4563,8 +5155,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function chartLineOptions(metricId, trend, focusMes) {
-        const base = chartOptions(metricId);
+    function chartLineOptions(metricId, trend, focusMes, categoryCount = 0) {
+        const base = chartOptions(metricId, categoryCount);
         if (!focusMes) return base;
         return {
             ...base,
@@ -4581,7 +5173,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         },
                         font(ctx) {
                             const mes = trend[ctx.index]?.mes;
-                            return { size: 10, weight: mes === focusMes ? '700' : '400' };
+                            const dense = categoryCount > 8;
+                            return { size: dense ? 9 : 10, weight: mes === focusMes ? '700' : '400' };
                         },
                     },
                 },
@@ -4600,9 +5193,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${ctx.dataset.label}: ${Math.round(v).toLocaleString('es')}`;
     }
 
-    function chartBarOptions(metricId, stacked = false) {
+    function chartBarOptions(metricId, stacked = false, categoryCount = 0) {
         const horizontal = prefersHorizontalBarChart({ stacked });
-        const base = chartOptions(metricId);
+        const base = chartOptions(metricId, categoryCount);
+        const dense = categoryCount > 8;
         const c = chartPalette();
         const multi = stacked;
         const interaction = {
@@ -4652,8 +5246,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         ...stackPatch,
                         ticks: {
                             ...base.scales.x.ticks,
-                            maxRotation: 0,
-                            autoSkip: false,
+                            maxRotation: dense ? 45 : 0,
+                            minRotation: dense ? 35 : 0,
+                            autoSkip: categoryCount > 14,
                         },
                     },
                     y: {
@@ -4704,7 +5299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function chartOptions(metricId) {
+    function chartOptions(metricId, categoryCount = 0) {
         const spec = D.S21_CHART_METRICS.find(m => m.id === metricId);
         const isAvg = spec?.aggregation === 'avg';
         const interaction = {
@@ -4714,6 +5309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const isCount = spec?.aggregation === 'count';
         const c = chartPalette();
+        const dense = categoryCount > 8;
         return {
             responsive: true,
             maintainAspectRatio: false,
@@ -4733,7 +5329,13 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             scales: {
                 x: {
-                    ticks: { color: c.tick, maxRotation: 0, minRotation: 0, font: { size: 10 }, autoSkip: false },
+                    ticks: {
+                        color: c.tick,
+                        maxRotation: dense ? 45 : 0,
+                        minRotation: dense ? 35 : 0,
+                        font: { size: dense ? 9 : 10 },
+                        autoSkip: categoryCount > 14,
+                    },
                     grid: { color: c.grid },
                 },
                 y: {

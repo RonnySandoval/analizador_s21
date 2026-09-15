@@ -1,6 +1,6 @@
 (function () {
     const PREFS_KEY = 'analisis_servicio_prefs';
-    const DEFAULTS = { theme: 'dark', fontScale: 1, layoutMode: 'continuous' };
+    const DEFAULTS = { theme: 'dark', fontScale: 1, layoutMode: 'single' };
 
     let prefs = loadPrefs();
 
@@ -11,7 +11,7 @@
             return {
                 theme: raw.theme === 'light' ? 'light' : 'dark',
                 fontScale: clampFontScale(raw.fontScale),
-                layoutMode: raw.layoutMode === 'single' ? 'single' : 'continuous',
+                layoutMode: 'single',
             };
         } catch {
             return { ...DEFAULTS };
@@ -30,10 +30,10 @@
     }
 
     function applyPrefs(next) {
-        prefs = next;
+        prefs = { ...next, layoutMode: 'single' };
         const root = document.documentElement;
         root.dataset.theme = prefs.theme;
-        root.dataset.dashboardLayout = prefs.layoutMode === 'single' ? 'single' : 'continuous';
+        root.dataset.dashboardLayout = 'single';
         root.style.setProperty('--app-font-scale', String(prefs.fontScale));
         const meta = document.querySelector('meta[name="theme-color"]');
         if (meta) {
@@ -50,19 +50,19 @@
             root.classList.add('s21-theme-fade');
             window.setTimeout(() => root.classList.remove('s21-theme-fade'), 280);
         }
-        const next = { ...prefs, theme: nextTheme };
+        const next = { ...prefs, theme: nextTheme, layoutMode: 'single' };
         savePrefs(next);
         applyPrefs(next);
     }
 
-    function setLayoutMode(mode) {
-        const next = { ...prefs, layoutMode: mode === 'single' ? 'single' : 'continuous' };
+    function setLayoutMode() {
+        const next = { ...prefs, layoutMode: 'single' };
         savePrefs(next);
         applyPrefs(next);
     }
 
     function toggleLayoutMode() {
-        setLayoutMode(prefs.layoutMode === 'single' ? 'continuous' : 'single');
+        setLayoutMode('single');
     }
 
     function syncThemeChoiceButtons(theme) {
