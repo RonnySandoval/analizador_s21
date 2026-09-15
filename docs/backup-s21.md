@@ -52,6 +52,8 @@ web/google/          GoogleAuth, GmailClient, mime, GmailBackupProvider
 
 **Error `insufficient authentication scopes`:** el token no incluye Gmail. En la pantalla de consentimiento OAuth añada el scope `https://www.googleapis.com/auth/gmail.modify`, guarde, en la app use **Desconectar** / **Volver a conectar** y acepte el permiso de Gmail (no solo correo/perfil).
 
+La sesión OAuth se guarda en el navegador (~1 h, duración del token). Al refrescar no hace falta reconectar; al caducar o pulsar **Desconectar**, sí.
+
 Sin Client ID, ZIP y carpeta siguen disponibles.
 
 ## Privacidad

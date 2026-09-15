@@ -5,6 +5,7 @@
         'email',
         GMAIL_SCOPE,
     ];
+    const TOKEN_STORE_KEY = 's21_google_oauth_token';
 
     let tokenClient = null;
     let accessToken = null;
@@ -12,6 +13,62 @@
     let grantedScopes = '';
     let profileEmail = null;
     let gisLoaded = false;
+
+    function persistSession() {
+        try {
+            if (!accessToken || !tokenExpiresAt) {
+                localStorage.removeItem(TOKEN_STORE_KEY);
+                return;
+            }
+            localStorage.setItem(TOKEN_STORE_KEY, JSON.stringify({
+                accessToken,
+                tokenExpiresAt,
+                grantedScopes,
+                profileEmail,
+            }));
+        } catch {
+            /* ignore quota / private mode */
+        }
+    }
+
+    function clearPersistedSession() {
+        try {
+            localStorage.removeItem(TOKEN_STORE_KEY);
+        } catch {
+            /* ignore */
+        }
+    }
+
+    function restoreSession() {
+        try {
+            const raw = localStorage.getItem(TOKEN_STORE_KEY);
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data?.accessToken || !data?.tokenExpiresAt) {
+                clearPersistedSession();
+                return false;
+            }
+            if (Date.now() >= Number(data.tokenExpiresAt) - 30_000) {
+                clearPersistedSession();
+                return false;
+            }
+            const scopes = data.grantedScopes || '';
+            if (!String(scopes).split(/[\s,]+/).includes(GMAIL_SCOPE)) {
+                clearPersistedSession();
+                return false;
+            }
+            accessToken = data.accessToken;
+            tokenExpiresAt = Number(data.tokenExpiresAt);
+            grantedScopes = scopes;
+            profileEmail = data.profileEmail || null;
+            return true;
+        } catch {
+            clearPersistedSession();
+            return false;
+        }
+    }
+
+    restoreSession();
 
     async function resolveClientId() {
         if (window.S21_GOOGLE_CLIENT_ID) return window.S21_GOOGLE_CLIENT_ID;
@@ -81,7 +138,16 @@
     }
 
     function isAuthenticated() {
-        return !!(accessToken && Date.now() < tokenExpiresAt - 30_000 && hasGmailScope());
+        if (!(accessToken && Date.now() < tokenExpiresAt - 30_000 && hasGmailScope())) {
+            if (accessToken && Date.now() >= tokenExpiresAt - 30_000) {
+                accessToken = null;
+                tokenExpiresAt = 0;
+                grantedScopes = '';
+                clearPersistedSession();
+            }
+            return false;
+        }
+        return true;
     }
 
     function getAccessToken() {
@@ -99,6 +165,7 @@
         tokenExpiresAt = 0;
         grantedScopes = '';
         profileEmail = null;
+        clearPersistedSession();
         try {
             if (old && window.google?.accounts?.oauth2?.revoke) {
                 google.accounts.oauth2.revoke(old, () => {});
@@ -165,6 +232,7 @@
         const expiresIn = Number(tokenResponse.expires_in) || 3600;
         tokenExpiresAt = Date.now() + expiresIn * 1000;
         profileEmail = await fetchProfile(accessToken);
+        persistSession();
         window.dispatchEvent(new CustomEvent('s21-google-auth', {
             detail: { connected: true, email: profileEmail },
         }));
